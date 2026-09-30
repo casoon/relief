@@ -381,6 +381,11 @@ pub mod ffi {
         /// Antwort nach dem Scrollen: Position vorher, nachher, größte
         /// Position (gleiche Einheit).
         fn scrolled_text(direction: ScrollDirection, before: f64, after: f64, max: f64) -> String;
+        /// Inspector: Bereiche, Überschriften, Bedienelemente als JSON.
+        fn inspector_json(runtime: &Runtime) -> String;
+        /// Inspector „im Dokument zeigen“: Schritte zum Eintrag `key`
+        /// (Fokus bzw. Hinbewegen), danach `finish_command`.
+        fn show_node(runtime: &mut Runtime, key: &str) -> Reply;
         fn parse_task_file(text: &str) -> Vec<Task>;
         /// Teilstring ohne Groß-/Kleinschreibung (auch Umlaute).
         fn expectation_met(answer: &str, expected: &str) -> bool;
@@ -494,14 +499,26 @@ fn node_count(runtime: &Runtime) -> u64 {
     runtime.graph().len() as u64
 }
 
+fn inspector_json(runtime: &Runtime) -> String {
+    crate::inspector::inspector_json(runtime)
+}
+
+fn show_node(runtime: &mut Runtime, key: &str) -> ffi::Reply {
+    reply_to_ffi(runtime.show(key))
+}
+
 fn run_command(runtime: &mut Runtime, input: &str) -> ffi::Reply {
+    reply_to_ffi(runtime.command(input))
+}
+
+fn reply_to_ffi(reply: Reply) -> ffi::Reply {
     let mut out = ffi::Reply {
         kind: ffi::ReplyKind::Answer,
         text: String::new(),
         steps: Vec::new(),
         scroll: ffi::ScrollDirection::Down,
     };
-    match runtime.command(input) {
+    match reply {
         Reply::Answer(text) => out.text = text,
         Reply::Escape => out.kind = ffi::ReplyKind::Escape,
         Reply::Scroll(direction) => {

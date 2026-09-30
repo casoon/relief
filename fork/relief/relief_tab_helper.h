@@ -11,10 +11,13 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
+#include "base/observer_list.h"
+#include "base/observer_list_types.h"
 #include "base/scoped_observation.h"
 #include "base/threading/sequence_bound.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "relief/bridge/ax_tree_mirror.h"
@@ -59,11 +62,29 @@ class ReliefTabHelper
       const ui::AXTreeID& tree_id,
       ui::AXLocationAndScrollUpdates& details) override;
   void PrimaryPageChanged(content::Page& page) override;
+  void DidFinishLoad(content::RenderFrameHost* render_frame_host,
+                     const GURL& validated_url) override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
 
   // ui::AXActionHandlerObserver:
   void TreeRemoved(ui::AXTreeID tree_id) override;
+
+  // Für den Inspector (inspector/): Benachrichtigung auf dem UI-Thread,
+  // sobald eine Delta an die Runtime ging.
+  class InspectorObserver : public base::CheckedObserver {
+   public:
+    virtual void OnGraphChanged() = 0;
+    virtual void OnTabHelperDestroyed() = 0;
+  };
+  void AddObserver(InspectorObserver* observer);
+  void RemoveObserver(InspectorObserver* observer);
+  // Graph als JSON (crates/relief-bridge/src/inspector.rs).
+  void InspectorJson(base::OnceCallback<void(std::string)> done);
+  // Eintrag im Dokument zeigen (Fokus bzw. Hinbewegen, nichts auslösen);
+  // `done` bekommt die Antwort nach kurzer Ruhe.
+  void Show(const std::string& key,
+            base::OnceCallback<void(std::string)> done);
 
   // Für den Aufgaben-Runner (relief_task_runner.h). Antworten der Runtime
   // kommen auf dem UI-Thread an, nach allen bis zum Aufruf gesendeten
@@ -120,6 +141,11 @@ class ReliefTabHelper
   // Ende aufgeschoben (eine offene genügt).
   void RequestReset(std::string_view reason);
   void Reset(std::string_view reason);
+  // Tastenkürzel für den Inspector am Widget des Hauptframes (vor der
+  // Seite, → inspector/relief_inspector.h).
+  void WatchKeys(content::RenderFrameHost* frame);
+  bool OnKeyPress(const input::NativeWebKeyboardEvent& event);
+  void NotifyGraphChanged();
   // Blink-Pixel je CSS-Pixel für die Positionen: Geräte-Skalierung ×
   // Browser-Zoom.
   float Scale() const;
@@ -148,6 +174,13 @@ class ReliefTabHelper
   base::TimeTicks last_packet_;
   // --relief-run, nur im ersten Tab.
   std::unique_ptr<ReliefTaskRunner> task_runner_;
+  base::ObserverList<InspectorObserver> observers_;
+  // Widget (Prozess, Routing-ID), an dem das Tastenkürzel hängt; ein
+  // Widget kann einen Frame überleben.
+  std::optional<std::pair<int32_t, int32_t>> keys_widget_;
+  content::RenderWidgetHost::KeyPressEventCallback key_callback_;
+  // --relief-inspector: nach dem ersten Laden öffnen (einmal).
+  bool open_inspector_ = false;
   base::ScopedObservation<ui::AXActionHandlerRegistry,
                           ui::AXActionHandlerObserver>
       registry_observation_{this};

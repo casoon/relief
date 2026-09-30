@@ -1081,6 +1081,7 @@ dependencies = [
  "cxx",
  "relief-interaction",
  "relief-model",
+ "serde",
  "serde_json",
 ]
 

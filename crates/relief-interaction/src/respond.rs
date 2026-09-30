@@ -59,7 +59,7 @@ pub fn describe(graph: &Graph) -> String {
 
 /// Seitentyp als Satz, immer als Vermutung und mit Evidence; bei
 /// „unbekannt“ nichts (keine Aussage ist hier ehrlicher als eine leere).
-fn page_type(graph: &Graph) -> Option<String> {
+pub fn page_type(graph: &Graph) -> Option<String> {
     let kind = &graph.page.kind;
     let t = kind.value.filter(|t| *t != PageType::Unknown)?;
     Some(match kind.certainty {

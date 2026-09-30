@@ -384,8 +384,10 @@ Grundlage für 17 (Umsetzung) und den Rebase-Aufwand (Abschnitt
 | 1 | `chrome/browser/ui/tabs/tab_features.cc:197` (`TabFeatures::Init`) — **umgesetzt [17] ohne Header-Patch** | ein Include (`relief/relief_attach.h`) und eine Zeile `tab_subscriptions_.push_back(relief::AttachToTab(tab));` direkt nach `webui::InitEmbeddingContext` | Tab-Features werden nur hier erzeugt; `TabHelpers::AttachTabHelpers` ist für Desktop ausdrücklich nicht mehr zu verwenden (`chrome/browser/ui/tab_helpers.cc:308–311`) |
 | 2 | `chrome/browser/ui/tabs/BUILD.gn` (Target `impl` mit `tab_features.cc`, `:501`) — **umgesetzt [17]** | `"//relief",` nach `"//net",` in `deps` | GN-Abhängigkeit muss beim Nutzer stehen |
 | 3 | `chrome/browser/DEPS` (ein `chrome/browser/ui/tabs/DEPS` gibt es nicht [belegt]) | `"+relief"` in `include_rules` | checkdeps (Presubmit) verbietet sonst das Include; für den Build nicht nötig → **entfällt**, solange Relief den Chromium-Presubmit nicht fährt [Entscheidung] |
-| 4 | `chrome/browser/ui/side_panel/side_panel_entry_id.h:19–55` | ein `V(kRelief…)`-Eintrag; Action-ID in `chrome/browser/ui/actions/chrome_action_id.h` nur, wenn das Panel eine Toolbar-Aktion braucht — `std::nullopt` statt Action-ID ist vorgesehen (`kWebView`, `kSidePanelDev`) | Side-Panel-IDs sind ein zentrales Makro-Enum (erst ab Paket 20) |
-| 5 | `chrome/browser/ui/webui/chrome_web_ui_configs.cc:245` oder `chrome_untrusted_web_ui_configs.cc` | Registrierung der Relief-WebUI | zentrale Registrierung (nur falls WebUI, Paket 20) |
+| 4 | `chrome/browser/ui/side_panel/side_panel_entry_id.h` und `chrome/browser/ui/actions/chrome_action_id.h` — **umgesetzt [20], ein Patch** | `V(kRelief, kActionSidePanelShowRelief, "Relief")` nach `kTestTabScopedEntry`; `E(kActionSidePanelShowRelief)` nach `kActionSidePanelShowReadAnything` | Side-Panel-IDs und Aktions-IDs sind zentrale Makro-Enums. Eine Aktions-ID ist Pflicht [belegt]: Kopfzeile (`SidePanelHelper::GetActionItem`) und Toolbar-Zustand (`SidePanelToolbarPinningController::UpdateActiveState`) prüfen sie per `CHECK`; `std::nullopt` geht nur für Sonderfälle (`kWebView`, `kExtension`). Das Aktions-Element selbst meldet `//relief` zur Laufzeit an `BrowserActions` an |
+| 5 | ~~`chrome/browser/ui/webui/chrome_web_ui_configs.cc`~~ — **entfällt [20]** | — | die WebUI registriert `//relief` zur Laufzeit über `content::WebUIConfigMap::AddWebUIConfig`; Ressourcen ohne grit (Header aus `inspector/embed_resources.py`), also auch kein Eintrag in `tools/gritsettings/resource_ids.spec`; `WebUIContentsWrapperT` wird umgangen, weil es den WebUI-Namen gegen eine Histogramm-Liste prüft (`tools/metrics`) |
+
+Stand: drei Patches (`fork/patches/series`).
 
 Nicht nötig [belegt]:
 
@@ -819,18 +821,66 @@ TabFeatures::Init ──(Patch 1)──> relief::AttachToTab(tab)       nur mit 
   (beide Wege); begrenzter Neuaufbau. Erstbau des Targets 8,6 min, danach
   wie `chrome`; Lauf 24–55 s.
 
-## Verzeichnisstruktur im Fork [Stand 33 · Rest Annahme]
+## Semantic Inspector (Paket 20) [belegt]
+
+Side Panel je Tab mit einer WebUI (`chrome://relief-inspector.top-chrome`),
+die den Graph der Seite live zeigt. Entscheidung **WebUI statt Views**:
+semantisches HTML mit nativen Bedienelementen, dieselben Prüfwerkzeuge wie
+für Webseiten und Chromiums eingebauter WebUI-Semantikprüfer (Blink bricht
+in Builds mit DCHECK bei Namen auf verbotenen Rollen ab; er hat im Test
+einen Namen auf `<dt>` gefunden, die Details sind deshalb eine Liste).
+
+```
+Strg+Umschalt+I (KeyPressEventCallback am Widget des Hauptframes) oder --relief-inspector
+  → ToggleInspector(tab): Eintrag kRelief in der SidePanelRegistry des Tabs (beim ersten Öffnen),
+    Aktions-Element kActionSidePanelShowRelief an BrowserActions (Titel der Kopfzeile)
+  → InspectorView (SidePanelWebUIView) + InspectorContentsWrapper → ReliefInspectorUI
+      Ressourcen aus inspector/resources/ als Header (embed_resources.py, kein grit)
+      InspectorHandler (chrome.send): "ready" → ShowUI (erst dann zeigt das Side Panel
+      den Eintrag) + Daten; "show" → „im Dokument zeigen“
+ReliefTabHelper: nach jeder Delta OnGraphChanged → Handler bündelt 250 ms
+  → RuntimeHost::InspectorJson → inspector_json (Rust) → WebUI-Listener "graph"
+```
+
+- **Daten** (`crates/relief-bridge/src/inspector.rs`): Bereiche,
+  Überschriften und Bedienelemente des Interaction Graph mit Rolle, Namen
+  und dessen Herkunft (`Certainty`, Quelle, Evidence), Bereich, Wert,
+  Zuständen, gemeldeten Aktionen, Beziehungen (mit Namen der Ziele) und
+  Erreichbarkeit bei offenem modalem Dialog; Schlüssel `<Baum>#<Knoten>`,
+  stabil über Deltas; Position der Sitzung markiert.
+- **Auswahl und Aktivierung getrennt:** Pfeiltasten in der Liste (natives
+  `<select size>` mit `<optgroup>`) wählen aus und zeigen Details, sonst
+  nichts. Eingabetaste oder „Im Dokument zeigen“ bewegt Relief zum Eintrag
+  (`Runtime::show`: Bedienelemente fokussieren, Überschriften und Bereiche
+  ansteuern, gesperrte ablehnen) und löst nie etwas aus, auch keinen
+  riskanten Button. Der Fokus der Oberfläche bleibt im Panel.
+- **Ansagen gebündelt:** Statuszeile (`role=status`) meldet Änderungen der
+  Seite höchstens alle 3 s und nur, wenn sich die Zahl der Einträge ändert;
+  abschaltbar.
+- **Test:** `relief_browsertests --gtest_filter=*Inspektor*` — Kürzel öffnet
+  und schließt, Graph erscheint und folgt einer DOM-Änderung, Auswahl ohne
+  Wirkung auf der Seite, Aktivierung fokussiert ohne Klick, jedes
+  Bedienelement des Panels hat einen Namen (AX-Baum der WebUI).
+- **Nachweis live:** `spike/fixtures/shop-clean.html` und
+  de.wikipedia.org/wiki/Barrierefreiheit (46 Bereiche, Seitentyp Artikel mit
+  Evidence) im eigenen Build, Bildschirmfoto im PR.
+- **Grenzen:** Das Kürzel hängt am Widget des Hauptframes; liegt der Fokus
+  in einem cross-site-iframe (eigenes Widget), kommt es dort nicht an. Die
+  Liste wird bei jeder Aktualisierung neu aufgebaut (Auswahl bleibt); ob
+  VoiceOver dabei die Position hält, ist ungeprüft. Kürzel-Konflikte unter
+  Windows/Linux (Strg+Umschalt+I = Entwicklertools) → 31/47.
+
+## Verzeichnisstruktur im Fork [Stand 20 · Rest Annahme]
 
 ```
 //relief/
-├── BUILD.gn       # rust_static_library relief_model_rs, relief_bridge_rs; source_set relief
-├── relief_*.h/cc  # Einstieg je Tab, Schalter
+├── BUILD.gn       # rust_static_library relief_model_rs, relief_interaction_rs, relief_bridge_rs; action inspector_resources; source_set relief
+├── relief_*.h/cc  # Einstieg je Tab, Schalter, Aufgaben-Runner
 ├── bridge/        # C++-Adapter AXTree ↔ Relief-Modell, Runtime-Sequenz, AXActionData-Rückweg
-├── crates/        # Kopie von crates/relief-model/src und crates/relief-bridge/src (scripts/fork-apply.sh)
-├── ui/            # Inspector-Panel, Command-Leiste, Semantic View
-├── speech/        # STT/TTS-Adapter
-├── ai/            # Modell-Adapter (lokal/Cloud), nur hinter der Privacy Boundary
-├── privacy/       # Filter sensibler Felder, Consent
+├── inspector/     # Semantic Inspector: Side-Panel-Eintrag, WebUI, Ressourcen
+├── crates/        # Kopie der Crates relief-model, relief-interaction, relief-bridge (scripts/fork-apply.sh)
+├── speech/        # STT/TTS-Adapter (Annahme)
+├── ai/            # Modell-Adapter (lokal/Cloud), nur hinter der Privacy Boundary (Annahme)
 └── testing/       # Browser-Tests der Integrationspunkte (relief_browsertests, data/)
 ```
 

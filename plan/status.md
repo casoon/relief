@@ -62,6 +62,10 @@ statt Fokus auf Überschriften), Aufgaben 01–05 im Fork 68/68 über
 `--relief-run`, Befehlsablauf für beide Hosts in `relief_interaction::session`,
 beschrieben in
 [spezifikation/05](spezifikation/05-intents-und-aktionen.md#im-fork-über-axactiondata-paket-24-belegt).
+Semantic Inspector im Fork (Side Panel, WebUI, live, Auswahl und
+Aktivierung getrennt), beschrieben in
+[spezifikation/01](spezifikation/01-chromium-integration.md#semantic-inspector-paket-20-belegt);
+der VoiceOver-Durchgang durch das Panel steht mit 47 aus.
 Formular-Zusicherungen im Aufgabenformat (`assert:`) umgesetzt, browserfrei
 ausgewertet mit `a11y-dom`, `accname` und `a11y-report` (Feature
 `assertions`, nicht im Fork); `statusmeldung` prüft die Änderung der
@@ -74,13 +78,13 @@ Relief ersetzt in barrierlab den Reader-Host als Konsument
 
 **Sofort startbar:**
 - Cloud: 55 (DOM-Fakten mit Rendering), 48 (Sicherheits-Regressionsmatrix)
-- Cloud + M4: 20 (Inspector), 40 (Overlay und Consent), 36 (Branding),
+- Cloud + M4: 25 (Befehlsleiste), 21 (Befunde im Inspector), 40 (Overlay und Consent), 36 (Branding),
   44 (Lauf ohne Fenster, JUnit)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
-- Linie A: 20 → 25 → dann 26, 29, 38, 39 parallel (40 schon jetzt) → 41;
+- Linie A: 25 → dann 26, 29, 38, 39 parallel (40 schon jetzt) → 41;
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 43 und 44 parallel → 45; 55 jederzeit.
 - Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
@@ -89,9 +93,8 @@ Relief ersetzt in barrierlab den Reader-Host als Konsument
 | Nr | Thema | Umgebung | Status | Abhängig von | Datei |
 |---|---|---|---|---|---|
 | 10 | Cloud-Setup: Nachweis in einer Cloud-Session (CI unter Linux grün) | Cloud | blockiert: Cloud-Sessions HTTP 403 | Zugang | [10](10-cloud-umgebung-und-ci.md) |
-| 20 | Semantic Inspector im Fork | Cloud + M4 | offen | 19 ✓ | [20](20-inspector-panel.md) |
-| 21 | Befunde aus a11y-rules im Inspector | Cloud + M4 | offen | 20 | [21](21-befunde-im-inspector.md) |
-| 25 | Befehlsleiste nativ im Fork | Cloud + M4 | offen | 20, 24 ✓ | [25](25-befehlsleiste-im-fork.md) |
+| 21 | Befunde aus a11y-rules im Inspector | Cloud + M4 | offen | 20 ✓ | [21](21-befunde-im-inspector.md) |
+| 25 | Befehlsleiste nativ im Fork | Cloud + M4 | offen | 20 ✓, 24 ✓ | [25](25-befehlsleiste-im-fork.md) |
 | 26 | Sprachschicht | Cloud + M4 | offen | 25 | [26](26-sprache.md) |
 | 28 | Resolver: Messlauf und Schwellen | lokal / Cloud (API-Key) | wartet auf API-Key | 27 ✓, 12 ✓ | [28](28-resolver-fehlende-namen.md) |
 | 29 | Semantic View | Cloud + M4 | offen | 25 | [29](29-semantic-view.md) |
@@ -107,7 +110,7 @@ Relief ersetzt in barrierlab den Reader-Host als Konsument
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
 | 44 | Lauf ohne Fenster, JUnit-Bericht | Cloud + M4 | offen | 42 ✓ | [44](44-kopflos-und-junit.md) |
 | 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 | [45](45-playwright-anbindung.md) |
-| 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20, 25 | [47](47-relief-ui-accessibility.md) |
+| 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 | [47](47-relief-ui-accessibility.md) |
 | 48 | Sicherheits-Regressionsmatrix für Modellgrenzen | Cloud | offen | 24 ✓, vor Modellintegration | [48](48-sicherheits-regressionen.md) |
 | 55 | DOM-Fakten mit Rendering, iframes und Shadow DOM (Namensvergleich) | Cloud | offen | 42 ✓, 49 ✓ | [55](55-dom-fakten-rendering.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
