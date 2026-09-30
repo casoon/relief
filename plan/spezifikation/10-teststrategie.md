@@ -167,8 +167,16 @@ setup-chrome für Ubuntu 24), Hülle `/usr/local/bin/google-chrome-stable` mit
 `--no-sandbox` (Chrome als root verweigert die Sandbox), die chromiumoxide
 über den PATH findet. Ubuntus `chromium` ist ein Snap und scheidet aus.
 
-**Offen:** Der Browser-Job und das Setup-Skript sind unter Linux noch nicht
-gelaufen (→ Backlog 10).
+**Linux-Nachweis [belegt, 2026-09-30]:** Erster CI-Lauf im öffentlichen
+Repo (PR casoon/relief#1): Job **rust** grün, Job **browser** mit Chrome for
+Testing 154.0.8037.57 unter Ubuntu 24.04 „68 erfüllt, 0 nicht erfüllt“. Zwei
+Korrekturen waren nötig: Chrome for Testing führt 154.0.8037.58 nicht
+(→ .57); Ubuntu 24.04 setzt `kernel.apparmor_restrict_unprivileged_userns`
+= 1, Chrome bricht dann in der Zygote ab, der Job setzt den Wert auf 0 statt
+`--no-sandbox`. Der CDP-Host läuft damit unter Linux.
+
+**Offen:** Das Setup-Skript ist in einer Cloud-Session noch nicht gelaufen
+(Cloud-Sessions scheitern bisher mit HTTP 403, → Backlog 10).
 
 ## Messgrößen
 

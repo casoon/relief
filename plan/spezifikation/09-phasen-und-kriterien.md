@@ -154,8 +154,9 @@ Nicht belegt: Seiten, die dauerhaft kurze Anfragen senden (Polling unter 1 s);
 sie warten bis zur Obergrenze von 3 s.
 
 Nicht belegt: Aktionen über `AXActionData` (der Spike nutzt DOM/JS am Element),
-Widgets, die nur auf echte Tastaturereignisse reagieren, Linux und Windows
-(kein Linux-/Windows-Host verfügbar). Offen → Backlog 10, 30, 31.
+Widgets, die nur auf echte Tastaturereignisse reagieren, Windows (kein
+Host). Offen → Backlog 30, 31. Linux: CDP-Host in der CI belegt (→ 10,
+„Linux-Nachweis“, 2026-09-30).
 
 ## Phase 0b · Machbarkeitsstudie Chromium
 
