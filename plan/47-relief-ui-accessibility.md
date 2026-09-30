@@ -35,6 +35,10 @@ erfüllen dieselbe verbindliche User-Agent-Baseline (→ spezifikation/13).
   Offen: manueller Tastatur- und VoiceOver-Durchgang (Ansage von Zustand
   und Log, Fokus nach Schließen), Kürzelkonflikte mit VoiceOver prüfen.
 
+- Sprungmarken (38): Overlay für Assistenztechnik ausgeblendet; offen:
+  VoiceOver läuft parallel unverändert (Verfahren aus 09, Nachtrag 19),
+  Kontrast der Marken auf dunklen Seiten, 200 % Zoom.
+
 ## Fertig, wenn
 
 - Automatisierte Semantik-/Fokusprüfungen und die manuellen macOS-Aufgaben für

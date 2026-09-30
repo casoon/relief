@@ -10,18 +10,28 @@
 //!                                                ohne Fenster, Bericht für CI; `--fork`: eigener Build (--relief-run)
 //! ```
 //!
-//! Aufgabendatei: `url: …`, `do: …` (mit `!` davor bestätigt), `expect: …`
+//! Aufgabendatei: `url: …` (Pfad relativ zur Aufgabendatei als `file://`, mit
+//! `server:` davor über einen lokalen HTTP-Server → `server.rs`), `do: …`
+//! (mit `!` davor bestätigt), `expect: …`
 //! (Teilstring der letzten Antwort), `assert: …` (Formular-Zusicherung, Befunde
 //! als Antwort → `assertions.rs`), `#` Kommentar.
+//!
+//! Security-Log: Mit `RELIEF_LOG=<datei>` hängt jede Eingabe die
+//! Entscheidungen der Sitzung als JSON-Zeilen an (`{"t":…,"security":{…}}`,
+//! ohne Werte und Namen); `palette` schreibt sie in ihr Protokoll.
 
 mod act;
 mod assertions;
 mod capture;
+mod facts;
 mod live;
 mod palette;
 mod record;
 mod report;
+mod server;
 
+use std::fs::File;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -175,6 +185,8 @@ struct Session {
     opened: live::Settle,
     /// Befehlszustand (Position) zwischen den Eingaben.
     session: Dialog,
+    /// Ziel des Security-Logs (`RELIEF_LOG`, in `palette` deren Protokoll).
+    security_log: Option<File>,
 }
 
 impl Session {
@@ -212,8 +224,13 @@ impl Session {
         // Das geladene Dokument ist Dokument 1, kein ersetztes.
         live.take_new_document();
         let document = document_id(1);
-        let model = perception::from_snapshot(&snapshot, &document);
+        let mut model = perception::from_snapshot(&snapshot, &document);
+        facts::annotate(&page, &mut model).await?;
         let graph = Graph::build(&model);
+        let security_log = match std::env::var_os("RELIEF_LOG") {
+            Some(path) => Some(File::options().create(true).append(true).open(path)?),
+            None => None,
+        };
         Ok(Session {
             page,
             live,
@@ -227,6 +244,7 @@ impl Session {
             last_stats: None,
             opened,
             session: Dialog::new(),
+            security_log,
         })
     }
 
@@ -252,6 +270,7 @@ impl Session {
             }
             self.snapshot = capture_retry(&self.page, "current").await?;
             self.model = perception::from_snapshot(&self.snapshot, &self.document);
+            facts::annotate(&self.page, &mut self.model).await?;
             self.graph = Graph::build(&self.model);
             let why = if navigated {
                 "Navigation"
@@ -294,15 +313,30 @@ impl Session {
         Ok(())
     }
 
-    /// Eine Eingabe verarbeiten. `!` am Anfang bestätigt riskante Aktionen.
+    /// Eine Eingabe verarbeiten und die Entscheidungen dazu ins
+    /// Security-Log schreiben.
     async fn handle(&mut self, input: &str) -> Result<String> {
+        let answer = self.answer(input).await;
+        let events = self.session.take_security_log();
+        if let Some(log) = self.security_log.as_mut() {
+            let t = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_millis() as u64;
+            for event in events {
+                writeln!(log, "{}", serde_json::json!({ "t": t, "security": event }))?;
+            }
+        }
+        answer
+    }
+
+    /// Eine Eingabe beantworten. `!` am Anfang bestätigt riskante Aktionen.
+    async fn answer(&mut self, input: &str) -> Result<String> {
         // Die Seite kann sich seit der letzten Aufnahme geändert haben.
         self.update(false, None).await?;
         self.before_action = Some(self.model.clone());
         // Antwort auf eine offene Rückfrage (Zahl, „ja“, „abbrechen“)?
         let input = match self.session.pending_reply(&self.graph, &self.model, input) {
             Pending::Done(outcome) => return self.run(outcome).await,
-            Pending::Confirm(again) => again,
             Pending::Command => input.to_string(),
         };
         let (confirmed, cmd) = match parse_input(&input) {
@@ -425,6 +459,7 @@ async fn run_files(
     files: &[&String],
 ) -> Result<(Vec<report::Suite>, report::Findings)> {
     let (mut passed, mut failed) = (0, 0);
+    let mut servers = server::Servers::default();
     let mut suites = Vec::new();
     let mut findings = report::Findings::default();
     for file in files {
@@ -445,7 +480,20 @@ async fn run_files(
         for line in parse_tasks(&text) {
             match line {
                 TaskLine::Url(url) => {
-                    let url = to_url(&url, &base);
+                    let url = match url.strip_prefix(server::PREFIX) {
+                        Some(path) => match servers.url(&base.join(path.trim())).await {
+                            Ok(url) => url,
+                            Err(e) => {
+                                println!("\n## {url}\n!! Server nicht startbar: {e}");
+                                suite
+                                    .errors
+                                    .push(format!("Server nicht startbar: {url}: {e}"));
+                                session = None;
+                                continue;
+                            }
+                        },
+                        None => to_url(&url, &base),
+                    };
                     println!("\n## {url}");
                     state = "Laden".into();
                     page_url = url.clone();

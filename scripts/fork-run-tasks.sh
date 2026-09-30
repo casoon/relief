@@ -6,7 +6,8 @@
 #   scripts/fork-run-tasks.sh spike/tasks/0[1-5]*.txt
 #
 # RELIEF_CHROMIUM setzt den Browser (Standard: der eigene Build unter
-# ~/chromium/src/out/Relief), RELIEF_LOG das Messprotokoll.
+# ~/chromium/src/out/Relief), RELIEF_LOG das Messprotokoll (mit den
+# `security`-Zeilen des Security-Logs).
 set -euo pipefail
 
 CHROMIUM="${RELIEF_CHROMIUM:-$HOME/chromium/src/out/Relief/Chromium.app/Contents/MacOS/Chromium}"

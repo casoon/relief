@@ -27,7 +27,8 @@ Befehlsleiste (Strg+Umschalt+Leertaste; alle Befehle des Spikes, Rückfragen
 per Nummer, „ja“, „abbrechen“), darunter der Semantic Inspector
 (Strg+Umschalt+I oder `--relief-inspector`): Bereiche, Überschriften und
 Bedienelemente live mit Herkunft der Namen, Auswahl und „im Dokument
-zeigen“ getrennt.
+zeigen“ getrennt. Dazu Tastatur-Sprungmarken über der Seite
+(Strg+Umschalt+M).
 
 ## Ausführen
 
@@ -56,7 +57,12 @@ Ende", „schließe den Dialog", „welcher Dialog ist offen", „cookies
 ablehnen", „was ist hinter dem Dialog" (vollständig: „hilfe"); `url …` lädt
 eine andere Seite. Riskante Aktionen fragen zurück; `!` vor demselben Befehl als
 nächste Eingabe bestätigt genau diese Rückfrage, einmal. `!` ohne offene
-Rückfrage bestätigt nichts.
+Rückfrage bestätigt nichts. Die Rückfrage zu einem Absenden-Button nennt im
+CDP-Host das Formularziel; Werte von Passwortfeldern und Feldern mit
+`autocomplete` für Zahlungs- oder Identitätsdaten stehen nicht darin.
+Mit `RELIEF_LOG=<datei>` schreibt `run`/`repl` die Entscheidungen jeder
+Eingabe als JSON-Zeilen (`{"t":…,"security":{…}}`: Entscheidung, Plan-ID,
+Aktionsart, Risiko, Grund; keine Werte, keine Namen).
 
 Cookie- und Newsletter-Dialoge sagt „was ist hier" mit an: Art als
 Vermutung mit Evidence, Buttons nach Beschriftung (Zustimmen, Ablehnen,
@@ -73,11 +79,16 @@ Befunde.“: `feldnamen`, `namen-wie-accname`, `fehler-verknüpft [Feld]`,
 `tabfolge <Feld>, …`. `statusmeldung` verlangt zusätzlich, dass die letzte
 `do:`-Zeile eine vorhandene Live-Region geändert hat. `07-bestaetigung.txt`
 prüft, dass sich die Rückfrage nicht umgehen lässt (beide Hosts).
+`url: server:<Pfad>` lädt eine Testseite über einen lokalen HTTP-Server des
+Hosts (`127.0.0.1`, freier Port) als `http://localhost:<Port>/…`; so lädt
+ein iframe von `127.0.0.1` ohne Netz aus einer fremden Site
+(`form-fremd.html`).
 
 Im Palettenmodus öffnet Strg+Umschalt+Leertaste die Befehlsleiste; riskante
 Aktionen werden mit „ja“ bestätigt, „nein“ verwirft die Rückfrage. Jede
 Eingabe landet mit Ergebnisart und
-Tastendrücken, ohne Seiteninhalte, in `relief-protokoll.jsonl` (`RELIEF_LOG`).
+Tastendrücken, ohne Seiteninhalte, in `relief-protokoll.jsonl` (`RELIEF_LOG`),
+dazu die Zeilen des Security-Logs.
 
 Resolver fehlender Namen kalibrieren (Stichprobe `spike/kalibrierung/`):
 
@@ -106,7 +117,7 @@ Release-Tags (`v*`) und per Hand (`workflow_dispatch`) auf `ubuntu-24.04`:
   -- -D warnings`, `cargo test --workspace`.
 - **browser:** Chrome for Testing 154.0.8037.57 (nächste zu `fork/UPSTREAM`) über
   `browser-actions/setup-chrome`, dann `relief-cdp run spike/tasks/01`–`06`
-  (nur `file://`-Seiten). Der Job schlägt fehl, wenn nicht alle
+  (`file://`-Seiten und der lokale Server des Hosts, kein Netz). Der Job schlägt fehl, wenn nicht alle
   `expect:`-Zeilen erfüllt sind (`run` selbst endet immer mit 0).
 
 Actions sind per Commit-SHA gepinnt.
@@ -137,7 +148,7 @@ Aufgaben im eigenen Build über den AX-Weg (Ausgabe wie `relief-cdp run`):
 
 ```bash
 scripts/fork-apply.sh ~/chromium/src --continue && autoninja -C ~/chromium/src/out/Relief chrome
-scripts/fork-run-tasks.sh spike/tasks/0[1-5]*.txt     # RELIEF_LOG=<datei> für das Protokoll
+scripts/fork-run-tasks.sh spike/tasks/0[1-5]*.txt spike/tasks/07-*.txt  # RELIEF_LOG=<datei>: Protokoll mit `security`-Zeilen
 ```
 
 Voraussetzungen: Xcode mit macOS-SDK, `git-lfs` (`brew install git-lfs && git lfs
@@ -174,8 +185,8 @@ scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurüc
   (Feature `anthropic`) und das Kalibrierwerkzeug in `relief-resolver`.
   Schwellen sind noch nicht gemessen, Modellnamen bleiben `Uncertain`; die
   Runtime ruft noch kein Modell auf. Missbrauchsfälle an der Modellgrenze
-  sind als feste Tests beschrieben; Modellaufrufe unter Grenzen je Aufgabe
-  gehen über `Budget`.
+  sind als feste Tests beschrieben; einen Anbieter aufrufen lässt sich nur
+  über `Budget` (Grenzen je Aufgabe, `Permit`).
 
 ## Wo liegt was
 

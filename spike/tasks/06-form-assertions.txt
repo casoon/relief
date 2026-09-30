@@ -5,7 +5,8 @@
 # `assert: …` prüft den aktuellen Stand; die Antwort sind die Befunde
 # (Regel-ID im Format von a11y-report), `expect:` prüft sie wie sonst.
 # „Rückruf anfordern“ enthält „order“ und ist HIGH: Erst die Rückfrage, dann
-# löst „!“ sie ein (Paket 48).
+# löst „!“ sie ein (Paket 48). Die Rückfrage nennt das Formularziel (Paket
+# 58; das Formular hat kein `action`, also die Adresse der Seite).
 
 url: ../fixtures/form-clean.html
 assert: feldnamen
@@ -16,6 +17,8 @@ assert: tabfolge Name, Telefon, PLZ, Anliegen, Rückruf anfordern
 expect: Keine Befunde
 do: klicke Rückruf anfordern
 expect: Bestätigung nötig
+expect: Formularziel: file://
+expect: fixtures/form-clean.html.
 do: !klicke Rückruf anfordern
 assert: fehler-verknüpft Telefon
 expect: Keine Befunde
@@ -81,3 +84,20 @@ do: klicke Zusatz zeigen
 assert: namen-wie-accname
 expect: laut Chromium „Telefon (Rückfrage)“, laut accname „Telefon“
 expect: laut Chromium „Postleitzahl (Zusatz)“, laut accname „Postleitzahl“
+
+# Feld in einem iframe fremder Herkunft (Paket 64): Der Host liefert die
+# Seite über einen lokalen Server als `localhost` aus, das iframe lädt von
+# `127.0.0.1`. Es wird verglichen (nicht `untested`); CSS-Inhalt im iframe
+# zählt nur Chromium mit.
+url: server:../fixtures/form-fremd.html
+assert: namen-wie-accname
+expect: 1 Befund:
+expect: laut Chromium „Telefon (Rückfrage)“, laut accname „Telefon“
+
+# Gleiche IDs im Dokument und im Shadow-Root (Paket 64): accname rechnet mit
+# einem ID-Index je Dokument; statt falscher Abweichungen `untested`.
+url: ../fixtures/form-shadow-ids.html
+assert: namen-wie-accname
+expect: 4 Befunde:
+expect: untested form/name-accname [medium]: textbox „Name“: ID „f“
+expect: textbox „Ort“: ID „hinweis“

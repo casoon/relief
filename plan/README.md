@@ -29,7 +29,8 @@ Gültige Entscheidungen und Rahmenbedingungen stehen in `docs/decisions.md` und
 | 46 | barrierlab |
 | 47–48 | Querschnitt: Relief-Oberfläche und Sicherheitsgrenzen |
 | 58 | Querschnitt: Sicherheitsgrenzen in Hosts (Nachtrag zu 48) |
-| 64 | Linie Prüfen: Nachtrag zu 42/49/55 |
+| 70 | Linie Prüfen: CDP-Host mit Site Isolation (Nachtrag zu 64) |
+| 75–76 | Querschnitt: Nachträge zu 58 (Formularziel im Fork, Werte außerhalb der Rückfrage) |
 | 80 | Linie A: Nachtrag zu 40 (Consent) |
 | 90 | zurückgestellt |
 

@@ -67,6 +67,9 @@ pub struct Control {
     pub selected_option: Option<String>,
     pub disabled: bool,
     pub focusable: bool,
+    /// Chromium meldet eine Standardaktion (Klick), auch ohne Bedienrolle,
+    /// etwa ein `<div>` mit Klick-Handler (→ Sprungmarken, `marks`).
+    pub clickable: bool,
     /// Gemeldete Zustände als Text (`expanded`, `checked`, `invalid`,
     /// bei Schiebereglern `valuemin`/`valuemax` …); `false` fehlt.
     pub states: Vec<(String, String)>,
@@ -416,7 +419,7 @@ pub fn focused(model: &SemanticGraph) -> Option<NodeRef> {
     })
 }
 
-fn control(
+pub(crate) fn control(
     model: &SemanticGraph,
     at: &NodeRef,
     node: &SemanticNode,
@@ -441,6 +444,7 @@ fn control(
         selected_option,
         disabled: node.states.disabled,
         focusable: node.states.focusable,
+        clickable: node.actions.contains(&relief_model::Action::DoDefault),
         heading: None,
     }
 }

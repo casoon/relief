@@ -3,6 +3,8 @@
 //!
 //! Der Lauf fragt je Stichprobeneintrag den Anbieter mit genau der Eingabe,
 //! die auch [`crate::resolve_node`] schickt, und prüft die Antwort streng.
+//! Je Seite gilt ein [`Budget`] mit den Standardgrenzen wie in der Runtime;
+//! eine Überschreitung erscheint als [`Answer::Limit`].
 //! Aus den Ergebnissen entsteht ein [`Report`]; eine Schwelle wird nur
 //! vorgeschlagen, wenn genug Hypothesen darüber liegen
 //! ([`MIN_SUPPORT`], [`TARGET_PRECISION`]).
@@ -10,7 +12,9 @@
 use std::collections::BTreeMap;
 use std::fmt::{self, Write as _};
 
-use relief_ai_contract::{validate_hypotheses, ModelProvider, ModelRequest, Property, Usage};
+use relief_ai_contract::{
+    validate_hypotheses, Budget, Limits, ModelError, ModelProvider, ModelRequest, Property, Usage,
+};
 
 use crate::anthropic::{price_per_mtok, user_message};
 use crate::sample::{local_id, unnamed_controls, Sample};
@@ -34,6 +38,9 @@ pub enum Answer {
     ProviderError(String),
     /// Ausgabe verletzt den Vertrag und wurde ganz verworfen.
     Invalid(String),
+    /// Grenze des Budgets der Seite erreicht; nicht gefragt oder Antwort
+    /// verworfen.
+    Limit(String),
     /// Gültige Ausgabe, aber kein Name für den Knoten.
     NoHypothesis,
     Named {
@@ -72,9 +79,11 @@ pub fn run(
 ) -> Result<(Vec<Outcome>, Vec<Page>), String> {
     let mut outcomes = Vec::new();
     let mut pages = BTreeMap::new();
+    let mut budgets = BTreeMap::new();
     for item in &sample.items {
         if !pages.contains_key(&item.recording) {
             pages.insert(item.recording.clone(), sample.page(&item.recording)?);
+            budgets.insert(item.recording.clone(), Budget::new(Limits::default()));
         }
         let input = &pages[&item.recording];
         let id = local_id(input, item.node)
@@ -100,9 +109,12 @@ pub fn run(
             model: None,
             answer: Answer::NoReply,
         };
-        outcome.answer = match provider.complete(&request) {
+        let budget = budgets.get_mut(&item.recording).unwrap();
+        outcome.answer = match budget.complete(provider, &request) {
             Ok(None) => Answer::NoReply,
-            Err(e) => Answer::ProviderError(e.0),
+            Err(ModelError::Provider(e)) => Answer::ProviderError(e.0),
+            Err(ModelError::Limit(e)) => Answer::Limit(e.to_string()),
+            Err(ModelError::Invalid(_)) => unreachable!("Budget::complete prüft keine Antwort"),
             Ok(Some(reply)) => {
                 outcome.usage = reply.usage;
                 outcome.model = Some(reply.model.to_string());
@@ -205,6 +217,7 @@ impl fmt::Display for Report {
                 Answer::NoReply => "keine Antwort".to_string(),
                 Answer::ProviderError(e) => format!("Anbieterfehler: {e}"),
                 Answer::Invalid(e) => format!("verworfen: {e}"),
+                Answer::Limit(e) => format!("Grenze: {e}"),
                 Answer::NoHypothesis => "kein Name vorgeschlagen".to_string(),
                 Answer::Named {
                     value,
@@ -233,11 +246,12 @@ impl fmt::Display for Report {
         let other = |p: fn(&Answer) -> bool| o.iter().filter(|x| p(&x.answer)).count();
         writeln!(
             f,
-            "\nAntworten: {named} mit Namen, {} ohne Namen, {} verworfen, {} Anbieterfehler, {} ohne Antwort",
+            "\nAntworten: {named} mit Namen, {} ohne Namen, {} verworfen, {} Anbieterfehler, {} ohne Antwort, {} an einer Grenze",
             other(|a| matches!(a, Answer::NoHypothesis)),
             other(|a| matches!(a, Answer::Invalid(_))),
             other(|a| matches!(a, Answer::ProviderError(_))),
             other(|a| matches!(a, Answer::NoReply)),
+            other(|a| matches!(a, Answer::Limit(_))),
         )?;
 
         writeln!(f, "\nTrefferquote je Confidence-Band:")?;

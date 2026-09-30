@@ -326,6 +326,14 @@ der Startseite). Im Fork nimmt Blink ihn heraus (→ 09, Nachtrag Paket 35);
 dort antwortet Relief, dass der Baum nichts enthält [Annahme, im Fork nicht
 gemessen → 80].
 
+**Im Fork** (M4, 2026-09-30): `scripts/fork-run-tasks.sh` mit
+`09-consent.txt` ohne Ausfall (mit 01–05, 07, 14: 104/104). Auf spiegel.de
+im eigenen Build: „welcher Dialog ist offen“ nennt „Privacy Center“
+vermutlich Cookie-Dialog mit Zustimmen, Einstellungen, Abo; „cookies
+ablehnen“ → „Nicht abgelehnt“, nichts geklickt; „was ist hinter dem Dialog“
+→ „enthält der Baum nichts“: Blink nimmt den Inhalt hinter `aria-modal`
+heraus (anders als CDP, das ihn liefert).
+
 ## Intent-Format [Annahme]
 
 ```json

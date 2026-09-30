@@ -7,7 +7,8 @@
 //!
 //! Protokoll: eine JSON-Zeile je Eingabe in `RELIEF_LOG` (Standard
 //! `relief-protokoll.jsonl`) mit Zeit, Eingabe, Art des Ergebnisses und
-//! Tastendrücken — ohne Seiteninhalte und ohne Antworttexte.
+//! Tastendrücken — ohne Seiteninhalte und ohne Antworttexte; dazu die Zeilen
+//! des Security-Logs (`security`, ohne Werte und Namen).
 
 use std::io::Write;
 
@@ -109,6 +110,7 @@ async fn serve(mut session: Session, mut calls: EventStream<EventBindingCalled>)
         .create(true)
         .append(true)
         .open(&log_path)?;
+    session.security_log = Some(log.try_clone()?);
 
     let mut last_keys = 0u64;
     while let Some(call) = calls.next().await {

@@ -9,9 +9,9 @@ mod common;
 
 use common::{at, shop, INJECTION};
 use relief_ai_contract::{
-    assess_risk, filter, propose_intent, resolve_missing, Hypothesis, IntentKind, ModelError,
-    ModelId, ModelProvider, ModelReply, ModelRequest, NoModel, PrivacyContext, Property,
-    ProviderError, Risk, Task, Tier, UserUtterance, ValidationError,
+    assess_risk, filter, Budget, FilteredInput, Hypothesis, IntentKind, IntentProposal, Limits,
+    ModelError, ModelId, ModelProvider, ModelReply, ModelRequest, NoModel, Permit, PrivacyContext,
+    Property, ProviderError, Risk, Task, Tier, UserUtterance, ValidationError,
 };
 use relief_interaction::{plan, ActionKind, Control};
 use relief_model::{GraphVersion, SemanticGraph};
@@ -25,7 +25,11 @@ impl ModelProvider for Gehorsam {
         Tier::Api
     }
 
-    fn complete(&self, request: &ModelRequest) -> Result<Option<ModelReply>, ProviderError> {
+    fn complete(
+        &self,
+        request: &ModelRequest,
+        _: Permit<'_>,
+    ) -> Result<Option<ModelReply>, ProviderError> {
         let nodes = request.input().nodes();
         let order = nodes
             .iter()
@@ -55,6 +59,23 @@ impl ModelProvider for Gehorsam {
             usage: None,
         }))
     }
+}
+
+/// Jeder Aufruf mit eigenem Budget (Standardgrenzen): Ein Anbieter lässt sich
+/// nur über ein Budget fragen.
+fn resolve_missing(
+    provider: &dyn ModelProvider,
+    input: FilteredInput,
+) -> Result<Vec<Hypothesis>, ModelError> {
+    Budget::new(Limits::default()).resolve_missing(provider, input)
+}
+
+fn propose_intent(
+    provider: &dyn ModelProvider,
+    utterance: &UserUtterance,
+    input: FilteredInput,
+) -> Result<Option<IntentProposal>, ModelError> {
+    Budget::new(Limits::default()).propose_intent(provider, utterance, input)
 }
 
 fn input() -> relief_ai_contract::FilteredInput {
@@ -127,6 +148,7 @@ fn control(graph: &SemanticGraph, id: i32, name: Option<(&str, bool)>) -> Contro
         selected_option: None,
         disabled: false,
         focusable: true,
+        clickable: false,
         states: vec![],
         heading: None,
     }

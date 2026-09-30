@@ -64,7 +64,15 @@ void RuntimeHost::Log(const std::string& line) {
 
 bridge::Reply RuntimeHost::RunCommand(const std::string& input) {
   Log("command\t" + input);
-  return bridge::run_command(*runtime_, input);
+  bridge::Reply reply = bridge::run_command(*runtime_, input);
+  LogSecurity();
+  return reply;
+}
+
+void RuntimeHost::LogSecurity() {
+  for (const rust::String& event : bridge::take_security_log(*runtime_)) {
+    Log("security\t" + std::string(event));
+  }
 }
 
 std::string RuntimeHost::FinishCommand() {
@@ -77,6 +85,10 @@ std::string RuntimeHost::DescribePage() {
 
 std::string RuntimeHost::InspectorJson() {
   return std::string(bridge::inspector_json(*runtime_));
+}
+
+rust::Vec<bridge::MarkBox> RuntimeHost::ShowMarks() {
+  return bridge::show_marks(*runtime_);
 }
 
 bridge::Reply RuntimeHost::ShowNode(const std::string& key) {

@@ -53,6 +53,44 @@ Semantic View ab (→ 09). Dazu kommen:
 | Änderungen ansagen | „Warenkorb jetzt 1“ aus dem Delta | in 25/26 |
 | Fehlende Namen ergänzen | Resolver, auf dem Gerät über das Modell des Betriebssystems möglich (Stufe `os`, → 06) | 28 |
 
+### Tastatur-Sprungmarken [umgesetzt 2026-09-30, Paket 38]
+
+Kern browserfrei (`relief_interaction::marks`): Marken bekommen alle
+Bedienelemente des Interaction Graph und Knoten ohne Bedienrolle, für die
+Chromium einen Klick meldet (`DoDefault`, etwa ein `<div>` mit
+Klick-Handler), jeweils nur mit Position und erreichbar (offener modaler
+Dialog: nur dessen Inhalt, je Frame). Ein Klick-Knoten, der Bedienelemente
+enthält, ist ein Wrapper und bekommt keine Marke, ebenso Knoten in einem
+schon markierten (Text in einem Link) und Container (Dialog, Landmark,
+Dokument, iframe) [belegt: auf spiegel.de nahm ein seitenweiter Wrapper
+vorher alle Marken; bild.de markierte den Dialog selbst]. Beschriftungen
+aus der Grundreihe `asdfghjkl`, alle gleich lang (keine ist Präfix einer
+anderen), in Leserichtung. Nicht gesicherte Namen tragen ein „?“ bzw.
+„(Name nicht gesichert)“.
+
+Auswahl über die Sitzung: „marke <buchstaben>“ plant wie ein benanntes
+Ziel (Felder fokussieren, sonst auslösen), riskant oder unbenannt → Rückfrage,
+„ja“ bestätigt genau dieses Ziel; „sprungmarken“ listet sie. Im Fork zeichnet
+ein transparentes, nicht aktivierbares Views-Fenster ohne eigene Eingaben
+die Marken über den Inhalt (für Assistenztechnik ausgeblendet);
+Strg+Umschalt+M zeigt sie, die Buchstaben wählen, Escape oder jede andere
+Taste blendet aus; Rückfragen gehen ins Relief-Panel. `--relief-marks` zeigt
+sie nach dem Laden.
+
+Belegt (M4): `relief_browsertests --gtest_filter=*Sprungmarken*` (Kürzel,
+Buchstaben lösen einen `<div>` mit Klick-Handler nach Rückfrage aus,
+Escape); `scripts/fork-run-tasks.sh spike/tasks/14-marken-fork.txt`
+(Testshop 12 Marken = alle Bedienelemente, Formular, kaputter Testshop mit
+vier Klick-`<div>`s); `spike/tasks/13-marken-real.txt` (Netz): spiegel.de
+„Privacy Center“ 12 Marken, bild.de „Cookie- und Einwilligungsbanner“ 35
+Marken samt „Alle akzeptieren“, „Jetzt BILD PUR abonnieren“,
+„Einstellungen“; Bildschirmfoto Testshop im PR.
+
+Offen: VoiceOver parallel prüfen (→ 47); Klick-`<div>`s ohne Namen könnten
+ihren Text als erschlossenen Namen tragen; Marken folgen Scrollen nur
+gebündelt über Deltas (200 ms); das Kürzel greift nur am Widget des
+Hauptframes (Fokus in einem cross-site-iframe).
+
 ## Linie B: Prüfen im echten Browser
 
 Die Aufgaben-Dateien des CDP-Hosts sind bereits Tests in Nutzersprache:
@@ -66,7 +104,7 @@ dem Relief-Graphen.
 
 | Baustein | Paket |
 |---|---|
-| Formular-Zusicherungen: Beschriftung je Feld, Fehlermeldung mit dem Feld verknüpft, Fokus auf dem ersten Fehler, Bestätigung als Live-Region, Tab-Erreichbarkeit und -Reihenfolge | 42 ✓, 49 ✓, 55 ✓ (unten) |
+| Formular-Zusicherungen: Beschriftung je Feld, Fehlermeldung mit dem Feld verknüpft, Fokus auf dem ersten Fehler, Bestätigung als Live-Region, Tab-Erreichbarkeit und -Reihenfolge | 42 ✓, 49 ✓, 55 ✓, 64 ✓ (unten) |
 | Echte Screenreader-Ausgabe über gemeinsamen Treiber; zuerst VoiceOver, später NVDA | 43 |
 | Lauf ohne Fenster, Bericht als JUnit für CI | 44 |
 | Playwright-Anbindung: Relief über CDP steuern, Seitenmodell über eine eigene Domäne abfragen | 45 |
@@ -77,7 +115,7 @@ Für reine Funktionstests bleibt Playwright das bessere Werkzeug; Relief
 lohnt sich für den Ablauf aus Sicht von Screenreader- und
 Tastaturnutzenden.
 
-### Formular-Zusicherungen [umgesetzt 2026-09-30, Pakete 42, 49, 55]
+### Formular-Zusicherungen [umgesetzt 2026-09-30, Pakete 42, 49, 55, 64]
 
 Aufgabendateien kennen die Zeile `assert: <Zusicherung>`. Sie prüft den
 **aktuellen** Stand der Seite; der Ablauf davor (Absenden, Dialog öffnen)
@@ -89,9 +127,12 @@ Testseiten `spike/fixtures/form-clean.html` (keine Befunde) und
 `form-broken.html` (je Zusicherung mindestens ein Befund), dazu
 `status-inserted.html` (Statusregion entsteht mitsamt Text) und
 `form-embedded.html` (Namensvergleich mit per CSS verborgenem Label-Inhalt,
-Feld im iframe und im Shadow DOM, danach CSS-Inhalt dort). Die Datei
-läuft in den Prüfbefehlen (`CLAUDE.md`) und in der CI (Glob `0[1-6]`,
-Entscheidung des Nutzers, Paket 49).
+Feld im iframe und im Shadow DOM, danach CSS-Inhalt dort),
+`form-fremd.html` (Feld in einem iframe fremder Herkunft über den lokalen
+Server, `url: server:…`) und `form-shadow-ids.html` (gleiche IDs im
+Dokument und im Shadow-Root). Die Datei läuft in den Prüfbefehlen
+(`CLAUDE.md`) und in der CI (Glob `0[1-6]`, Entscheidung des Nutzers,
+Paket 49).
 
 | Zusicherung | Regel | prüft | Daten |
 |---|---|---|---|
@@ -131,7 +172,9 @@ Entscheidung des Nutzers, Paket 49).
   ID-Index, weil `<label for>` und `aria-labelledby` nur im eigenen Dokument
   gelten. Shadow DOM des Autors hängt flach unter dem Host, Light-DOM-Kinder
   nur dort, wo ein `<slot>` sie aufnimmt (`distributedNodes`); Shadow DOM des
-  Browsers (Innenleben von `<input>`) bleibt draußen.
+  Browsers (Innenleben von `<input>`) bleibt draußen. Die Slot-Zuordnung
+  (Backend-ID → Knoten) reicht auch in iframe-Dokumente [belegt im Code,
+  Paket 64; kein Slot im iframe an einer Seite gemessen].
 - **Outcome statt Certainty [Entscheidung]:** Befunde tragen ihre
   Belastbarkeit über `a11y-report`: `fail` ist aus AX-Daten belegt,
   `review` ist Heuristik (Abbruchweg an Wörtern erkannt, „verständlicher“
@@ -150,15 +193,52 @@ Entscheidung des Nutzers, Paket 49).
   auf dem DOM sieht ihn nicht. Der Befund nennt dann „meist CSS-Inhalt“ als
   Ursache; Text in CSS erreicht nicht jede Assistenztechnik gleich, deshalb
   `review` [Annahme, nicht gegen Screenreader gemessen].
-- **Grenzen [belegt im Code]:** iframes in einem anderen Renderer-Prozess
-  (Site Isolation, fremde Herkunft) liefert `DOM.getDocument` nicht mit;
-  Felder dort bleiben `untested`. Im Shadow DOM gilt ein gemeinsamer
-  ID-Index mit dem umgebenden Dokument; gleiche IDs in Shadow-Root und
-  Dokument können einen falschen Namen ergeben [Annahme: selten, nicht
-  gemessen]. Inhalt geschlossener `<details>` (`content-visibility`) meldet
-  der Snapshot mit normalem `display`, `accname` zählt ihn dann mit [laut
-  auditmysite-Kommentar, hier nicht gemessen]. Fremde Frames und ID-Bereich
-  → 64.
+- **iframes fremder Herkunft [belegt, Paket 64]:** Der CDP-Host startet
+  Chrome mit `--disable-site-isolation-trials` (für `getFullAXTree` mit
+  `frameId`, `capture.rs`). Damit liegt ein iframe von `127.0.0.1` in einer
+  Seite von `localhost` im selben Prozess, `DOM.getDocument` (`pierce`)
+  liefert sein Dokument mit, und sein Feld wird verglichen: In
+  `form-fremd.html` meldet `namen-wie-accname` die CSS-Abweichung im iframe
+  („Telefon (Rückfrage)“ gegen „Telefon“), per CSS verborgener Label-Inhalt
+  dort ist keine Abweichung. Gegenprobe mit Site Isolation (Schalter
+  entfernt): Das Feld fehlt schon im Modell (1 statt 2 Bedienelemente), weil
+  `getFullAXTree` den Frame in einem anderen Prozess nicht erreicht, und
+  deshalb auch in den Befunden, nicht als `untested`.
+- **Keine eigene CDP-Sitzung je Frame [Entscheidung, Paket 64]:** Solange der
+  Host ohne Site Isolation läuft, gibt es keinen Frame in einem anderen
+  Prozess; DOM-Fakten über `Target.attachToTarget` hätten kein Feld im
+  Modell, gegen das sie verglichen würden. Ein Host mit Site Isolation
+  braucht Aufnahme **und** DOM-Fakten über die Sitzung des Frames → 70.
+- **Lokaler Server für fremde Herkunft [Entscheidung, Paket 64]:**
+  `url: server:<Pfad>` in einer Aufgabendatei startet (einmal je
+  Verzeichnis und Lauf) einen HTTP-Server des Hosts auf `127.0.0.1` mit
+  freiem Port und öffnet die Seite als `http://localhost:<Port>/<Datei>`
+  (`relief-cdp/src/server.rs`, nur `GET`, nur Dateien darunter). Die Seite
+  setzt ihr iframe per Skript auf die jeweils andere Adresse und denselben
+  Port; `localhost` und `127.0.0.1` sind verschiedene Sites. Kein Netz,
+  läuft in Prüfbefehlen und CI mit.
+- **ID-Bereich im Shadow DOM [belegt, Entscheidung, Paket 64]:**
+  `accname::IdIndex` (0.13) kennt nur `build(root)` über alle Nachfahren im
+  flachen Baum, also einen Bereich je Dokument. Gemessen an
+  `form-shadow-ids.html` vor der Änderung: drei falsche `review`-Befunde
+  („Name“ und „Postleitzahl“ je als „Name Postleitzahl“, „Ort“ als
+  „Kundennummer“). Jetzt vermerkt der Host je Element seinen ID-Bereich
+  (Backend-ID des Shadow-Roots, `0` = Dokument; `DomFactsBuilder::scope`);
+  steht eine ID des Feldes (`id` für `<label for>`, `aria-labelledby`) als
+  `id` oder `label[for]` in mehr als einem Bereich, ist der Vergleich
+  `untested` mit Nennung der ID statt eines falschen Befunds. Richtig
+  rechnen statt auslassen braucht einen ID-Index je Baumbereich in
+  barrierlab (`accname`, `a11y-dom`), nicht in Relief nachgebaut;
+  Issue-Text im PR zu Paket 64.
+- **Grenzen [belegt im Code]:** Ein Verweis aus einem Shadow-Root auf eine
+  ID, die nur im Dokument steht (oder umgekehrt), löst `accname` auf,
+  Chromium nicht; das ergibt einen `review`-Befund mit unpassender
+  Ursache [Annahme, nicht gemessen]. Ebenso zählt ein umschließendes
+  `<label>` jenseits der Shadow-Grenze für `accname` mit. Inhalt
+  geschlossener `<details>` (`content-visibility`) meldet der Snapshot mit
+  normalem `display`, `accname` zählt ihn dann mit [laut
+  auditmysite-Kommentar, hier nicht gemessen]. Frames in einem anderen
+  Prozess → 70.
 - **Änderung über `TreeDelta` [Entscheidung, Paket 49]:** Der Vergleich
   „vorher/nachher“ nutzt `relief_model::TreeDelta::between`, nicht die
   Diff-Regeln aus `a11y-perception`: `relief-interaction` hängt außerhalb der

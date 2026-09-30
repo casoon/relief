@@ -340,6 +340,18 @@ pub mod ffi {
         scroll: ScrollDirection,
     }
 
+    /// Sprungmarke mit Position (Seitenkoordinaten, CSS-Pixel).
+    #[derive(Debug, Clone)]
+    struct MarkBox {
+        label: String,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        /// Name nicht gesichert (erschlossen, unsicher, fehlt).
+        uncertain: bool,
+    }
+
     #[derive(Debug)]
     enum TaskKind {
         Url,
@@ -376,6 +388,9 @@ pub mod ffi {
         /// Antwort auf die ausgeführten Schritte bzw. Escape, gegen den
         /// jetzigen Graphen (`Runtime::finish`).
         fn finish_command(runtime: &mut Runtime) -> String;
+        /// Security-Log seit dem letzten Abholen, ein JSON-Objekt je Eintrag
+        /// (`Runtime::take_security_log`).
+        fn take_security_log(runtime: &mut Runtime) -> Vec<String>;
         /// Seitenbeschreibung („was ist hier“).
         fn describe_page(runtime: &Runtime) -> String;
         /// Antwort nach dem Scrollen: Position vorher, nachher, größte
@@ -386,6 +401,8 @@ pub mod ffi {
         /// Inspector „im Dokument zeigen“: Schritte zum Eintrag `key`
         /// (Fokus bzw. Hinbewegen), danach `finish_command`.
         fn show_node(runtime: &mut Runtime, key: &str) -> Reply;
+        /// Sprungmarken des aktuellen Stands (merkt sie für „marke …“).
+        fn show_marks(runtime: &mut Runtime) -> Vec<MarkBox>;
         fn parse_task_file(text: &str) -> Vec<Task>;
         /// Teilstring ohne Groß-/Kleinschreibung (auch Umlaute).
         fn expectation_met(answer: &str, expected: &str) -> bool;
@@ -499,6 +516,21 @@ fn node_count(runtime: &Runtime) -> u64 {
     runtime.graph().len() as u64
 }
 
+fn show_marks(runtime: &mut Runtime) -> Vec<ffi::MarkBox> {
+    runtime
+        .show_marks()
+        .into_iter()
+        .map(|m| ffi::MarkBox {
+            uncertain: m.uncertain(),
+            label: m.label,
+            x: m.bounds.x,
+            y: m.bounds.y,
+            width: m.bounds.width,
+            height: m.bounds.height,
+        })
+        .collect()
+}
+
 fn inspector_json(runtime: &Runtime) -> String {
     crate::inspector::inspector_json(runtime)
 }
@@ -565,6 +597,14 @@ fn step_to_ffi(step: Step) -> ffi::Step {
 
 fn finish_command(runtime: &mut Runtime) -> String {
     runtime.finish()
+}
+
+fn take_security_log(runtime: &mut Runtime) -> Vec<String> {
+    runtime
+        .take_security_log()
+        .iter()
+        .map(|e| serde_json::to_string(e).expect("SecurityEvent ist serialisierbar"))
+        .collect()
 }
 
 fn describe_page(runtime: &Runtime) -> String {

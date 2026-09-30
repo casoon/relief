@@ -7,17 +7,20 @@
 //! |---|---|
 //! | [`filter`], [`FilteredInput`], [`PrivacyContext`] | Privacy-Filter: einziger Weg zu einer Modelleingabe |
 //! | [`ModelProvider`], [`Tier`], [`NoModel`] | Anbieter-Schnittstelle, Stufen `none`/`os`/`local`/`api` |
-//! | [`resolve_missing`], [`propose_intent`] | Runtime-Aufrufe: Anbieter fragen, Ausgabe streng prüfen |
+//! | [`Budget::resolve_missing`], [`Budget::propose_intent`] | Runtime-Aufrufe: Anbieter innerhalb der Grenzen fragen, Ausgabe streng prüfen |
 //! | [`Hypothesis`], [`HYPOTHESES_SCHEMA`] | fehlende Semantik als Hypothese mit Pflichtmetadaten |
 //! | [`IntentProposal`], [`INTENT_SCHEMA`] | Intent-Vorschlag aus einer Nutzeräußerung |
 //! | [`assess_risk`] | Hypothesen dürfen die Risikoklasse nur erhöhen |
-//! | [`Budget`], [`Limits`] | feste Grenzen je Aufgabe: Baumgröße, Aufrufe, Wiederholungen, Zeit, Tokens |
+//! | [`Budget`], [`Limits`], [`Permit`] | feste Grenzen je Aufgabe: Baumgröße, Aufrufe, Wiederholungen, Zeit, Tokens; einziger Weg zu einem Anbieter |
 //!
 //! # Grenzen, die das Typsystem zieht
 //!
 //! - Ein [`ModelProvider`] bekommt nur einen [`ModelRequest`], und der
 //!   entsteht nur aus einer [`FilteredInput`]. Die hat keinen öffentlichen
 //!   Konstruktor und kein `Deserialize`; einziger Ursprung ist [`filter`].
+//! - Ein Anbieter lässt sich nur über ein [`Budget`] aufrufen:
+//!   [`ModelProvider::complete`] verlangt eine [`Permit`], und die stellt nur
+//!   das Budget aus, nachdem es seine Grenzen geprüft hat.
 //! - Ein Anbieter liefert nur Text. Zu [`Hypothesis`] oder [`IntentProposal`]
 //!   wird er erst durch die Prüfung hier, gegen die Eingabe, aus der er
 //!   entstand.
@@ -51,7 +54,7 @@ pub use privacy::{
     filter, FieldHint, FilteredInput, ModelNode, PageInfo, PrivacyContext, Redaction,
 };
 pub use provider::{
-    propose_intent, resolve_missing, ModelError, ModelId, ModelProvider, ModelReply, ModelRequest,
-    NoModel, ProviderError, Task, Tier, Usage,
+    ModelError, ModelId, ModelProvider, ModelReply, ModelRequest, NoModel, Permit, ProviderError,
+    Task, Tier, Usage,
 };
 pub use risk::{assess_risk, Risk};

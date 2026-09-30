@@ -1,16 +1,19 @@
 //! Modell-Anbieter in Stufen (→ `plan/spezifikation/06`, Modellstrategie).
 //!
 //! Kein Anbieter ist hier eingebaut; Adapter implementieren
-//! [`ModelProvider`]. Die Runtime ruft sie nur über [`resolve_missing`] und
-//! [`propose_intent`] auf, die jede Ausgabe gegen den Vertrag prüfen.
+//! [`ModelProvider`]. Aufrufen lässt sich ein Anbieter nur über ein
+//! [`crate::Budget`] ([`crate::Budget::resolve_missing`],
+//! [`crate::Budget::propose_intent`], [`crate::Budget::complete`]): Nur das
+//! Budget stellt die [`Permit`] aus, die [`ModelProvider::complete`]
+//! verlangt, und prüft vorher seine Grenzen.
 
 use std::fmt;
+use std::marker::PhantomData;
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    validate_hypotheses, validate_intent, FilteredInput, Hypothesis, IntentProposal, LimitExceeded,
-    UserUtterance, ValidationError, HYPOTHESES_SCHEMA, INTENT_SCHEMA,
+    FilteredInput, LimitExceeded, UserUtterance, ValidationError, HYPOTHESES_SCHEMA, INTENT_SCHEMA,
 };
 
 /// Wie weit Relief für Modelle geht, von der Nutzerin gewählt.
@@ -140,6 +143,32 @@ impl fmt::Display for ProviderError {
 
 impl std::error::Error for ProviderError {}
 
+/// Erlaubnis für genau einen Anbieteraufruf. Nur ein [`crate::Budget`]
+/// stellt sie aus, nachdem es seine Grenzen geprüft hat; außerhalb dieser
+/// Crate lässt sie sich weder bauen noch kopieren. Ein Anbieter, der einen
+/// anderen umhüllt (Aufzeichnung), reicht sie weiter.
+///
+/// Ein Aufruf am Budget vorbei kompiliert nicht:
+///
+/// ```compile_fail
+/// use relief_ai_contract::{ModelProvider, ModelRequest, NoModel, Permit};
+/// fn vorbei(request: &ModelRequest) {
+///     let _ = NoModel.complete(request, Permit { _budget: std::marker::PhantomData });
+/// }
+/// ```
+#[derive(Debug)]
+pub struct Permit<'a> {
+    _budget: PhantomData<&'a mut ()>,
+}
+
+impl Permit<'_> {
+    pub(crate) fn new() -> Self {
+        Permit {
+            _budget: PhantomData,
+        }
+    }
+}
+
 /// Ein Modell-Anbieter.
 ///
 /// Nimmt nur eine [`ModelRequest`] an, also nur gefilterte Eingaben, und
@@ -148,8 +177,13 @@ impl std::error::Error for ProviderError {}
 pub trait ModelProvider {
     fn tier(&self) -> Tier;
 
-    /// `Ok(None)`: Diese Stufe hat kein Modell.
-    fn complete(&self, request: &ModelRequest) -> Result<Option<ModelReply>, ProviderError>;
+    /// `Ok(None)`: Diese Stufe hat kein Modell. `permit`: nur über ein
+    /// [`crate::Budget`] zu bekommen.
+    fn complete(
+        &self,
+        request: &ModelRequest,
+        permit: Permit<'_>,
+    ) -> Result<Option<ModelReply>, ProviderError>;
 }
 
 /// Stufe `none`: kein Modell, liefert nie etwas. Standard.
@@ -161,7 +195,11 @@ impl ModelProvider for NoModel {
         Tier::None
     }
 
-    fn complete(&self, _: &ModelRequest) -> Result<Option<ModelReply>, ProviderError> {
+    fn complete(
+        &self,
+        _: &ModelRequest,
+        _: Permit<'_>,
+    ) -> Result<Option<ModelReply>, ProviderError> {
         Ok(None)
     }
 }
@@ -186,31 +224,3 @@ impl fmt::Display for ModelError {
 }
 
 impl std::error::Error for ModelError {}
-
-/// Fehlende Semantik erfragen. Mit `none` immer leer.
-pub fn resolve_missing(
-    provider: &dyn ModelProvider,
-    input: FilteredInput,
-) -> Result<Vec<Hypothesis>, ModelError> {
-    let request = ModelRequest::resolve_missing(input);
-    let Some(reply) = provider.complete(&request).map_err(ModelError::Provider)? else {
-        return Ok(Vec::new());
-    };
-    validate_hypotheses(&reply.text, request.input(), &reply.model).map_err(ModelError::Invalid)
-}
-
-/// Eine Äußerung der Nutzerin in einen Intent-Vorschlag übersetzen lassen.
-/// Mit `none` immer `None`; dann bleibt es beim deterministischen Parser.
-pub fn propose_intent(
-    provider: &dyn ModelProvider,
-    utterance: &UserUtterance,
-    input: FilteredInput,
-) -> Result<Option<IntentProposal>, ModelError> {
-    let request = ModelRequest::parse_intent(utterance.clone(), input);
-    let Some(reply) = provider.complete(&request).map_err(ModelError::Provider)? else {
-        return Ok(None);
-    };
-    validate_intent(&reply.text, request.input(), utterance, &reply.model)
-        .map(Some)
-        .map_err(ModelError::Invalid)
-}

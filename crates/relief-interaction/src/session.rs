@@ -26,6 +26,7 @@ use relief_model::{NodeRef, SemanticGraph};
 
 use crate::command::{self, parse, Command, ScrollDirection, Step};
 use crate::graph::{focused, Control, Graph};
+use crate::marks::{marks, Mark};
 use crate::overlay::{self, ButtonKind};
 use crate::resolve::{
     current_place, dismissal, resolve, resolve_inflected, resolve_place, step_field, step_heading,
@@ -33,8 +34,8 @@ use crate::resolve::{
 };
 use crate::respond;
 use crate::security::{
-    action_name, Binding, Confirmation, Decision, PlanId, Reason, SecurityEvent, SecurityLog,
-    CONFIRMATION_TTL,
+    action_name, is_sensitive_field, Binding, Confirmation, Decision, PlanId, Reason,
+    SecurityEvent, SecurityLog, CONFIRMATION_TTL, HTML_AUTOCOMPLETE, INPUT_TYPE,
 };
 use crate::validate::{plan_navigation, plan_on_page, ActionKind, ActionPlan};
 
@@ -106,6 +107,11 @@ pub struct Session {
     log: SecurityLog,
     /// Mehrdeutiges Ziel der letzten Eingabe; gilt nur für die nächste.
     choices: Option<Choices>,
+    /// Ziel der offenen Rückfrage: „ja“ plant genau dieses neu und löst
+    /// die Rückfrage ein.
+    confirm_target: Option<(Control, ActionKind)>,
+    /// Sprungmarken des zuletzt gezeigten Stands (→ `marks`).
+    marks: Vec<Mark>,
     /// Letzte Eingabe als Befehl (ohne „!“): „ja“ bestätigt sie.
     last_input: Option<String>,
 }
@@ -123,8 +129,6 @@ enum Choices {
 pub enum Pending {
     /// Die Eingabe beantwortet eine Rückfrage; das ist das Ergebnis.
     Done(Outcome),
-    /// „ja“: dieselbe Eingabe mit „!“ verarbeiten (löst die Rückfrage ein).
-    Confirm(String),
     /// Ein neuer Befehl; offene Rückfragen sind verworfen bzw. gelten nur
     /// noch für „!“ in dieser Eingabe.
     Command,
@@ -160,6 +164,8 @@ impl Default for Session {
             position: None,
             choices: None,
             last_input: None,
+            confirm_target: None,
+            marks: Vec::new(),
             confirmation: None,
             confirmation_ttl: CONFIRMATION_TTL,
             plans: 0,
@@ -220,6 +226,7 @@ impl Session {
         if CANCEL.contains(&text.as_str()) {
             let open = choices.is_some() || self.confirmation.is_some();
             self.confirmation = None;
+            self.confirm_target = None;
             self.last_input = None;
             return Pending::Done(Outcome::Answer(if open {
                 "Abgebrochen. Nichts ausgeführt.".into()
@@ -228,9 +235,50 @@ impl Session {
             }));
         }
         if CONFIRM.contains(&text.as_str()) && self.confirmation.is_some() {
-            if let Some(last) = self.last_input.take() {
-                return Pending::Confirm(format!("!{last}"));
+            if let Some((control, kind)) = self.confirm_target.take() {
+                // Gegen den aktuellen Stand: dasselbe Element, falls noch da.
+                let current = graph
+                    .controls
+                    .iter()
+                    .find(|c| c.node == control.node)
+                    .cloned()
+                    .or_else(|| {
+                        model.node(&control.node).map(|node| {
+                            crate::graph::control(model, &control.node, node, control.region)
+                        })
+                    });
+                let offered = self.confirmation.take();
+                return Pending::Done(match current {
+                    Some(c) => self.plan_control(graph, model, c, kind, true, offered),
+                    None => Outcome::Answer(
+                        "Das Ziel ist nicht mehr auf der Seite; nichts ausgeführt.".into(),
+                    ),
+                });
             }
+        }
+        if let Some(label) = text
+            .strip_prefix("marke ")
+            .or_else(|| text.strip_prefix("sprungmarke "))
+        {
+            self.confirmation = None;
+            let label = label.trim();
+            return Pending::Done(
+                match self.marks.iter().find(|m| m.label == label).cloned() {
+                    Some(mark) => {
+                        self.plan_control(graph, model, mark.control, mark.kind, false, None)
+                    }
+                    None => Outcome::Answer(format!(
+                        "Keine Sprungmarke „{label}“. „sprungmarken“ zeigt sie."
+                    )),
+                },
+            );
+        }
+        if matches!(
+            text.as_str(),
+            "sprungmarken" | "zeige sprungmarken" | "marken"
+        ) {
+            self.confirmation = None;
+            return Pending::Done(Outcome::Answer(self.list_marks(graph, model)));
         }
         match choices {
             Some(Choices::Controls(controls, kind)) => {
@@ -263,6 +311,40 @@ impl Session {
         Pending::Command
     }
 
+    /// Sprungmarken für den aktuellen Stand berechnen und merken.
+    pub fn show_marks(&mut self, graph: &Graph, model: &SemanticGraph) -> &[Mark] {
+        self.marks = marks(model, graph);
+        &self.marks
+    }
+
+    fn list_marks(&mut self, graph: &Graph, model: &SemanticGraph) -> String {
+        let marks = self.show_marks(graph, model);
+        if marks.is_empty() {
+            return "Keine Sprungmarken: kein Element mit Aktion und Position.".into();
+        }
+        let lines: Vec<String> = marks
+            .iter()
+            .map(|m| {
+                format!(
+                    "  {}: {}{}",
+                    m.label,
+                    respond::control_line(&m.control),
+                    // Ohne Namen sagt `control_line` es schon.
+                    if m.uncertain() && m.name().value.is_some() {
+                        " (Name nicht gesichert)"
+                    } else {
+                        ""
+                    }
+                )
+            })
+            .collect();
+        format!(
+            "{} Sprungmarken:\n{}\n„marke <Buchstaben>“ wählt eine aus.",
+            marks.len(),
+            lines.join("\n")
+        )
+    }
+
     /// Nicht gefunden: Antwort. Mehrdeutig: Kandidaten merken, nummeriert
     /// antworten.
     fn ask<T>(&mut self, miss: Miss<T>, keep: impl FnOnce(Vec<T>) -> Choices) -> Outcome {
@@ -288,6 +370,7 @@ impl Session {
     ) -> Outcome {
         // Jede Eingabe verbraucht die offene Rückfrage (einlösen oder verwerfen).
         let offered = self.confirmation.take();
+        self.confirm_target = None;
         let here = self.position(focus);
         let (target, kind) = match cmd {
             Command::Help => return Outcome::Answer(command::HELP.into()),
@@ -393,6 +476,7 @@ impl Session {
         let label = respond::control_line(&control);
 
         let action = action_name(&kind);
+        let kind_for_confirm = kind.clone();
         let plan = match plan_on_page(&graph.page, &control, kind) {
             Ok(p) => p,
             Err(rejection) => {
@@ -440,8 +524,9 @@ impl Session {
             Some(id),
             &plan,
         ));
-        let answer = confirmation_prompt(&plan, &label, binding.destination.as_deref(), refused);
+        let answer = confirmation_prompt(&plan, &control, model, &binding, refused);
         self.confirmation = Some(Confirmation::new(id, binding));
+        self.confirm_target = Some((control, kind_for_confirm));
         Outcome::Answer(answer)
     }
 
@@ -507,26 +592,57 @@ impl Session {
 
 /// Rückfrage aus dem validierten Plan und den lokalen Daten, nicht aus einer
 /// freien Zusammenfassung: Risiko, Gründe, Aktion mit Wert, Ziel und
-/// Zieladresse (ohne Query und Fragment).
+/// Zieladresse bzw. Formularziel (ohne Query und Fragment). Bei einem
+/// sensiblen Feld (Passwort, `autocomplete` für Zahlungs- und
+/// Identitätsdaten, → [`is_sensitive_field`]) stehen weder der neue noch der
+/// bisherige Wert darin.
 fn confirmation_prompt(
     plan: &ActionPlan,
-    label: &str,
-    destination: Option<&str>,
+    control: &Control,
+    model: &SemanticGraph,
+    binding: &Binding,
     refused: Option<Reason>,
 ) -> String {
-    let destination = destination
-        .map(|d| format!(", Adresse: {}", d.split(['?', '#']).next().unwrap_or(d)))
+    let node = model.node(&plan.target);
+    let sensitive = node.is_some_and(|n| {
+        is_sensitive_field(
+            n.extra.get(INPUT_TYPE).map(String::as_str),
+            n.extra.get(HTML_AUTOCOMPLETE).map(String::as_str),
+        )
+    });
+    let (kind, label) = if sensitive {
+        let kind = match &plan.kind {
+            ActionKind::SetValue(_) => "SetValue(verdeckt)".to_string(),
+            ActionKind::Select(_) => "Select(verdeckt)".to_string(),
+            other => format!("{other:?}"),
+        };
+        let hidden = Control {
+            value: None,
+            ..control.clone()
+        };
+        (kind, respond::control_line(&hidden))
+    } else {
+        (format!("{:?}", plan.kind), respond::control_line(control))
+    };
+    let what = if node.is_some_and(|n| n.url.is_some()) {
+        "Adresse"
+    } else {
+        "Formularziel"
+    };
+    let destination = binding
+        .destination
+        .as_deref()
+        .map(|d| format!(", {what}: {}", d.split(['?', '#']).next().unwrap_or(d)))
         .unwrap_or_default();
     let refused = refused
         .map(|r| format!(" Die Bestätigung galt nicht: {r}."))
         .unwrap_or_default();
     format!(
-        "Bestätigung nötig ({:?}): {} — Aktion: {:?}, Ziel: {label}{destination}. \
+        "Bestätigung nötig ({:?}): {} — Aktion: {kind}, Ziel: {label}{destination}. \
          „ja“ (oder „!“ vor denselben Befehl) bestätigt einmal und nur genau diese \
          Aktion, „abbrechen“ verwirft sie.{refused}",
         plan.risk,
         plan.notes.join("; "),
-        plan.kind,
     )
 }
 
@@ -884,6 +1000,85 @@ mod tests {
         assert!(text.contains("Ziel oder Seite hat sich geändert"), "{text}");
         // Die neue Rückfrage gilt für den neuen Stand.
         assert_eq!(run(&mut s, &changed, true, order()), None);
+    }
+
+    /// Knoten der Testseite verändern.
+    fn with_node(
+        model: &SemanticGraph,
+        id: i32,
+        change: impl FnOnce(&mut relief_model::SemanticNode),
+    ) -> SemanticGraph {
+        let mut m = model.clone();
+        let at = crate::graph::at(id);
+        change(
+            m.trees
+                .get_mut(&at.tree)
+                .unwrap()
+                .nodes
+                .get_mut(&at.node)
+                .unwrap(),
+        );
+        m
+    }
+
+    #[test]
+    fn rueckfrage_nennt_das_formularziel_und_bindet_es() {
+        let target = |url: &str| {
+            let url = url.to_string();
+            with_node(&crate::graph::sample_tree(), 21, move |n| {
+                n.extra.insert(crate::security::FORM_ACTION.into(), url);
+            })
+        };
+        let shop = target("https://shop.example/bestellung?id=7");
+        let mut s = Session::new();
+        let text = run(&mut s, &shop, false, order()).unwrap();
+        assert!(
+            text.contains("Formularziel: https://shop.example/bestellung."),
+            "{text}"
+        );
+        // Zwischen Rückfrage und „!“ zeigt das Formular woandershin.
+        let evil = target("https://evil.example/bestellung");
+        let text = run(&mut s, &evil, true, order()).unwrap();
+        assert!(text.contains("andere Zieladresse"), "{text}");
+        assert!(
+            text.contains("Formularziel: https://evil.example/bestellung"),
+            "{text}"
+        );
+        assert_eq!(run(&mut s, &evil, true, order()), None);
+    }
+
+    #[test]
+    fn sensible_werte_stehen_nicht_in_der_rueckfrage() {
+        // „Menge“ ohne sicheren Namen: Ausfüllen verlangt eine Rückfrage.
+        let base = with_node(&crate::graph::sample_tree(), 20, |n| {
+            n.name.certainty = relief_model::Certainty::Uncertain;
+            n.value = relief_model::Fact::known(Some("alt-geheim".into()));
+        });
+        let fill = || Command::SetValue("Menge".into(), "geheim123".into());
+
+        let mut s = Session::new();
+        let plain = run(&mut s, &base, false, fill()).unwrap();
+        assert!(plain.contains("SetValue(\"geheim123\")"), "{plain}");
+
+        for (key, value) in [
+            (crate::security::INPUT_TYPE, "password"),
+            (crate::security::HTML_AUTOCOMPLETE, "cc-number"),
+        ] {
+            let model = with_node(&base, 20, |n| {
+                n.extra.insert(key.into(), value.into());
+            });
+            let mut s = Session::new();
+            let text = run(&mut s, &model, false, fill()).unwrap();
+            assert!(text.starts_with("Bestätigung nötig"), "{text}");
+            assert!(text.contains("SetValue(verdeckt)"), "{text}");
+            for secret in ["geheim123", "alt-geheim"] {
+                assert!(!text.contains(secret), "„{secret}“ in: {text}");
+            }
+            // Gebunden bleibt der Wert: „!“ mit anderem Wert gilt nicht.
+            let other = Command::SetValue("Menge".into(), "anders".into());
+            let refused = run(&mut s, &model, true, other).unwrap();
+            assert!(refused.contains("anderer Wert"), "{refused}");
+        }
     }
 
     // Overlay- und Consent-Dialoge (→ `crate::overlay`): Consent-iframe im
