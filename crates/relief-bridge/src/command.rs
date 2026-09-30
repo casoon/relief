@@ -5,10 +5,11 @@
 //! und holt die Antwort mit [`Runtime::finish`]; bis dahin merkt sich die
 //! Runtime den Stand vor der Aktion ([`Pending`]).
 
+use relief_interaction::security::{FORM_ACTION, HTML_AUTOCOMPLETE};
 use relief_interaction::{
     parse_input, ActionKind, ActionPlan as InteractionPlan, Graph, Outcome, ScrollDirection,
 };
-use relief_model::{Action, NodeRef, Role, SemanticGraph};
+use relief_model::{Action, NodeId, NodeRef, Role, SemanticGraph};
 
 use crate::runtime::Runtime;
 
@@ -140,6 +141,52 @@ impl Runtime {
             }) => self
                 .session
                 .escaped(&target, reaches.as_deref(), &before, &self.graph),
+        }
+    }
+
+    /// Ziel der offenen Rückfrage (→ [`Runtime::apply_form_facts`]).
+    pub fn confirmation_target(&self) -> Option<NodeRef> {
+        self.session.confirmation_target().cloned()
+    }
+
+    /// Angaben des Renderers zum Formular eines Ziels ins Modell (Paket 75):
+    /// Formularziel am Ziel, HTML-`autocomplete` an den Feldern (Knoten im
+    /// Baum des Ziels). Unter denselben Schlüsseln wie im CDP-Host; ein
+    /// fehlendes Formularziel entfernt ein früheres. Gilt bis zur nächsten
+    /// Delta des Knotens; der Host fragt vor jeder Eingabe neu an, solange
+    /// eine Rückfrage offen ist.
+    pub fn apply_form_facts(
+        &mut self,
+        target: &NodeRef,
+        action: Option<String>,
+        fields: &[(NodeId, String)],
+    ) {
+        let Some(tree) = self.graph.trees.get_mut(&target.tree) else {
+            return;
+        };
+        if let Some(node) = tree.nodes.get_mut(&target.node) {
+            match action {
+                Some(a) => node.extra.insert(FORM_ACTION.into(), a),
+                None => node.extra.remove(FORM_ACTION),
+            };
+        }
+        for (id, autocomplete) in fields {
+            if let Some(node) = tree.nodes.get_mut(id) {
+                node.extra
+                    .insert(HTML_AUTOCOMPLETE.into(), autocomplete.clone());
+            }
+        }
+    }
+
+    /// Offene Rückfrage mit dem jetzigen Modell neu stellen
+    /// ([`relief_interaction::Session::reconfirm`]); ohne offene Rückfrage
+    /// eine Antwort, die das sagt.
+    pub fn reconfirm(&mut self) -> Reply {
+        self.pending = None;
+        let graph = Graph::build(&self.graph);
+        match self.session.reconfirm(&graph, &self.graph) {
+            Some(outcome) => self.reply(graph, outcome),
+            None => Reply::Answer("Keine Rückfrage offen.".into()),
         }
     }
 
