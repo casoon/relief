@@ -367,6 +367,22 @@ pub fn target_change(before: &Graph, after: &Graph, target: &NodeRef) -> Option<
 /// [`NodeRef`]; nach einem Dokumentwechsel (neue Tree-ID) ist alles neu.
 /// Aufgezählt wird in Dokumentreihenfolge.
 pub fn describe_diff(before: &SemanticGraph, after: &SemanticGraph) -> String {
+    describe_diff_at(
+        before,
+        after,
+        focused(before).as_ref(),
+        focused(after).as_ref(),
+    )
+}
+
+/// Wie [`describe_diff`], mit dem Fokus vorher und nachher vom Aufrufer
+/// (Position der Sitzung statt des Fokus im Modell, → `session`).
+pub fn describe_diff_at(
+    before: &SemanticGraph,
+    after: &SemanticGraph,
+    focus_before: Option<&NodeRef>,
+    focus_after: Option<&NodeRef>,
+) -> String {
     let delta = TreeDelta::between(before, after);
     let mut parts = Vec::new();
 
@@ -390,10 +406,8 @@ pub fn describe_diff(before: &SemanticGraph, after: &SemanticGraph) -> String {
             new.title.as_deref().unwrap_or("")
         ));
     }
-    let focus = focused(after);
-    if focused(before) != focus {
-        let name = focus
-            .as_ref()
+    if focus_before != focus_after {
+        let name = focus_after
             .and_then(|at| after.node(at))
             .map(|n| format!("{} „{}“", n.role, n.name.value.as_deref().unwrap_or("")))
             .unwrap_or_else(|| "unbekanntes Element".into());

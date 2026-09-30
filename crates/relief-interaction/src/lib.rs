@@ -14,6 +14,7 @@
 //! | [`resolve`] | Zielbeschreibung → Bedienelement, Mehrdeutigkeit wird gemeldet |
 //! | [`validate`] | Bedienelement + Aktion → [`validate::ActionPlan`] mit Risikoklasse |
 //! | [`respond`] | Antworttexte für Abfragen und Aktionsergebnisse |
+//! | [`session`] | Eingabe → Antwort oder auszuführender Plan; Position; Aufgabendateien |
 
 #![forbid(unsafe_code)]
 
@@ -22,6 +23,7 @@ pub mod graph;
 pub mod page;
 pub mod resolve;
 pub mod respond;
+pub mod session;
 pub mod validate;
 
 pub use command::{parse, Command, ScrollDirection, Step};
@@ -30,5 +32,8 @@ pub use page::{Group, GroupKind, Page, PageType};
 pub use resolve::{
     current_place, dismissal, resolve, resolve_inflected, resolve_place, step_field, step_heading,
     Dismissal, Place, PlaceResolution, Resolution,
+};
+pub use session::{
+    expectation_met, parse_input, parse_tasks, uses_focus, Outcome, Session, TaskLine,
 };
 pub use validate::{plan, plan_navigation, plan_on_page, ActionKind, ActionPlan, Rejection, Risk};
