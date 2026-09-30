@@ -6,7 +6,8 @@
 //! - **DOM-Fakten** (nur `namen-wie-accname`): `DOM.getDocument` (mit
 //!   `pierce`) als `DomFacts`, nur die Attribute aus `dom_attribute_needed`;
 //!   iframes im selben Renderer-Prozess als eigene Dokumente, Shadow DOM
-//!   (außer dem des Browsers selbst) flach unter dem Host. Dazu `display` und
+//!   (außer dem des Browsers selbst) flach unter dem Host, je Element mit
+//!   seinem ID-Bereich (Dokument oder Shadow-Root). Dazu `display` und
 //!   `visibility` je Element und die Leerraum-Textknoten, die
 //!   `DOM.getDocument` auslässt, aus `DOMSnapshot.captureSnapshot`.
 //! - **Tab-Folge** (nur `tabfolge`): echte Tab-Tasten ab Dokumentanfang, nach
@@ -101,12 +102,12 @@ async fn dom_facts(page: &Page) -> Result<DomFacts> {
         .await?;
     let root = &document.result.root;
     let html = html_of(root).ok_or_else(|| anyhow!("Dokument ohne Wurzelelement"))?;
-    let mut by_backend = HashMap::new();
-    index_nodes(root, &mut by_backend);
-    let walk = Walk {
+    let mut walk = Walk {
         layout: Layout::from_snapshot(&snapshot.result),
-        by_backend,
+        by_backend: HashMap::new(),
+        scopes: HashMap::new(),
     };
+    walk.index(root, 0);
     Ok(walk.node(DomFacts::builder(), html).build())
 }
 
@@ -117,20 +118,6 @@ fn html_of(document: &Node) -> Option<&Node> {
         .iter()
         .flatten()
         .find(|n| n.node_type == ELEMENT_NODE)
-}
-
-/// Jeder Knoten samt Shadow-Roots nach Backend-ID, damit ein `<slot>` die ihm
-/// zugewiesenen Light-DOM-Knoten findet.
-fn index_nodes<'n>(node: &'n Node, map: &mut HashMap<i64, &'n Node>) {
-    map.insert(*node.backend_node_id.inner(), node);
-    for child in node
-        .shadow_roots
-        .iter()
-        .flatten()
-        .chain(node.children.iter().flatten())
-    {
-        index_nodes(child, map);
-    }
 }
 
 /// Rendering aus `DOMSnapshot.captureSnapshot`, nach Backend-ID.
@@ -235,9 +222,34 @@ impl Layout {
 struct Walk<'n> {
     layout: Layout,
     by_backend: HashMap<i64, &'n Node>,
+    /// ID-Bereich je Backend-ID: die Backend-ID des Shadow-Roots, in dem
+    /// der Knoten steht; fehlt: im Dokument.
+    scopes: HashMap<i64, u64>,
 }
 
-impl Walk<'_> {
+impl<'n> Walk<'n> {
+    /// Jeder Knoten samt Shadow-Roots und iframe-Dokumenten nach Backend-ID,
+    /// damit ein `<slot>` die ihm zugewiesenen Light-DOM-Knoten findet, dazu
+    /// sein ID-Bereich. Ein iframe-Dokument ist ein eigenes Dokument, also
+    /// wieder Bereich `0`.
+    fn index(&mut self, node: &'n Node, scope: u64) {
+        let backend = *node.backend_node_id.inner();
+        self.by_backend.insert(backend, node);
+        if scope != 0 {
+            self.scopes.insert(backend, scope);
+        }
+        for shadow in node.shadow_roots.iter().flatten() {
+            // Backend-IDs sind positiv; `0` bleibt dem Dokument.
+            self.index(shadow, *shadow.backend_node_id.inner() as u64);
+        }
+        for child in node.children.iter().flatten() {
+            self.index(child, scope);
+        }
+        if let Some(document) = node.content_document.as_deref() {
+            self.index(document, 0);
+        }
+    }
+
     fn node(&self, builder: DomFactsBuilder, node: &Node) -> DomFactsBuilder {
         match node.node_type {
             TEXT_NODE => builder.text(&node.node_value),
@@ -251,6 +263,9 @@ impl Walk<'_> {
     fn element(&self, builder: DomFactsBuilder, node: &Node) -> DomFactsBuilder {
         let backend = *node.backend_node_id.inner();
         let mut b = builder.open(&node.local_name, backend);
+        if let Some(&scope) = self.scopes.get(&backend) {
+            b = b.scope(scope);
+        }
         // CDP liefert Attribute als flache Liste [Name, Wert, Name, Wert, …].
         for pair in node.attributes.as_deref().unwrap_or_default().chunks(2) {
             if let [name, value] = pair {

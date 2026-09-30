@@ -81,3 +81,20 @@ do: klicke Zusatz zeigen
 assert: namen-wie-accname
 expect: laut Chromium „Telefon (Rückfrage)“, laut accname „Telefon“
 expect: laut Chromium „Postleitzahl (Zusatz)“, laut accname „Postleitzahl“
+
+# Feld in einem iframe fremder Herkunft (Paket 64): Der Host liefert die
+# Seite über einen lokalen Server als `localhost` aus, das iframe lädt von
+# `127.0.0.1`. Es wird verglichen (nicht `untested`); CSS-Inhalt im iframe
+# zählt nur Chromium mit.
+url: server:../fixtures/form-fremd.html
+assert: namen-wie-accname
+expect: 1 Befund:
+expect: laut Chromium „Telefon (Rückfrage)“, laut accname „Telefon“
+
+# Gleiche IDs im Dokument und im Shadow-Root (Paket 64): accname rechnet mit
+# einem ID-Index je Dokument; statt falscher Abweichungen `untested`.
+url: ../fixtures/form-shadow-ids.html
+assert: namen-wie-accname
+expect: 4 Befunde:
+expect: untested form/name-accname [medium]: textbox „Name“: ID „f“
+expect: textbox „Ort“: ID „hinweis“

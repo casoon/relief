@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><title>Kontakt – gleiche IDs im Dokument und im Shadow DOM</title></head>
+<body>
+<main>
+  <h1>Kontakt</h1>
+  <!-- ID-Bereiche (spike/tasks/06-form-assertions.txt, Paket 64): Dokument
+       und Shadow-Root nutzen dieselben IDs. `<label for>` und
+       `aria-labelledby` gelten nur im eigenen Baum; Chromium nennt jedes
+       Feld mit seiner eigenen Beschriftung. -->
+  <form aria-label="Kontaktformular">
+    <p><label for="f">Name</label> <input id="f"></p>
+    <p><span id="hinweis">Kundennummer</span> <input aria-labelledby="hinweis"></p>
+    <p><relief-feld></relief-feld></p>
+  </form>
+</main>
+<script>
+  customElements.define('relief-feld', class extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({ mode: 'open' }).innerHTML =
+        '<label for="f">Postleitzahl</label> <input id="f"> ' +
+        '<span id="hinweis">Ort</span> <input aria-labelledby="hinweis">';
+    }
+  });
+</script>
+</body>
+</html>

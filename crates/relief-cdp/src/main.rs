@@ -10,7 +10,9 @@
 //!                                                ohne Fenster, Bericht für CI; `--fork`: eigener Build (--relief-run)
 //! ```
 //!
-//! Aufgabendatei: `url: …`, `do: …` (mit `!` davor bestätigt), `expect: …`
+//! Aufgabendatei: `url: …` (Pfad relativ zur Aufgabendatei als `file://`, mit
+//! `server:` davor über einen lokalen HTTP-Server → `server.rs`), `do: …`
+//! (mit `!` davor bestätigt), `expect: …`
 //! (Teilstring der letzten Antwort), `assert: …` (Formular-Zusicherung, Befunde
 //! als Antwort → `assertions.rs`), `#` Kommentar.
 
@@ -21,6 +23,7 @@ mod live;
 mod palette;
 mod record;
 mod report;
+mod server;
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -425,6 +428,7 @@ async fn run_files(
     files: &[&String],
 ) -> Result<(Vec<report::Suite>, report::Findings)> {
     let (mut passed, mut failed) = (0, 0);
+    let mut servers = server::Servers::default();
     let mut suites = Vec::new();
     let mut findings = report::Findings::default();
     for file in files {
@@ -445,7 +449,20 @@ async fn run_files(
         for line in parse_tasks(&text) {
             match line {
                 TaskLine::Url(url) => {
-                    let url = to_url(&url, &base);
+                    let url = match url.strip_prefix(server::PREFIX) {
+                        Some(path) => match servers.url(&base.join(path.trim())).await {
+                            Ok(url) => url,
+                            Err(e) => {
+                                println!("\n## {url}\n!! Server nicht startbar: {e}");
+                                suite
+                                    .errors
+                                    .push(format!("Server nicht startbar: {url}: {e}"));
+                                session = None;
+                                continue;
+                            }
+                        },
+                        None => to_url(&url, &base),
+                    };
                     println!("\n## {url}");
                     state = "Laden".into();
                     page_url = url.clone();

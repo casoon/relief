@@ -24,7 +24,7 @@
 //! `statusmeldung` vergleicht zusätzlich mit dem Stand vor der letzten
 //! `do:`-Zeile ([`Observed::before`]).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use a11y_dom::{Arena, ArenaBuilder, ArenaNode, ComputedStyle, Document, Node, Rect, Rendering};
 use a11y_report::{Evidence, Finding, Location, Severity};
@@ -107,7 +107,8 @@ impl Assertion {
 /// Text und den Attributen, die die Prüfungen brauchen
 /// ([`dom_attribute_needed`]), dazu `display`/`visibility` je Element und die
 /// Zuordnung DOM-ID → Arena-Knoten. Shadow DOM hängt der Host flach unter
-/// sein Host-Element, wie Browser und Assistenztechnik den Baum sehen. Der
+/// sein Host-Element, wie Browser und Assistenztechnik den Baum sehen, und
+/// vermerkt je Element seinen ID-Bereich ([`DomFactsBuilder::scope`]). Der
 /// Host erhebt die Fakten; hier werden sie nur gelesen.
 #[derive(Debug)]
 pub struct DomFacts {
@@ -147,6 +148,8 @@ impl DomFacts {
 pub struct DomDocument {
     arena: Arena,
     styles: HashMap<a11y_dom::NodeId, ComputedStyle>,
+    /// ID-Bereich je Element; fehlt: der des Dokuments.
+    scopes: HashMap<a11y_dom::NodeId, u64>,
 }
 
 impl Document for DomDocument {
@@ -195,6 +198,7 @@ struct PendingDocument {
     /// Offene Elemente, das innerste zuletzt.
     open: Vec<a11y_dom::NodeId>,
     styles: HashMap<a11y_dom::NodeId, ComputedStyle>,
+    scopes: HashMap<a11y_dom::NodeId, u64>,
 }
 
 impl PendingDocument {
@@ -205,6 +209,7 @@ impl PendingDocument {
             next: 0,
             open: Vec::new(),
             styles: HashMap::new(),
+            scopes: HashMap::new(),
         }
     }
 
@@ -216,6 +221,7 @@ impl PendingDocument {
         DomDocument {
             arena: self.arena.build(),
             styles: self.styles,
+            scopes: self.scopes,
         }
     }
 }
@@ -254,6 +260,17 @@ impl DomFactsBuilder {
                     visibility: visibility.map(str::to_string),
                 },
             );
+        }
+        self
+    }
+
+    /// ID-Bereich des offenen Elements: `0` (ohne Angabe) ist das Dokument,
+    /// jeder andere Wert ein Shadow-Root, vom Host vergeben. `<label for>`
+    /// und `aria-labelledby` gelten nur im eigenen Bereich.
+    pub fn scope(mut self, scope: u64) -> Self {
+        let doc = &mut self.current;
+        if let Some(&id) = doc.open.last() {
+            doc.scopes.insert(id, scope);
         }
         self
     }
@@ -525,6 +542,7 @@ fn names_match_dom(model: &SemanticGraph, dom: &DomFacts) -> Vec<Finding> {
         .iter()
         .map(|d| IdIndex::build(d.root()))
         .collect();
+    let shared: Vec<_> = dom.documents().iter().map(ids_in_several_scopes).collect();
     let mut out = Vec::new();
     for (at, node) in fields(model) {
         let Some((document, element)) = node.dom_node_id.and_then(|d| dom.node(d)) else {
@@ -538,6 +556,32 @@ fn names_match_dom(model: &SemanticGraph, dom: &DomFacts) -> Vec<Finding> {
             ));
             continue;
         };
+        // `IdIndex` kennt nur einen Bereich je Dokument; steht eine ID des
+        // Feldes auch in einem anderen Bereich, wäre das Ergebnis unsicher.
+        let referenced = element.attr("id").into_iter().chain(
+            element
+                .attr("aria-labelledby")
+                .into_iter()
+                .flat_map(str::split_whitespace),
+        );
+        if let Some(id) = referenced
+            .into_iter()
+            .find(|id| shared[document].contains(id))
+        {
+            out.push(at_node(
+                Finding::untested(
+                    "form/name-accname",
+                    format!(
+                        "{}: ID „{id}“ steht im Dokument und in einem Shadow-Root; \
+                         accname rechnet mit einem ID-Index je Dokument, Name nicht verglichen.",
+                        label(node)
+                    ),
+                ),
+                &at,
+                node,
+            ));
+            continue;
+        }
         let chromium = name_of(node);
         let computed = norm(
             &accname::name_rendered(&dom.documents()[document], element, &ids[document])
@@ -576,6 +620,24 @@ fn names_match_dom(model: &SemanticGraph, dom: &DomFacts) -> Vec<Finding> {
         ));
     }
     out
+}
+
+/// IDs, die in mehr als einem ID-Bereich des Dokuments vorkommen, als `id`
+/// oder als Ziel eines `<label for>`.
+fn ids_in_several_scopes(doc: &DomDocument) -> HashSet<&str> {
+    let mut scopes: HashMap<&str, HashSet<u64>> = HashMap::new();
+    for n in a11y_dom::elements(doc) {
+        let scope = doc.scopes.get(&n.id()).copied().unwrap_or(0);
+        let label_for = n.is_element("label").then(|| n.attr("for")).flatten();
+        for id in n.attr("id").into_iter().chain(label_for) {
+            scopes.entry(id).or_default().insert(scope);
+        }
+    }
+    scopes
+        .into_iter()
+        .filter(|(_, s)| s.len() > 1)
+        .map(|(id, _)| id)
+        .collect()
 }
 
 fn invalid_fields(model: &SemanticGraph) -> Vec<(NodeRef, &SemanticNode)> {
@@ -1310,5 +1372,39 @@ mod tests {
         assert_eq!(dom.documents().len(), 2);
         assert_eq!(dom.node(4).map(|(d, _)| d), Some(1));
         assert!(names(&g, &dom).is_empty(), "{:?}", names(&g, &dom));
+    }
+
+    #[test]
+    fn gleiche_id_in_shadow_root_und_dokument_wird_nicht_verglichen() {
+        let g = form();
+        // `Name` im Dokument, `E-Mail` in einem Shadow-Root; beide mit der
+        // ID `f`. Ein ID-Index je Dokument gäbe beiden „Name E-Mail“.
+        let dom = DomFacts::builder()
+            .open("html", 1)
+            .open("label", 10)
+            .attr("for", "f")
+            .text("Name")
+            .close()
+            .open("input", 3)
+            .attr("id", "f")
+            .close()
+            .open("relief-feld", 20)
+            .open("label", 22)
+            .scope(1)
+            .attr("for", "f")
+            .text("E-Mail")
+            .close()
+            .open("input", 4)
+            .scope(1)
+            .attr("id", "f")
+            .close()
+            .close()
+            .close()
+            .build();
+        let f = names(&g, &dom);
+        assert_eq!(f.len(), 2, "{f:?}");
+        assert!(f
+            .iter()
+            .all(|f| f.outcome == a11y_report::Outcome::Untested && f.message.contains("„f“")));
     }
 }
