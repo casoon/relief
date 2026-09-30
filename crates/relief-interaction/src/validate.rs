@@ -173,7 +173,8 @@ pub fn plan(control: &Control, kind: ActionKind) -> Result<ActionPlan, Rejection
             (kind, Risk::Medium)
         }
         ActionKind::Activate => {
-            if !is_activatable(role) {
+            // Ohne Bedienrolle nur, wenn Chromium selbst einen Klick meldet.
+            if !is_activatable(role) && !control.clickable {
                 return Err(unsupported("aktivieren"));
             }
             (ActionKind::Activate, activation_risk(control, &mut notes))
@@ -325,6 +326,7 @@ mod tests {
             selected_option: None,
             disabled: false,
             focusable: true,
+            clickable: false,
             states: vec![],
             heading: None,
         }

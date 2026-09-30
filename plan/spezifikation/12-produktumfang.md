@@ -53,6 +53,44 @@ Semantic View ab (→ 09). Dazu kommen:
 | Änderungen ansagen | „Warenkorb jetzt 1“ aus dem Delta | in 25/26 |
 | Fehlende Namen ergänzen | Resolver, auf dem Gerät über das Modell des Betriebssystems möglich (Stufe `os`, → 06) | 28 |
 
+### Tastatur-Sprungmarken [umgesetzt 2026-09-30, Paket 38]
+
+Kern browserfrei (`relief_interaction::marks`): Marken bekommen alle
+Bedienelemente des Interaction Graph und Knoten ohne Bedienrolle, für die
+Chromium einen Klick meldet (`DoDefault`, etwa ein `<div>` mit
+Klick-Handler), jeweils nur mit Position und erreichbar (offener modaler
+Dialog: nur dessen Inhalt, je Frame). Ein Klick-Knoten, der Bedienelemente
+enthält, ist ein Wrapper und bekommt keine Marke, ebenso Knoten in einem
+schon markierten (Text in einem Link) und Container (Dialog, Landmark,
+Dokument, iframe) [belegt: auf spiegel.de nahm ein seitenweiter Wrapper
+vorher alle Marken; bild.de markierte den Dialog selbst]. Beschriftungen
+aus der Grundreihe `asdfghjkl`, alle gleich lang (keine ist Präfix einer
+anderen), in Leserichtung. Nicht gesicherte Namen tragen ein „?“ bzw.
+„(Name nicht gesichert)“.
+
+Auswahl über die Sitzung: „marke <buchstaben>“ plant wie ein benanntes
+Ziel (Felder fokussieren, sonst auslösen), riskant oder unbenannt → Rückfrage,
+„ja“ bestätigt genau dieses Ziel; „sprungmarken“ listet sie. Im Fork zeichnet
+ein transparentes, nicht aktivierbares Views-Fenster ohne eigene Eingaben
+die Marken über den Inhalt (für Assistenztechnik ausgeblendet);
+Strg+Umschalt+M zeigt sie, die Buchstaben wählen, Escape oder jede andere
+Taste blendet aus; Rückfragen gehen ins Relief-Panel. `--relief-marks` zeigt
+sie nach dem Laden.
+
+Belegt (M4): `relief_browsertests --gtest_filter=*Sprungmarken*` (Kürzel,
+Buchstaben lösen einen `<div>` mit Klick-Handler nach Rückfrage aus,
+Escape); `scripts/fork-run-tasks.sh spike/tasks/14-marken-fork.txt`
+(Testshop 12 Marken = alle Bedienelemente, Formular, kaputter Testshop mit
+vier Klick-`<div>`s); `spike/tasks/13-marken-real.txt` (Netz): spiegel.de
+„Privacy Center“ 12 Marken, bild.de „Cookie- und Einwilligungsbanner“ 35
+Marken samt „Alle akzeptieren“, „Jetzt BILD PUR abonnieren“,
+„Einstellungen“; Bildschirmfoto Testshop im PR.
+
+Offen: VoiceOver parallel prüfen (→ 47); Klick-`<div>`s ohne Namen könnten
+ihren Text als erschlossenen Namen tragen; Marken folgen Scrollen nur
+gebündelt über Deltas (200 ms); das Kürzel greift nur am Widget des
+Hauptframes (Fokus in einem cross-site-iframe).
+
 ## Linie B: Prüfen im echten Browser
 
 Die Aufgaben-Dateien des CDP-Hosts sind bereits Tests in Nutzersprache:

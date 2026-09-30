@@ -33,6 +33,7 @@ class ScopedAccessibilityMode;
 
 namespace relief {
 
+class ReliefMarksOverlay;
 class ReliefTaskRunner;
 
 // Relief je Tab, erzeugt von AttachToTab (relief_attach.h). Weg B (→
@@ -80,6 +81,9 @@ class ReliefTabHelper
     virtual void OnTabHelperDestroyed() = 0;
     // Die Befehlsleiste soll den Fokus bekommen (Strg+Umschalt+Leertaste).
     virtual void OnFocusCommandRequested() {}
+    // Eine Eingabe außerhalb der Leiste (Sprungmarke) wurde beantwortet.
+    virtual void OnExternalAnswer(const std::string& input,
+                                  const ReliefExecutor::Result& result) {}
   };
   void AddObserver(InspectorObserver* observer);
   void RemoveObserver(InspectorObserver* observer);
@@ -89,6 +93,11 @@ class ReliefTabHelper
   // abwarten; `done` bekommt Antwort und ob auf der Seite gehandelt wurde.
   void Interact(const std::string& input,
                 base::OnceCallback<void(ReliefExecutor::Result)> done);
+  // Antwort einer Sprungmarke, die das Panel beim Start noch nicht sah.
+  std::optional<std::pair<std::string, ReliefExecutor::Result>>
+  TakeExternalAnswer() {
+    return std::exchange(external_answer_, std::nullopt);
+  }
   // Wurde die Befehlsleiste angefordert, bevor ihr Panel bereit war?
   bool TakeFocusCommandRequest() {
     return std::exchange(focus_command_requested_, false);
@@ -116,6 +125,7 @@ class ReliefTabHelper
   // Scroll-Position des Hauptdokuments in Blink-Pixeln und die Höhe einer
   // Bildschirmseite (80 % des Viewports, wie im CDP-Host).
   struct MainScroll {
+    int x = 0;
     int y = 0;
     int y_max = 0;
     int page = 0;
@@ -135,6 +145,7 @@ class ReliefTabHelper
     reset_interval_ = interval;
   }
   int resets_for_testing() const { return resets_; }
+  bool marks_visible_for_testing() const;
   size_t trees_for_testing() const { return trees_.size(); }
   size_t hosts_for_testing() const { return hosts_.size(); }
 
@@ -159,6 +170,12 @@ class ReliefTabHelper
   // Seite, → inspector/relief_inspector.h).
   void WatchKeys(content::RenderFrameHost* frame);
   bool OnKeyPress(const input::NativeWebKeyboardEvent& event);
+  // Sprungmarken (Paket 38): Strg+Umschalt+M zeigt sie, Buchstaben wählen.
+  void ShowMarks();
+  void OnMarks(rust::Vec<bridge::MarkBox> marks);
+  void HideMarks();
+  bool OnMarksKey(const input::NativeWebKeyboardEvent& event);
+  void ChooseMark(std::string label);
   void NotifyGraphChanged();
   // Blink-Pixel je CSS-Pixel für die Positionen: Geräte-Skalierung ×
   // Browser-Zoom.
@@ -197,6 +214,15 @@ class ReliefTabHelper
   // --relief-inspector: nach dem ersten Laden öffnen (einmal).
   bool open_inspector_ = false;
   bool focus_command_requested_ = false;
+  // --relief-marks: nach dem ersten Laden zeigen (einmal).
+  bool show_marks_on_load_ = false;
+  std::unique_ptr<ReliefMarksOverlay> marks_overlay_;
+  // Getippte Buchstaben und Länge der Marken des gezeigten Stands.
+  std::string typed_;
+  size_t label_length_ = 0;
+  base::OneShotTimer marks_refresh_;
+  std::optional<std::pair<std::string, ReliefExecutor::Result>>
+      external_answer_;
   base::ScopedObservation<ui::AXActionHandlerRegistry,
                           ui::AXActionHandlerObserver>
       registry_observation_{this};

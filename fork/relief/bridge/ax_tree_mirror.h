@@ -104,6 +104,7 @@ class AXTreeMirror : public ui::AXTreeObserver {
   // nullopt ohne Root-Scroller).
   struct Scroll {
     ui::AXNodeID node;
+    int x;
     int y;
     int y_max;
   };

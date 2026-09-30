@@ -12,7 +12,9 @@
 #include "base/functional/bind.h"
 #include "base/notreached.h"
 #include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
@@ -31,6 +33,7 @@
 #include "content/public/browser/web_contents.h"
 #include "relief/inspector/relief_inspector.h"
 #include "relief/relief_attach.h"
+#include "relief/marks_overlay.h"
 #include "relief/relief_executor.h"
 #include "relief/relief_switches.h"
 #include "relief/relief_task_runner.h"
@@ -152,6 +155,8 @@ ReliefTabHelper::ReliefTabHelper(content::WebContents* contents)
   WatchKeys(contents->GetPrimaryMainFrame());
   open_inspector_ =
       tab == 1 && command_line.HasSwitch(switches::kReliefInspector);
+  show_marks_on_load_ =
+      tab == 1 && command_line.HasSwitch(switches::kReliefMarks);
   if (tab == 1 && command_line.HasSwitch(switches::kReliefRun)) {
     task_runner_ = std::make_unique<ReliefTaskRunner>(
         *this, *contents,
@@ -161,6 +166,7 @@ ReliefTabHelper::ReliefTabHelper(content::WebContents* contents)
 
 ReliefTabHelper::~ReliefTabHelper() {
   WatchKeys(nullptr);
+  HideMarks();
   for (InspectorObserver& observer : observers_) {
     observer.OnTabHelperDestroyed();
   }
@@ -178,6 +184,119 @@ void ReliefTabHelper::NotifyGraphChanged() {
   for (InspectorObserver& observer : observers_) {
     observer.OnGraphChanged();
   }
+  // Gezeigte Marken folgen der Seite (Scrollen, neue Elemente), gebündelt.
+  if (marks_overlay_ && marks_overlay_->visible() &&
+      !marks_refresh_.IsRunning()) {
+    marks_refresh_.Start(FROM_HERE, base::Milliseconds(200),
+                         base::BindOnce(&ReliefTabHelper::ShowMarks,
+                                        base::Unretained(this)));
+  }
+}
+
+void ReliefTabHelper::ShowMarks() {
+  runtime_.AsyncCall(&RuntimeHost::ShowMarks)
+      .Then(base::BindOnce(&ReliefTabHelper::OnMarks,
+                           weak_factory_.GetWeakPtr()));
+}
+
+void ReliefTabHelper::OnMarks(rust::Vec<bridge::MarkBox> marks) {
+  const std::optional<MainScroll> scroll = GetMainScroll();
+  const float scale = Scale();
+  const float zoom = static_cast<float>(blink::ZoomLevelToZoomFactor(
+      content::HostZoomMap::GetZoomLevel(web_contents())));
+  const float sx = scroll ? scroll->x / scale : 0;
+  const float sy = scroll ? scroll->y / scale : 0;
+  const gfx::Size viewport = web_contents()->GetContainerBounds().size();
+  std::vector<ReliefMarksOverlay::Box> boxes;
+  label_length_ = 0;
+  for (const bridge::MarkBox& mark : marks) {
+    label_length_ = mark.label.size();
+    const gfx::Rect rect(static_cast<int>((mark.x - sx) * zoom),
+                         static_cast<int>((mark.y - sy) * zoom),
+                         static_cast<int>(mark.width * zoom),
+                         static_cast<int>(mark.height * zoom));
+    if (!rect.Intersects(gfx::Rect(viewport))) {
+      continue;
+    }
+    boxes.push_back({base::UTF8ToUTF16(std::string(mark.label)), rect,
+                     mark.uncertain});
+  }
+  if (!marks_overlay_) {
+    marks_overlay_ = std::make_unique<ReliefMarksOverlay>(*web_contents());
+  }
+  runtime_.AsyncCall(&RuntimeHost::Log)
+      .WithArgs(base::StringPrintf("marken\tgezeigt=%zu\tgesamt=%zu",
+                                   boxes.size(), marks.size()));
+  marks_overlay_->Show(std::move(boxes));
+}
+
+bool ReliefTabHelper::marks_visible_for_testing() const {
+  return marks_overlay_ && marks_overlay_->visible();
+}
+
+void ReliefTabHelper::HideMarks() {
+  marks_refresh_.Stop();
+  typed_.clear();
+  if (marks_overlay_) {
+    marks_overlay_->Hide();
+  }
+}
+
+bool ReliefTabHelper::OnMarksKey(const input::NativeWebKeyboardEvent& event) {
+  if (!marks_overlay_ || !marks_overlay_->visible() ||
+      event.GetType() != blink::WebInputEvent::Type::kRawKeyDown) {
+    return false;
+  }
+  if (event.windows_key_code == ui::VKEY_ESCAPE) {
+    HideMarks();
+    return true;
+  }
+  // Buchstaben der Marken (Grundreihe), ohne Umschalttasten.
+  constexpr std::string_view kLetters = "asdfghjkl";
+  const char letter =
+      static_cast<char>(base::ToLowerASCII(static_cast<char>(
+          event.windows_key_code)));
+  if ((event.GetModifiers() & blink::WebInputEvent::kKeyModifiers) != 0 ||
+      kLetters.find(letter) == std::string_view::npos) {
+    // Jede andere Taste beendet den Markenmodus und geht an die Seite.
+    HideMarks();
+    return false;
+  }
+  typed_.push_back(letter);
+  if (typed_.size() >= label_length_) {
+    std::string label = typed_;
+    HideMarks();
+    ChooseMark(std::move(label));
+  }
+  return true;
+}
+
+void ReliefTabHelper::ChooseMark(std::string label) {
+  const std::string input = "marke " + label;
+  Interact(input,
+           base::BindOnce(
+               [](base::WeakPtr<ReliefTabHelper> self, std::string input,
+                  ReliefExecutor::Result result) {
+                 if (!self) {
+                   return;
+                 }
+                 // Rückfragen und Fehler gehören in die Leiste: dort lassen
+                 // sie sich beantworten.
+                 const bool needs_panel = !result.acted;
+                 self->external_answer_ = std::pair(input, result);
+                 for (InspectorObserver& observer : self->observers_) {
+                   observer.OnExternalAnswer(input, result);
+                   self->external_answer_.reset();
+                 }
+                 if (needs_panel) {
+                   if (tabs::TabInterface* tab =
+                           tabs::TabInterface::MaybeGetFromContents(
+                               self->web_contents())) {
+                     ShowInspector(*tab);
+                   }
+                 }
+               },
+               weak_factory_.GetWeakPtr(), input));
 }
 
 void ReliefTabHelper::WatchKeys(content::RenderFrameHost* frame) {
@@ -209,13 +328,26 @@ bool ReliefTabHelper::OnKeyPress(const input::NativeWebKeyboardEvent& event) {
                              blink::WebInputEvent::kShiftKey |
                              blink::WebInputEvent::kAltKey |
                              blink::WebInputEvent::kMetaKey;
+  if (OnMarksKey(event)) {
+    return true;
+  }
   const bool command = event.windows_key_code == ui::VKEY_SPACE;
+  const bool marks = event.windows_key_code == ui::VKEY_M;
   if (event.GetType() != blink::WebInputEvent::Type::kRawKeyDown ||
-      (event.windows_key_code != ui::VKEY_I && !command) ||
+      (event.windows_key_code != ui::VKEY_I && !command && !marks) ||
       (event.GetModifiers() & kModifiers) !=
           (blink::WebInputEvent::kControlKey |
            blink::WebInputEvent::kShiftKey)) {
     return false;
+  }
+  if (marks) {
+    runtime_.AsyncCall(&RuntimeHost::Log).WithArgs("marken\ttaste");
+    if (marks_overlay_ && marks_overlay_->visible()) {
+      HideMarks();
+    } else {
+      ShowMarks();
+    }
+    return true;
   }
   runtime_.AsyncCall(&RuntimeHost::Log)
       .WithArgs(command ? "leiste\ttaste" : "inspector\ttaste");
@@ -255,7 +387,19 @@ void ReliefTabHelper::Interact(
 
 void ReliefTabHelper::DidFinishLoad(content::RenderFrameHost* render_frame_host,
                                     const GURL& validated_url) {
-  if (!open_inspector_ || !render_frame_host->IsInPrimaryMainFrame()) {
+  if (!render_frame_host->IsInPrimaryMainFrame()) {
+    return;
+  }
+  if (show_marks_on_load_) {
+    show_marks_on_load_ = false;
+    // Der Baum kommt kurz nach dem Laden; dann zeigen.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&ReliefTabHelper::ShowMarks,
+                       weak_factory_.GetWeakPtr()),
+        base::Seconds(1));
+  }
+  if (!open_inspector_) {
     return;
   }
   // Beim Start kann das Laden fertig sein, bevor der Tab in einem Fenster
@@ -695,7 +839,7 @@ std::optional<ReliefTabHelper::MainScroll> ReliefTabHelper::GetMainScroll()
   if (!scroll) {
     return std::nullopt;
   }
-  return MainScroll{scroll->y, scroll->y_max,
+  return MainScroll{scroll->x, scroll->y, scroll->y_max,
                     static_cast<int>(view->GetVisibleViewportSize().height() *
                                      Scale() * 0.8f)};
 }

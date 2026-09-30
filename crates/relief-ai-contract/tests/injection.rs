@@ -148,6 +148,7 @@ fn control(graph: &SemanticGraph, id: i32, name: Option<(&str, bool)>) -> Contro
         selected_option: None,
         disabled: false,
         focusable: true,
+        clickable: false,
         states: vec![],
         heading: None,
     }

@@ -65,6 +65,7 @@ class RuntimeHost {
   std::string FinishCommand();
   std::string DescribePage();
   std::string InspectorJson();
+  rust::Vec<bridge::MarkBox> ShowMarks();
   bridge::Reply ShowNode(const std::string& key);
   uint64_t NodeCount();
   void SetDeltaObserverForTesting(DeltaCallback callback);

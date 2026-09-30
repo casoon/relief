@@ -19,6 +19,7 @@
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/bind_post_task.h"
 #include "base/test/run_until.h"
@@ -891,6 +892,77 @@ IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, Befehlsleiste) {
         SidePanelEntry::Key(SidePanelEntry::Id::kRelief));
   }));
   EXPECT_TRUE(graph.Find("Jetzt bestellen", main));
+}
+
+}  // namespace relief
+
+namespace relief {
+
+// Sprungmarken (Paket 38): Strg+Umschalt+M zeigt sie, die Buchstaben einer
+// Marke lösen das Element aus, auch ein <div> mit Klick-Handler (Chromium
+// meldet dort eine Standardaktion); Escape blendet sie aus.
+IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, Sprungmarken) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
+                                           Url("a.test", "/inspektor.html")));
+  ASSERT_TRUE(base::test::RunUntil([&] { return helper().has_main_tree(); }));
+  // Liste über die Sitzung: welche Marke trägt die Klickfläche (ein <div>
+  // ohne Namen, einziges `generic`)?
+  base::test::TestFuture<ReliefExecutor::Result> list;
+  helper().Interact("sprungmarken", list.GetCallback());
+  const std::string text = list.Get().text;
+  const size_t at = text.find(": [generic]");
+  ASSERT_NE(at, std::string::npos) << text;
+  const size_t start = text.rfind('\n', at) + 1;
+  const std::string label =
+      std::string(base::TrimWhitespaceASCII(text.substr(start, at - start),
+                                            base::TRIM_ALL));
+
+  web_contents()->Focus();
+  PressWithCtrlShift(web_contents(), ui::VKEY_M, u'M');
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return helper().marks_visible_for_testing(); }));
+  for (char letter : label) {
+    input::NativeWebKeyboardEvent event(
+        blink::WebInputEvent::Type::kRawKeyDown,
+        blink::WebInputEvent::kNoModifiers, base::TimeTicks::Now());
+    event.windows_key_code =
+        static_cast<ui::KeyboardCode>(base::ToUpperASCII(letter));
+    web_contents()
+        ->GetPrimaryMainFrame()
+        ->GetRenderWidgetHost()
+        ->ForwardKeyboardEvent(event);
+  }
+  EXPECT_FALSE(helper().marks_visible_for_testing());
+  // Ohne Namen ist die Wirkung unbekannt: Rückfrage (im Relief-Panel), die
+  // „ja“ einlöst.
+  SidePanelUI* side_panel = SidePanelUI::From(browser());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return side_panel->IsSidePanelEntryShowing(
+        SidePanelEntry::Key(SidePanelEntry::Id::kRelief));
+  }));
+  EXPECT_EQ("", content::EvalJs(web_contents(),
+                                "document.getElementById('k').textContent"));
+  base::test::TestFuture<ReliefExecutor::Result> confirmed;
+  helper().Interact("ja", confirmed.GetCallback());
+  EXPECT_TRUE(confirmed.Get().acted) << confirmed.Get().text;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(web_contents(),
+                           "document.getElementById('k').textContent")
+               .ExtractString() == "geklickt";
+  }));
+
+  // Escape blendet aus, ohne etwas auszulösen.
+  web_contents()->Focus();
+  PressWithCtrlShift(web_contents(), ui::VKEY_M, u'M');
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return helper().marks_visible_for_testing(); }));
+  input::NativeWebKeyboardEvent escape(blink::WebInputEvent::Type::kRawKeyDown,
+                                       blink::WebInputEvent::kNoModifiers,
+                                       base::TimeTicks::Now());
+  escape.windows_key_code = ui::VKEY_ESCAPE;
+  web_contents()->GetPrimaryMainFrame()->GetRenderWidgetHost()->ForwardKeyboardEvent(
+      escape);
+  EXPECT_FALSE(helper().marks_visible_for_testing());
 }
 
 }  // namespace relief

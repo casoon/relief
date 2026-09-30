@@ -74,7 +74,6 @@ impl Runtime {
         // Antwort auf eine offene Rückfrage (Zahl, „ja“, „abbrechen“)?
         let input = match self.session.pending_reply(&graph, &self.graph, input) {
             relief_interaction::Pending::Done(outcome) => return self.reply(graph, outcome),
-            relief_interaction::Pending::Confirm(again) => again,
             relief_interaction::Pending::Command => input.to_string(),
         };
         let (confirmed, cmd) = match parse_input(&input) {
@@ -149,6 +148,13 @@ impl Runtime {
     /// Fork schreibt es nach jeder Eingabe ins Protokoll (`--relief-log`).
     pub fn take_security_log(&mut self) -> Vec<relief_interaction::SecurityEvent> {
         self.session.take_security_log()
+    }
+
+    /// Sprungmarken des aktuellen Stands; die Sitzung merkt sie für
+    /// „marke …“.
+    pub fn show_marks(&mut self) -> Vec<relief_interaction::Mark> {
+        let graph = Graph::build(&self.graph);
+        self.session.show_marks(&graph, &self.graph).to_vec()
     }
 
     /// Seitenbeschreibung wie nach dem Laden im CDP-Host.

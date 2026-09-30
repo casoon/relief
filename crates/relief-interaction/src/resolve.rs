@@ -581,6 +581,7 @@ mod tests {
             selected_option: None,
             disabled: false,
             focusable: true,
+            clickable: false,
             states: vec![],
             heading: None,
         };

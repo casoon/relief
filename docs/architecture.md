@@ -28,6 +28,7 @@ crates/
 ├── relief-interaction/       # browserfrei, relief-model (ohne `perception`) + serde; a11y-dom, accname, a11y-report (barrierlab)
 │   ├── src/
 │   │   ├── graph.rs          # SemanticGraph → Graph (Bereiche, Überschriften, Bedienelemente, Fließtext; Ziele als NodeRef + DOM-ID); Fokus der Seite
+│   │   ├── marks.rs          # Tastatur-Sprungmarken: Elemente mit Aktion und Position → gleich lange Buchstabenfolgen
 │   │   ├── page.rs           # Seitentyp, funktionale Gruppen (Produkt, Formular), primäre Aktion — erschlossen mit Evidence, nie Known
 │   │   ├── command.rs        # Text → Command (feste Formulierungen, kein LLM)
 │   │   ├── resolve.rs        # Zielbeschreibung → Bedienelement oder Abschnitt/Bereich; Schritte vom Fokus; was sich schließen lässt
@@ -148,6 +149,7 @@ fork/
     ├── relief_attach.h       # AttachToTab: einziger Header, den Chromium einbindet
     ├── relief_tab_helper.*   # WebContentsObserver je Tab: AXMode, Pakete/Positionen → Delta, Lebenszyklus der Bäume, Reset, ActionPlan → AXActionData
     ├── relief_switches.h     # --enable-relief, --relief-log, --relief-activate, --relief-run, --relief-screen-reader-mode
+    ├── marks_overlay.*       # Sprungmarken zeichnen: transparentes Views-Fenster über dem Inhalt, für AT ausgeblendet
     ├── relief_executor.*     # Antwort der Runtime ausführen: Schritte/Taste/Scrollen, Ruhe = keine AX-Pakete, Antwort; abbrechbar
     ├── relief_task_runner.*  # --relief-run: Aufgabendateien abarbeiten (url/do/expect)
     ├── inspector/            # Relief-Panel: Side-Panel-Eintrag kRelief, WebUI chrome://relief-inspector.top-chrome (Befehlsleiste + Inspector), Ressourcen (embed_resources.py)
@@ -191,6 +193,9 @@ flowchart LR
   an die Runtime und den `ReliefExecutor`, Rückfragen (Nummer, „ja“,
   „abbrechen“) beantwortet die Sitzung. → `plan/spezifikation/05`,
   „Rückfragen und Befehlsleiste im Fork“.
+- **Sprungmarken**: Strg+Umschalt+M (oder `--relief-marks`) zeigt über
+  der Seite Buchstaben an jedem Element mit Aktion und Position; getippte
+  Buchstaben gehen als „marke …“ an die Runtime (Rückfragen ins Panel).
 - **Inspector**: Strg+Umschalt+I auf der Seite (oder `--relief-inspector`)
   öffnet das Side Panel des Tabs mit der WebUI; sie bekommt nach jeder
   Delta (gebündelt, 250 ms) den Graph als JSON aus der Runtime, wählt mit

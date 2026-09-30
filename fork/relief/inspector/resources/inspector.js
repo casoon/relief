@@ -291,6 +291,12 @@ addWebUiListener('answer', (answer, acted) => {
   setState(stateAfter(answer) + (acted ? ' Fokus liegt auf der Seite.' : ''));
 });
 addWebUiListener('focusCommand', () => cmdInput.focus());
+// Antwort auf eine Eingabe außerhalb der Leiste (Sprungmarke): ins Log,
+// Zustand wie bei eigenen Eingaben (z. B. Bestätigung erwartet).
+addWebUiListener('externalAnswer', (input, answer, acted) => {
+  addLog(input, answer);
+  setState(stateAfter(answer) + (acted ? ' Fokus liegt auf der Seite.' : ''));
+});
 
 addWebUiListener('graph', render);
 addWebUiListener('status', (text) => {

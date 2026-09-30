@@ -26,6 +26,7 @@ use relief_model::{NodeRef, SemanticGraph};
 
 use crate::command::{self, parse, Command, ScrollDirection, Step};
 use crate::graph::{focused, Control, Graph};
+use crate::marks::{marks, Mark};
 use crate::resolve::{
     current_place, dismissal, resolve, resolve_inflected, resolve_place, step_field, step_heading,
     Dismissal, Place, PlaceResolution, Resolution,
@@ -105,6 +106,11 @@ pub struct Session {
     log: SecurityLog,
     /// Mehrdeutiges Ziel der letzten Eingabe; gilt nur für die nächste.
     choices: Option<Choices>,
+    /// Ziel der offenen Rückfrage: „ja“ plant genau dieses neu und löst
+    /// die Rückfrage ein.
+    confirm_target: Option<(Control, ActionKind)>,
+    /// Sprungmarken des zuletzt gezeigten Stands (→ `marks`).
+    marks: Vec<Mark>,
     /// Letzte Eingabe als Befehl (ohne „!“): „ja“ bestätigt sie.
     last_input: Option<String>,
 }
@@ -122,8 +128,6 @@ enum Choices {
 pub enum Pending {
     /// Die Eingabe beantwortet eine Rückfrage; das ist das Ergebnis.
     Done(Outcome),
-    /// „ja“: dieselbe Eingabe mit „!“ verarbeiten (löst die Rückfrage ein).
-    Confirm(String),
     /// Ein neuer Befehl; offene Rückfragen sind verworfen bzw. gelten nur
     /// noch für „!“ in dieser Eingabe.
     Command,
@@ -159,6 +163,8 @@ impl Default for Session {
             position: None,
             choices: None,
             last_input: None,
+            confirm_target: None,
+            marks: Vec::new(),
             confirmation: None,
             confirmation_ttl: CONFIRMATION_TTL,
             plans: 0,
@@ -219,6 +225,7 @@ impl Session {
         if CANCEL.contains(&text.as_str()) {
             let open = choices.is_some() || self.confirmation.is_some();
             self.confirmation = None;
+            self.confirm_target = None;
             self.last_input = None;
             return Pending::Done(Outcome::Answer(if open {
                 "Abgebrochen. Nichts ausgeführt.".into()
@@ -227,9 +234,50 @@ impl Session {
             }));
         }
         if CONFIRM.contains(&text.as_str()) && self.confirmation.is_some() {
-            if let Some(last) = self.last_input.take() {
-                return Pending::Confirm(format!("!{last}"));
+            if let Some((control, kind)) = self.confirm_target.take() {
+                // Gegen den aktuellen Stand: dasselbe Element, falls noch da.
+                let current = graph
+                    .controls
+                    .iter()
+                    .find(|c| c.node == control.node)
+                    .cloned()
+                    .or_else(|| {
+                        model.node(&control.node).map(|node| {
+                            crate::graph::control(model, &control.node, node, control.region)
+                        })
+                    });
+                let offered = self.confirmation.take();
+                return Pending::Done(match current {
+                    Some(c) => self.plan_control(graph, model, c, kind, true, offered),
+                    None => Outcome::Answer(
+                        "Das Ziel ist nicht mehr auf der Seite; nichts ausgeführt.".into(),
+                    ),
+                });
             }
+        }
+        if let Some(label) = text
+            .strip_prefix("marke ")
+            .or_else(|| text.strip_prefix("sprungmarke "))
+        {
+            self.confirmation = None;
+            let label = label.trim();
+            return Pending::Done(
+                match self.marks.iter().find(|m| m.label == label).cloned() {
+                    Some(mark) => {
+                        self.plan_control(graph, model, mark.control, mark.kind, false, None)
+                    }
+                    None => Outcome::Answer(format!(
+                        "Keine Sprungmarke „{label}“. „sprungmarken“ zeigt sie."
+                    )),
+                },
+            );
+        }
+        if matches!(
+            text.as_str(),
+            "sprungmarken" | "zeige sprungmarken" | "marken"
+        ) {
+            self.confirmation = None;
+            return Pending::Done(Outcome::Answer(self.list_marks(graph, model)));
         }
         match choices {
             Some(Choices::Controls(controls, kind)) => {
@@ -262,6 +310,40 @@ impl Session {
         Pending::Command
     }
 
+    /// Sprungmarken für den aktuellen Stand berechnen und merken.
+    pub fn show_marks(&mut self, graph: &Graph, model: &SemanticGraph) -> &[Mark] {
+        self.marks = marks(model, graph);
+        &self.marks
+    }
+
+    fn list_marks(&mut self, graph: &Graph, model: &SemanticGraph) -> String {
+        let marks = self.show_marks(graph, model);
+        if marks.is_empty() {
+            return "Keine Sprungmarken: kein Element mit Aktion und Position.".into();
+        }
+        let lines: Vec<String> = marks
+            .iter()
+            .map(|m| {
+                format!(
+                    "  {}: {}{}",
+                    m.label,
+                    respond::control_line(&m.control),
+                    // Ohne Namen sagt `control_line` es schon.
+                    if m.uncertain() && m.name().value.is_some() {
+                        " (Name nicht gesichert)"
+                    } else {
+                        ""
+                    }
+                )
+            })
+            .collect();
+        format!(
+            "{} Sprungmarken:\n{}\n„marke <Buchstaben>“ wählt eine aus.",
+            marks.len(),
+            lines.join("\n")
+        )
+    }
+
     /// Nicht gefunden: Antwort. Mehrdeutig: Kandidaten merken, nummeriert
     /// antworten.
     fn ask<T>(&mut self, miss: Miss<T>, keep: impl FnOnce(Vec<T>) -> Choices) -> Outcome {
@@ -287,6 +369,7 @@ impl Session {
     ) -> Outcome {
         // Jede Eingabe verbraucht die offene Rückfrage (einlösen oder verwerfen).
         let offered = self.confirmation.take();
+        self.confirm_target = None;
         let here = self.position(focus);
         let (target, kind) = match cmd {
             Command::Help => return Outcome::Answer(command::HELP.into()),
@@ -387,6 +470,7 @@ impl Session {
         let label = respond::control_line(&control);
 
         let action = action_name(&kind);
+        let kind_for_confirm = kind.clone();
         let plan = match plan_on_page(&graph.page, &control, kind) {
             Ok(p) => p,
             Err(rejection) => {
@@ -436,6 +520,7 @@ impl Session {
         ));
         let answer = confirmation_prompt(&plan, &control, model, &binding, refused);
         self.confirmation = Some(Confirmation::new(id, binding));
+        self.confirm_target = Some((control, kind_for_confirm));
         Outcome::Answer(answer)
     }
 
