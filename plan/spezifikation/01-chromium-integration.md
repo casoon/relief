@@ -387,8 +387,9 @@ Grundlage für 17 (Umsetzung) und den Rebase-Aufwand (Abschnitt
 | 4 | `chrome/browser/ui/side_panel/side_panel_entry_id.h` und `chrome/browser/ui/actions/chrome_action_id.h` — **umgesetzt [20], ein Patch** | `V(kRelief, kActionSidePanelShowRelief, "Relief")` nach `kTestTabScopedEntry`; `E(kActionSidePanelShowRelief)` nach `kActionSidePanelShowReadAnything` | Side-Panel-IDs und Aktions-IDs sind zentrale Makro-Enums. Eine Aktions-ID ist Pflicht [belegt]: Kopfzeile (`SidePanelHelper::GetActionItem`) und Toolbar-Zustand (`SidePanelToolbarPinningController::UpdateActiveState`) prüfen sie per `CHECK`; `std::nullopt` geht nur für Sonderfälle (`kWebView`, `kExtension`). Das Aktions-Element selbst meldet `//relief` zur Laufzeit an `BrowserActions` an |
 | 5 | ~~`chrome/browser/ui/webui/chrome_web_ui_configs.cc`~~ — **entfällt [20]** | — | die WebUI registriert `//relief` zur Laufzeit über `content::WebUIConfigMap::AddWebUIConfig`; Ressourcen ohne grit (Header aus `inspector/embed_resources.py`), also auch kein Eintrag in `tools/gritsettings/resource_ids.spec`; `WebUIContentsWrapperT` wird umgangen, weil es den WebUI-Namen gegen eine Histogramm-Liste prüft (`tools/metrics`) |
 | 6 | `chrome/app/theme/chromium/BRANDING`, `chrome/app/chromium_strings.grd` (`IDS_PRODUCT_NAME`, `IDS_SHORT_PRODUCT_NAME`, nicht übersetzt), `chrome/app/app-Info.plist` — **umgesetzt [36], ein Patch** | Produktname „Relief“, Bundle-ID `de.casoon.relief`, `CrProductDirName` = `Relief` | Chromiums vorgesehener Weg für Produktnamen; `.app`-Name, Helfer, Framework und Profilverzeichnis leiten sich daraus ab |
+| 7 | `chrome/renderer/chrome_content_renderer_client.cc` (`RenderFrameCreated`), `chrome/renderer/BUILD.gn` — **umgesetzt [75], ein Patch** | Include und `relief::FormFactsAgent::Create(render_frame);`; `"//relief/renderer"` in `deps` | Renderer-Beobachter je Frame entstehen nur hier; der Agent beantwortet `relief.mojom.FormFacts` (Formularziel, `autocomplete`), → spezifikation/07 |
 
-Stand: vier Patches (`fork/patches/series`).
+Stand: fünf Patches (`fork/patches/series`).
 
 Nicht nötig [belegt]:
 
@@ -938,6 +939,8 @@ Chrome/Chromium. Weg: Patch 6 in der Tabelle oben; der Neubau nach der
 ├── relief_*.h/cc  # Einstieg je Tab, Schalter, Aufgaben-Runner
 ├── bridge/        # C++-Adapter AXTree ↔ Relief-Modell, Runtime-Sequenz, AXActionData-Rückweg
 ├── inspector/     # Semantic Inspector: Side-Panel-Eintrag, WebUI, Ressourcen
+├── common/        # Mojo-Schnittstellen Browser ↔ Renderer (form_facts.mojom)
+├── renderer/      # Renderer-Seite: FormFactsAgent je Frame
 ├── third_party/   # BUILD.gn für a11y-dom, a11y-report, a11y-rules; Quellen legt scripts/fork-apply.sh ab
 ├── crates/        # Kopie der Crates relief-model, relief-interaction, relief-bridge (scripts/fork-apply.sh)
 ├── speech/        # STT/TTS-Adapter (Annahme)

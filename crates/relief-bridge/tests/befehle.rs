@@ -359,3 +359,62 @@ fn passwort_steht_nicht_in_antwort_und_protokoll() {
     let security = serde_json::to_string(&rt.take_security_log()).unwrap();
     assert!(!security.contains("geheim123"), "{security}");
 }
+
+/// Paket 75: Der Fork trägt das Formularziel erst bei einer Rückfrage nach
+/// (Renderer-Anfrage); die neu gestellte Rückfrage nennt es, ein anderes
+/// Ziel vor „ja“ verlangt eine neue Bestätigung.
+#[test]
+fn formularziel_nachgetragen_und_gebunden() {
+    let mut rt = runtime_shop();
+    assert!(rt.confirmation_target().is_none());
+    assert!(
+        matches!(rt.command("klicke Jetzt kaufen"), Reply::Answer(t) if t.starts_with("Bestätigung nötig"))
+    );
+    let ziel = rt.confirmation_target().expect("Rückfrage offen");
+    rt.apply_form_facts(&ziel, Some("https://shop.test/kasse".into()), &[]);
+    let frage = match rt.reconfirm() {
+        Reply::Answer(t) => t,
+        other => panic!("{other:?}"),
+    };
+    assert!(frage.starts_with("Bestätigung nötig"), "{frage}");
+    assert!(frage.contains("https://shop.test/kasse"), "{frage}");
+    assert_eq!(rt.confirmation_target(), Some(ziel.clone()));
+
+    // Vor „ja“ meldet der Renderer ein anderes Ziel: keine Schritte.
+    rt.apply_form_facts(&ziel, Some("https://fremd.test/".into()), &[]);
+    match rt.command("ja") {
+        Reply::Answer(t) => {
+            assert!(t.contains("https://fremd.test/"), "{t}");
+            assert!(t.contains("Bestätigung nötig"), "{t}");
+        }
+        other => panic!("{other:?}"),
+    }
+    // Die neue Rückfrage gilt mit demselben Ziel.
+    assert_eq!(
+        schritte(&mut rt, "ja"),
+        vec![(Role::Button, Action::DoDefault, None)]
+    );
+}
+
+/// Neu gestellt nennt die Rückfrage weiter, warum „!“ nicht galt.
+#[test]
+fn neu_gestellte_rueckfrage_behaelt_den_grund() {
+    let mut rt = runtime_shop();
+    let erste = match rt.command("!klicke Jetzt kaufen") {
+        Reply::Answer(t) => t,
+        other => panic!("{other:?}"),
+    };
+    assert!(erste.contains("keine offene Rückfrage"), "{erste}");
+    match rt.reconfirm() {
+        Reply::Answer(t) => assert!(t.contains("keine offene Rückfrage"), "{t}"),
+        other => panic!("{other:?}"),
+    }
+    assert_eq!(
+        rt.command("abbrechen"),
+        Reply::Answer("Abgebrochen. Nichts ausgeführt.".into())
+    );
+    match rt.command("klicke Jetzt kaufen") {
+        Reply::Answer(t) => assert!(!t.contains("keine offene Rückfrage"), "{t}"),
+        other => panic!("{other:?}"),
+    }
+}

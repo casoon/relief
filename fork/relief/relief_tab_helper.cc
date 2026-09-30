@@ -31,6 +31,10 @@
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/scoped_accessibility_mode.h"
 #include "content/public/browser/web_contents.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
+#include "relief/common/form_facts.mojom.h"
+#include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "relief/inspector/relief_inspector.h"
 #include "relief/relief_attach.h"
 #include "relief/marks_overlay.h"
@@ -765,12 +769,147 @@ bool ReliefTabHelper::has_main_tree() const {
          root_ == web_contents()->GetPrimaryMainFrame()->GetAXTreeID();
 }
 
+// Formularziel und `autocomplete` trägt der AXTree nicht (Paket 75). Der
+// Browser fragt sie beim Renderer an, nur solange eine Rückfrage offen ist
+// oder entsteht: vor jeder Eingabe für das Ziel der offenen Rückfrage (damit
+// „ja“ gegen den aktuellen Stand bindet) und nach einer Eingabe, die eine
+// neue Rückfrage stellt; die stellt die Runtime dann mit den Angaben neu.
 void ReliefTabHelper::RunCommand(
     const std::string& input,
     base::OnceCallback<void(bridge::Reply)> done) {
-  runtime_.AsyncCall(&RuntimeHost::RunCommand)
-      .WithArgs(input)
-      .Then(std::move(done));
+  runtime_.AsyncCall(&RuntimeHost::ConfirmationTarget)
+      .Then(base::BindOnce(&ReliefTabHelper::OnTargetBeforeCommand,
+                           weak_factory_.GetWeakPtr(), input,
+                           std::move(done)));
+}
+
+void ReliefTabHelper::OnTargetBeforeCommand(
+    const std::string& input,
+    base::OnceCallback<void(bridge::Reply)> done,
+    bridge::Found open) {
+  auto run = base::BindOnce(
+      [](base::WeakPtr<ReliefTabHelper> self, const std::string& input,
+         base::OnceCallback<void(bridge::Reply)> done,
+         std::optional<bridge::FormFacts> facts) {
+        if (!self) {
+          return;
+        }
+        std::optional<std::pair<std::string, int32_t>> asked;
+        if (facts) {
+          asked.emplace(std::string(facts->tree), facts->node);
+        }
+        self->runtime_.AsyncCall(&RuntimeHost::RunCommand)
+            .WithArgs(input, std::move(facts))
+            .Then(base::BindOnce(&ReliefTabHelper::OnCommandReplied, self,
+                                 std::move(asked), std::move(done)));
+      },
+      weak_factory_.GetWeakPtr(), input, std::move(done));
+  if (!open.found) {
+    std::move(run).Run(std::nullopt);
+    return;
+  }
+  FetchFormFacts(open, std::move(run));
+}
+
+void ReliefTabHelper::OnCommandReplied(
+    std::optional<std::pair<std::string, int32_t>> asked,
+    base::OnceCallback<void(bridge::Reply)> done,
+    bridge::Reply reply) {
+  runtime_.AsyncCall(&RuntimeHost::ConfirmationTarget)
+      .Then(base::BindOnce(
+          [](base::WeakPtr<ReliefTabHelper> self,
+             std::optional<std::pair<std::string, int32_t>> asked,
+             base::OnceCallback<void(bridge::Reply)> done, bridge::Reply reply,
+             bridge::Found open) {
+            if (!self) {
+              return;
+            }
+            const bool fresh =
+                !open.found ||
+                (asked && asked->first == std::string(open.tree) &&
+                 asked->second == open.node);
+            if (fresh) {
+              self->FinishCommandReply(std::move(done), std::move(reply));
+              return;
+            }
+            self->FetchFormFacts(
+                open,
+                base::BindOnce(
+                    [](base::WeakPtr<ReliefTabHelper> self,
+                       base::OnceCallback<void(bridge::Reply)> done,
+                       bridge::Reply reply,
+                       std::optional<bridge::FormFacts> facts) {
+                      if (!self) {
+                        return;
+                      }
+                      if (!facts) {
+                        self->FinishCommandReply(std::move(done),
+                                                 std::move(reply));
+                        return;
+                      }
+                      self->runtime_.AsyncCall(&RuntimeHost::Reconfirm)
+                          .WithArgs(std::move(*facts))
+                          .Then(base::BindOnce(
+                              &ReliefTabHelper::FinishCommandReply, self,
+                              std::move(done)));
+                    },
+                    self, std::move(done), std::move(reply)));
+          },
+          weak_factory_.GetWeakPtr(), std::move(asked), std::move(done),
+          std::move(reply)));
+}
+
+void ReliefTabHelper::FinishCommandReply(
+    base::OnceCallback<void(bridge::Reply)> done,
+    bridge::Reply reply) {
+  runtime_.AsyncCall(&RuntimeHost::LogSecurity);
+  std::move(done).Run(std::move(reply));
+}
+
+void ReliefTabHelper::FetchFormFacts(
+    const bridge::Found& target,
+    base::OnceCallback<void(std::optional<bridge::FormFacts>)> done) {
+  content::RenderFrameHost* frame = content::RenderFrameHost::FromAXTreeID(
+      ui::AXTreeID::FromString(std::string(target.tree)));
+  if (!frame || content::WebContents::FromRenderFrameHost(frame) !=
+                    web_contents()) {
+    std::move(done).Run(std::nullopt);
+    return;
+  }
+  auto remote =
+      std::make_unique<mojo::AssociatedRemote<relief::mojom::FormFacts>>();
+  frame->GetRemoteAssociatedInterfaces()->GetInterface(remote.get());
+  mojo::AssociatedRemote<relief::mojom::FormFacts>* raw = remote.get();
+  // Ohne Antwort (Frame weg, Renderer ohne Agent) geht es ohne Angaben
+  // weiter.
+  (*raw)->Get(
+      target.node,
+      mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+          base::BindOnce(
+              [](std::unique_ptr<
+                     mojo::AssociatedRemote<relief::mojom::FormFacts>>,
+                 std::string tree, int32_t node,
+                 base::OnceCallback<void(std::optional<bridge::FormFacts>)>
+                     done,
+                 relief::mojom::FormInfoPtr info) {
+                if (!info) {
+                  std::move(done).Run(std::nullopt);
+                  return;
+                }
+                bridge::FormFacts facts;
+                facts.tree = tree;
+                facts.node = node;
+                facts.has_action = info->form_action.has_value();
+                facts.action = info->form_action.value_or("");
+                for (const relief::mojom::FieldFactPtr& field : info->fields) {
+                  facts.fields.push_back(
+                      bridge::FieldFact{field->ax_id, field->autocomplete});
+                }
+                std::move(done).Run(std::move(facts));
+              },
+              std::move(remote), std::string(target.tree), target.node,
+              std::move(done)),
+          relief::mojom::FormInfoPtr()));
 }
 
 void ReliefTabHelper::FinishCommand(
