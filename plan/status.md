@@ -66,9 +66,12 @@ Formular-Zusicherungen im Aufgabenformat (`assert:`) umgesetzt, browserfrei
 ausgewertet mit `a11y-dom`, `accname` und `a11y-report` (Feature
 `assertions`, nicht im Fork), beschrieben in
 [spezifikation/12](spezifikation/12-produktumfang.md#formular-zusicherungen-umgesetzt-2026-09-30-paket-42).
+Relief ersetzt in barrierlab den Reader-Host als Konsument
+(casoon/barrierlab#29, zum Merge offen); Kandidaten zum Ablegen in
+[spezifikation/12](spezifikation/12-produktumfang.md#kandidaten-zum-ablegen-stand-2026-09-30).
 
 **Sofort startbar:**
-- Cloud: 49 (Zusicherungen nachschärfen), 46 (barrierlab), 48 (Sicherheits-Regressionsmatrix)
+- Cloud: 49 (Zusicherungen nachschärfen), 48 (Sicherheits-Regressionsmatrix)
 - Cloud + M4: 20 (Inspector), 40 (Overlay und Consent), 36 (Branding),
   44 (Lauf ohne Fenster, JUnit)
 - M4: 43 (VoiceOver im Test)
@@ -102,7 +105,6 @@ ausgewertet mit `a11y-dom`, `accname` und `a11y-report` (Feature
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
 | 44 | Lauf ohne Fenster, JUnit-Bericht | Cloud + M4 | offen | 42 ✓ | [44](44-kopflos-und-junit.md) |
 | 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 | [45](45-playwright-anbindung.md) |
-| 46 | barrierlab: Relief als Konsument, Reader ersetzen | Cloud (barrierlab) | offen | — | [46](46-barrierlab-einbinden.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20, 25 | [47](47-relief-ui-accessibility.md) |
 | 48 | Sicherheits-Regressionsmatrix für Modellgrenzen | Cloud | offen | 24 ✓, vor Modellintegration | [48](48-sicherheits-regressionen.md) |
 | 49 | Formular-Zusicherungen nachschärfen (Statusmeldung als Änderung, Prüfbefehle) | Cloud | offen | 42 ✓ | [49](49-zusicherungen-nachschaerfen.md) |
