@@ -78,6 +78,9 @@ pub struct Control {
     /// Gemeldete Zustände als Text (`expanded`, `checked`, `invalid`,
     /// bei Schiebereglern `valuemin`/`valuemax` …); `false` fehlt.
     pub states: Vec<(String, String)>,
+    /// Aufklappbar: meldet `expanded`, auch zugeklappt (in `states` fehlt
+    /// `false`). Zweck-Titel im Cookie-Dialog (→ [`crate::overlay`]).
+    pub expandable: bool,
     /// Vorausgehende Überschrift (Index in [`Graph::headings`]): der
     /// Abschnitt, in dem das Element liegt.
     pub heading: Option<usize>,
@@ -444,6 +447,7 @@ pub(crate) fn control(
         name: name_fact(node),
         region,
         states: states(node, value.as_deref()),
+        expandable: node.states.expanded.is_some(),
         value,
         sensitive: is_sensitive_field(
             node.extra.get(INPUT_TYPE).map(String::as_str),

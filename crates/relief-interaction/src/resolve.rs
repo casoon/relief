@@ -589,6 +589,7 @@ mod tests {
             focusable: true,
             clickable: false,
             states: vec![],
+            expandable: false,
             heading: None,
         };
         score(&c, &normalize(q))

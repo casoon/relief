@@ -338,7 +338,11 @@ flowchart LR
   Einwilligungs-Überschrift). Art und Buttons nach Wörtern eingeordnet,
   Buttons ohne Signalwort unter einer Abo-Überschrift als Abo (Inferenz mit
   Evidence); mehrfach gleich benannte Zustimmen-/Ablehnen-Buttons gelten
-  als „je Zweck“, Einstellungswort mit Speichern-Wort als Speichern.
+  als „je Zweck“, Einstellungswort mit Speichern-Wort als Speichern;
+  aufklappbare Buttons (`Control::expandable`) gelten ab zweien im Overlay
+  oder mit „Required For Consent“ im Namen als Zweck-Titel, weder Zustimmen
+  noch Einstellungen. Die Rückfrage nennt bei Buttons je Zweck den Zweck
+  (`overlay::purpose_of`: Zweck-Titel davor, sonst Überschrift).
   „cookies ablehnen“ und „cookie-einstellungen öffnen“ werden ein
   gewöhnlicher `ActionPlan` (`Activate`) auf den einen Button dieser Art
   (ein gleichnamiger Link daneben zählt nicht); Links, Buttons je Zweck und

@@ -105,8 +105,10 @@ google.de, zdf.de, ikea.com ausgeführt; Einwilligungsseite ohne Dialog
 (sueddeutsche.de „Jetzt testen“), Einstellungen nur auf „cookie-einstellungen
 öffnen“; zweite Ebene mit Buttons je Zweck zusammengefasst angesagt und
 nie selbst gewählt, „Auswahl speichern“ als Speichern, gleichnamiger Link
-neben dem Button zählt nicht (spiegel.de, heise.de), beschrieben in
-[spezifikation/05](spezifikation/05-intents-und-aktionen.md#overlay--und-consent-dialoge-pakete-40-80-91-belegt).
+neben dem Button zählt nicht (spiegel.de, heise.de); aufklappbare
+Zweck-Titel weder Zustimmen noch Einstellungen, Rückfrage je Zweck nennt
+den Zweck (bild.de, faz.net), beschrieben in
+[spezifikation/05](spezifikation/05-intents-und-aktionen.md#overlay--und-consent-dialoge-pakete-40-80-91-110-belegt); im Fork belegt.
 
 Sicherheits-Regressionsmatrix umgesetzt (Missbrauchsfälle als
 Tests, Bestätigungstoken, Grenzen je Aufgabe, Security-Log), beschrieben in
@@ -139,12 +141,12 @@ nur bei einer Rückfrage), beschrieben in
 
 **Sofort startbar:**
 - Cloud: 105 (Frames anderer Prozesse beim Laden), 106 (`tabfolge` sporadisch)
-- Cloud + M4: 26 (Sprache), 29 (Semantic View), 111 (Branding-Reste), 112 (`autocomplete` im Fork), 45 (Playwright), 110 (Consent: Zweck-Titel)
-- M4: 43 (VoiceOver im Test)
+- Cloud + M4: 26 (Sprache), 29 (Semantic View), 111 (Branding-Reste), 112 (`autocomplete` im Fork), 45 (Playwright)
+- M4: 43 (VoiceOver im Test), 141 (Diff im Fork)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
-- Linie A: 26, 29 parallel → 41 (40, 80, 91 erledigt, Nachtrag 110);
+- Linie A: 26, 29 parallel → 41 (40, 80, 91, 110 erledigt);
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 (44 erledigt), 43 zurückgestellt; 105 und 106 jederzeit (85 erledigt).
 - Produkt: 111 jederzeit; 37 erst vor einer Weitergabe an Dritte.
@@ -170,4 +172,4 @@ nur bei einer Rückfrage), beschrieben in
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
 | 105 | CDP-Host: Frames anderer Prozesse schon beim Laden anhängen (Ruhe nach dem Laden) | Cloud | offen | 85 ✓ | [105](105-cdp-host-frames-beim-laden.md) |
 | 106 | CDP-Host: `tabfolge` in einen fremden Frame sporadisch verfehlt | Cloud | offen | 85 ✓ | [106](106-tabfolge-fremder-frame-sporadisch.md) |
-| 110 | Consent: Zweck-Titel und Rückfrage je Zweck | Cloud + M4 | offen | 91 ✓ | [110](110-consent-zweck-titel.md) |
+| 141 | Fork meldet nach einer Aktion Knoten als „nicht mehr wahrnehmbar“, die CDP nicht meldet | M4 | offen | — | [141](141-fork-diff-verschwundene-knoten.md) |

@@ -378,7 +378,7 @@ impl Session {
         }
         match choices {
             Some(Choices::Controls(controls, kind)) => {
-                let labels: Vec<String> = controls.iter().map(respond::control_line).collect();
+                let labels = choice_labels(graph, controls.iter());
                 if let Some(i) = choose(&text, &labels) {
                     self.confirmation = None;
                     return Pending::Done(self.plan_control(
@@ -931,20 +931,36 @@ fn pick_from(graph: &Graph, query: &str, found: Resolution) -> Result<Control, M
             }
             _ => format!("Nichts gefunden für „{query}“."),
         })),
-        Resolution::Many(cs) => Err(Miss::Many(
-            numbered(
-                format!("Mehrdeutig, „{query}“ passt auf:"),
-                cs.iter().map(|c| {
-                    format!(
-                        "{} in {}",
-                        respond::control_line(c),
-                        graph.region_label(c.region)
-                    )
-                }),
-            ),
-            cs.into_iter().cloned().collect(),
-        )),
+        Resolution::Many(cs) => {
+            let labels = choice_labels(graph, cs.iter().copied());
+            Err(Miss::Many(
+                numbered(
+                    format!("Mehrdeutig, „{query}“ passt auf:"),
+                    cs.iter()
+                        .zip(labels)
+                        .map(|(c, label)| format!("{label} in {}", graph.region_label(c.region))),
+                ),
+                cs.into_iter().cloned().collect(),
+            ))
+        }
     }
+}
+
+/// Beschriftung der Kandidaten einer Rückfrage, auch zum Wählen per Name.
+/// Buttons je Zweck heißen alle gleich („Ablehnen“); der Zweck
+/// unterscheidet sie (→ [`overlay::purpose_of`]).
+fn choice_labels<'a>(graph: &Graph, controls: impl Iterator<Item = &'a Control>) -> Vec<String> {
+    let consent = overlay::consent(graph);
+    let purpose = |c: &Control| {
+        let i = graph.controls.iter().position(|x| x.node == c.node)?;
+        overlay::purpose_of(graph, consent.as_ref()?, i)
+    };
+    controls
+        .map(|c| match purpose(c) {
+            Some(p) => format!("{} (vermutlich Zweck „{p}“)", respond::control_line(c)),
+            None => respond::control_line(c),
+        })
+        .collect()
 }
 
 /// Der Button im Cookie-Dialog, der ablehnt, ohne zu bezahlen (→
@@ -1522,6 +1538,50 @@ mod tests {
         let model = crate::overlay::consent_page(&["Alle akzeptieren"]);
         let text = run(&mut s, &model, false, Command::ConsentSettings).unwrap();
         assert!(text.starts_with("Keine Einstellungen gefunden"), "{text}");
+    }
+
+    #[test]
+    fn rueckfrage_je_zweck_nennt_den_zweck() {
+        // Wie bild.de: aufklappbare Zweck-Titel, darunter „Ablehnen“.
+        let mut model = crate::overlay::consent_page(&[
+            "Politische Werbung anzeigen",
+            "Einwilligen",
+            "Ablehnen",
+            "Personalisierte Inhalte",
+            "Einwilligen",
+            "Ablehnen",
+            "Alle akzeptieren",
+        ]);
+        let frame = model
+            .trees
+            .get_mut(&relief_model::TreeId("frame".into()))
+            .unwrap();
+        for id in [20, 23] {
+            frame
+                .nodes
+                .get_mut(&relief_model::NodeId(id))
+                .unwrap()
+                .states
+                .expanded = Some(false);
+        }
+        let mut s = Session::new();
+        let text = run(&mut s, &model, false, Command::Activate("Ablehnen".into())).unwrap();
+        assert!(
+            text.contains(
+                "1. [button] Ablehnen (vermutlich Zweck „Politische Werbung anzeigen“) in dialog"
+            ),
+            "{text}"
+        );
+        assert!(
+            text.contains("2. [button] Ablehnen (vermutlich Zweck „Personalisierte Inhalte“)"),
+            "{text}"
+        );
+        // Der Zweck wählt wie ein Name.
+        let g = Graph::build(&model);
+        match s.pending_reply(&g, &model, "personalisierte") {
+            Pending::Done(out) => assert_eq!(target(out), frame_node(25)),
+            _ => panic!("nicht gewählt"),
+        }
     }
 
     #[test]
