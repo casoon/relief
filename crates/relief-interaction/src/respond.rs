@@ -349,6 +349,14 @@ pub fn overlay(graph: &Graph, o: &Overlay) -> String {
     if !purposes.is_empty() {
         parts.push(format!("{} {purposes}", ButtonKind::Purpose.label()));
     }
+    // Zweck-Titel nur gezählt: Ihre Namen sind lang, und sie klappen nur auf.
+    let titles = o.of_kind(ButtonKind::PurposeTitle).count();
+    if titles > 0 {
+        parts.push(format!(
+            "vermutlich {titles} {}",
+            ButtonKind::PurposeTitle.label()
+        ));
+    }
     let others = o.of_kind(ButtonKind::Other).count();
     if others > 0 {
         parts.push(format!("{others} weitere"));

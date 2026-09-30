@@ -70,7 +70,11 @@ Cookie- und Newsletter-Dialoge sagt „was ist hier" mit an: Art als
 Vermutung mit Evidence, Buttons nach Beschriftung (Zustimmen, Ablehnen,
 Einstellungen, Speichern, Abo, Schließen; Zustimmen und Ablehnen je Zweck
 auf der zweiten Ebene zusammengefasst als „vermutlich je Zweck „Ablehnen“
-3-mal“). Eine Einwilligungsseite ohne Dialog gilt als
+3-mal“, aufklappbare Titel der Zwecke nur gezählt als „vermutlich 16
+Zweck-Titel“, weder Zustimmen noch Einstellungen). Die Rückfrage zu
+gleichnamigen Buttons je Zweck nennt den Zweck („[button] Ablehnen
+(vermutlich Zweck „Politische Werbung anzeigen“)“), der Zweck wählt wie ein
+Name. Eine Einwilligungsseite ohne Dialog gilt als
 „Seite ohne Dialog vermutlich Cookie-Hinweis", wenn ein Zustimmen-Button unter
 einer Überschrift mit Einwilligungswort steht. Relief stimmt nie selbst zu;
 „cookies ablehnen" klickt nur einen Button, der ablehnt, ohne zu bezahlen, sonst sagt

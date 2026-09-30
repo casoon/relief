@@ -235,7 +235,7 @@ Offen: deiktische Ziele („dieses Feld“, „hier“) kennt der Parser noch
 nicht; Ausgabe pausieren fehlt (die Leiste bündelt nur); manueller
 Tastatur- und VoiceOver-Durchgang (→ 47).
 
-## Overlay- und Consent-Dialoge (Pakete 40, 80, 91) [belegt]
+## Overlay- und Consent-Dialoge (Pakete 40, 80, 91, 110) [belegt]
 
 Browserfrei in `relief-interaction` (`overlay.rs`, Befehle in `command.rs`,
 Ablauf in `session.rs`, Texte in `respond.rs`); beide Hosts nutzen es ohne
@@ -281,6 +281,37 @@ Regeln [Entscheidung]:
   „cookies ablehnen“ klickt keinen davon („Nicht abgelehnt“); vorher fragte
   es nummeriert zwischen drei gleichen „Ablehnen“ nach, ohne zu sagen, zu
   welchem Zweck sie gehören.
+- **Zweck-Titel** (Paket 110) [Entscheidung]: Die Zwecke der zweiten Ebene
+  haben aufklappbare Titel (Button mit `aria-expanded`), deren Namen
+  Signalwörter tragen: bild.de „Speichern von oder Zugriff auf …
+  Required For Consent“ (über „consent“ Zustimmen), faz.net „Verwendung
+  reduzierter Daten zur Auswahl von Werbeanzeigen“ (über „auswahl“
+  Einstellungen; „cookie-einstellungen öffnen“ fragte zwischen ihnen
+  nummeriert nach). Ein aufklappbarer **Button** ist `ButtonKind::PurposeTitle`
+  (`Uncertain`), wenn sein Name „required for consent“, „zustimmung
+  erforderlich“, „einwilligung erforderlich“ oder „consent required“ trägt
+  oder das Overlay mindestens zwei aufklappbare Buttons hat (eine Liste von
+  Zwecken; bild.de 14, faz.net 16, spiegel.de 8). Die Ansage zählt sie nur
+  („vermutlich 16 Zweck-Titel“). Grund wie bei „je Zweck“: Das nimmt
+  Buttons nur aus ihrer Art heraus und macht nichts wählbar; lieber einmal
+  zu oft. Nebenfolge: Ein aufklappbarer „Einstellungen“-Button neben einem
+  zweiten aufklappbaren Button ist kein Einstellungen mehr;
+  „cookie-einstellungen öffnen“ sagt dann „Keine Einstellungen gefunden“
+  (nichts geklickt), „klicke Einstellungen“ geht weiter. Ein einzelner
+  aufklappbarer Button ohne diese Wörter bleibt, was er ist. Warum nicht die
+  Position vor den Buttons je Zweck: Auf faz.net stehen unter den Titeln
+  keine Buttons (die Schalter liegen in der zugeklappten Beschreibung).
+- **Rückfrage je Zweck** (Paket 110): Die nummerierte Rückfrage bei
+  Mehrdeutigkeit („klicke Ablehnen“) nennt bei Buttons je Zweck den Zweck:
+  „[button] Ablehnen (vermutlich Zweck „Politische Werbung anzeigen“) in
+  dialog „privacy manager““ (`overlay::purpose_of`). Zweck ist der
+  Zweck-Titel unmittelbar davor (nur Buttons je Zweck dazwischen; bild.de),
+  sonst die Überschrift seines Abschnitts im Overlay (spiegel.de, dort auch
+  im Titel); höchstens acht Wörter. „vermutlich“, weil die Zuordnung aus
+  der Reihenfolge erschlossen ist. Der Zweck wählt wie ein Name
+  („personalisierte“ wählt das „Ablehnen“ unter „Personalisierte
+  Inhaltsempfehlungen“); Wählen bleibt ein ausdrücklicher Befehl der
+  Nutzerin.
 - **Speichern** (Paket 91) [Entscheidung]: Ein Button mit Einstellungswort
   und Speichern-Wort („Auswahl speichern“, „Einstellungen anwenden“) ist
   `ButtonKind::Save`, nicht Einstellungen. Sonst aktivierte
@@ -372,11 +403,14 @@ im iframe eines modalen Dialogs), `consent-seite.html` (Einwilligungsseite
 ohne Dialog), `consent-einstellungen.html` (Abo „Jetzt testen“, Ablehnen
 erst nach „cookie-einstellungen öffnen“), `consent-zwecke.html` (Paket 91:
 Link und Button „Einstellungen“, zweite Ebene mit Buttons je Zweck,
-„Einstellungen anwenden“ als Speichern) → 41/41 über CDP (mit 01–08 und
-15: 176/176, 2026-09-30).
+„Einstellungen anwenden“ als Speichern; Paket 110: Rückfrage mit Zweck aus
+der Überschrift), `consent-zweck-titel.html` (Paket 110: Zweck-Titel wie
+bild.de und faz.net, Rückfrage mit Zweck aus dem Titel, Wahl über den
+Zweck) → 50/50 über CDP (mit 01–08, 15, 16: 198/198, 2026-09-30).
 
 Echte Seiten (`spike/tasks/12-consent-real.txt`, CDP-Host, 2026-09-30,
-Netz; mit Paket 91 32/32; keine Einwilligung erteilt):
+Netz; mit Paket 110 43/43; keine Einwilligung erteilt, keine Auswahl
+gespeichert):
 
 | Seite | erkannt | Beschreibung (Auszug) | Ablehnen |
 |---|---|---|---|
@@ -399,13 +433,23 @@ anwenden“, Schließen „Schließen“, vermutlich je Zweck „Zustimmen“ 6-
 „Ablehnen“ 3-mal, 22 weitere. Kein Ablehnen für alle Zwecke zusammen …“;
 „cookies ablehnen“ → „Nicht abgelehnt“, nichts geklickt. heise.de (in der
 Datei): Link „Einstellungen“ im Text und Button „Einstellungen“ →
-`Activate` auf den Button, ohne Rückfrage. Nur gelesen, nicht in der Datei:
-bild.de (zweite Ebene „vermutlich je Zweck „Einwilligen“ 12-mal,
-„Ablehnen“ 8-mal“, Speichern „Auswahl speichern“; Zweck-Titel mit „Required
-For Consent“ gelten noch als Zustimmen, → Paket 110), faz.net
-(Einstellungen ist der Link „Cookie-Manager“; auf der zweiten Ebene gelten
-Zweck-Titel wie „Verwendung … zur Auswahl von Werbeanzeigen“ über
-„auswahl“ als Einstellungen, → Paket 110).
+`Activate` auf den Button, ohne Rückfrage.
+
+Zweite Ebene mit Zweck-Titeln (Paket 110, in der Datei): bild.de → Zustimmen
+„Alle akzeptieren“, Speichern „Auswahl speichern“, Abo, Schließen „Zurück“,
+„vermutlich je Zweck „Einwilligen“ 12-mal, „Ablehnen“ 8-mal, vermutlich 14
+Zweck-Titel“; kein Titel mehr als Zustimmen. „klicke Ablehnen“ fragt
+nummeriert mit Zweck nach („Nutzung der Utiq-Technologie, …“, „Politische
+Werbung anzeigen Nicht-IAB Verarbeitungszwecke“ …), „abbrechen“ → nichts
+ausgeführt; auf spiegel.de ebenso (Zweck aus Titel und Überschrift).
+faz.net: Einstellungen ist der Link „Cookie-Manager“; der Cookie-Manager
+lädt sein iframe erst nach der Ruhe (`wait: 3000` in der Datei), dann
+„Zustimmen „Einverstanden“, vermutlich 16 Zweck-Titel“, und
+„cookie-einstellungen öffnen“ → „Keine Einstellungen gefunden, nichts
+geöffnet“ statt nummerierter Rückfrage zwischen Titeln. Die erste Ebene
+zählt ebenfalls Zweck-Titel (bild.de 12, welt.de 11, faz.net 5,
+sueddeutsche.de 3); faz.net nannte diese vorher unter einer
+„Pur-Abo“-Überschrift als Abo.
 
 Korpus ohne Fehltreffer (`spike/tasks/11-korpus.txt`: casoon.de,
 insights.casoon.de → „Kein Dialog und kein Cookie-Hinweis erkannt“), dazu
@@ -435,6 +479,11 @@ Mit Paket 80 (M4, 2026-09-30): `09-consent.txt` samt Einwilligungsseite und
 zweiter Ebene im Fork ohne Ausfall (mit 01–05, 07, 14: 118/118); golem.de
 im eigenen Build „Seite ohne Dialog vermutlich Cookie-Hinweis“, Abo „Zu
 Golem pur“, kein Ablehnen ohne Bezahlung.
+Mit den Paketen 91 und 110 (`consent-zwecke.html`,
+`consent-zweck-titel.html`) ist `09-consent.txt` im Fork noch nicht
+gelaufen (→ Paket 140). Der Fork meldet zugeklappte Buttons als
+`expanded: false` (`ax_tree_mirror.cc`, `kCollapsed`), der Code ist für
+beide Hosts derselbe [Annahme bis zum Lauf].
 
 ## Intent-Format [Annahme]
 

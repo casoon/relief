@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Zeitung mit Zweck-Titeln</title></head>
+<body>
+<main>
+  <h1>Zeitung</h1>
+  <a href="#artikel">Zum Artikel</a>
+  <p role="status" id="s"></p>
+</main>
+<!-- Zweite Ebene wie bild.de (Paket 110): aufklappbare Zweck-Titel ohne
+     Überschrift, einer mit „Required For Consent“, darunter „Einwilligen“
+     und „Ablehnen“ je Zweck. Ein Titel wie faz.net mit „Auswahl“ im Namen
+     und ohne Buttons darunter. -->
+<div role="dialog" aria-modal="true" aria-label="Privacy Manager" id="d">
+  <p>Wählen Sie je Zweck, ob wir Cookies verwenden dürfen.</p>
+  <button aria-expanded="false" aria-controls="z1">Speichern von oder Zugriff auf Informationen auf einem Endgerät Required For Consent</button>
+  <p id="z1" hidden>Cookies und Kennungen auf Ihrem Gerät.</p>
+  <button>Einwilligen</button>
+  <button aria-expanded="false" aria-controls="z2">Politische Werbung anzeigen</button>
+  <p id="z2" hidden>Werbung politischer Parteien.</p>
+  <button>Einwilligen</button>
+  <button>Ablehnen</button>
+  <button aria-expanded="false" aria-controls="z3">Personalisierte Inhaltsempfehlungen</button>
+  <p id="z3" hidden>Artikel nach Ihren Interessen.</p>
+  <button>Einwilligen</button>
+  <button>Ablehnen</button>
+  <button aria-expanded="false" aria-controls="z4">Verwendung reduzierter Daten zur Auswahl von Werbeanzeigen</button>
+  <p id="z4" hidden>Werbung nach Ort und Gerät.</p>
+  <button id="all">Alle akzeptieren</button>
+  <button id="save">Auswahl speichern</button>
+</div>
+<script>
+  const d = document.getElementById('d');
+  const say = (text) => { document.getElementById('s').textContent = text; };
+  for (const b of d.querySelectorAll('button[aria-expanded]')) {
+    b.onclick = () => {
+      const open = b.getAttribute('aria-expanded') !== 'true';
+      b.setAttribute('aria-expanded', String(open));
+      document.getElementById(b.getAttribute('aria-controls')).hidden = !open;
+    };
+  }
+  for (const b of d.querySelectorAll('button:not([aria-expanded]):not([id])')) {
+    b.onclick = () => say('Zweck gewählt: ' + b.textContent + '.');
+  }
+  document.getElementById('all').onclick = () => { d.hidden = true; say('Zustimmung gespeichert.'); };
+  document.getElementById('save').onclick = () => { d.hidden = true; say('Auswahl gespeichert.'); };
+</script>
+</body></html>
