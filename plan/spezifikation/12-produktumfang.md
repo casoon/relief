@@ -66,7 +66,7 @@ dem Relief-Graphen.
 
 | Baustein | Paket |
 |---|---|
-| Formular-Zusicherungen: Beschriftung je Feld, Fehlermeldung mit dem Feld verknüpft, Fokus auf dem ersten Fehler, Bestätigung als Live-Region, Tab-Erreichbarkeit und -Reihenfolge | 42 ✓ (unten), 49 |
+| Formular-Zusicherungen: Beschriftung je Feld, Fehlermeldung mit dem Feld verknüpft, Fokus auf dem ersten Fehler, Bestätigung als Live-Region, Tab-Erreichbarkeit und -Reihenfolge | 42 ✓, 49 ✓ (unten); 55 |
 | Echte Screenreader-Ausgabe über gemeinsamen Treiber; zuerst VoiceOver, später NVDA | 43 |
 | Lauf ohne Fenster, Bericht als JUnit für CI | 44 |
 | Playwright-Anbindung: Relief über CDP steuern, Seitenmodell über eine eigene Domäne abfragen | 45 |
@@ -77,7 +77,7 @@ Für reine Funktionstests bleibt Playwright das bessere Werkzeug; Relief
 lohnt sich für den Ablauf aus Sicht von Screenreader- und
 Tastaturnutzenden.
 
-### Formular-Zusicherungen [umgesetzt 2026-09-30, Paket 42]
+### Formular-Zusicherungen [umgesetzt 2026-09-30, Pakete 42, 49]
 
 Aufgabendateien kennen die Zeile `assert: <Zusicherung>`. Sie prüft den
 **aktuellen** Stand der Seite; der Ablauf davor (Absenden, Dialog öffnen)
@@ -86,7 +86,10 @@ steht als `do:`-Zeilen davor. Die Antwort sind Befunde im Format von
 `expect:` wie jede Antwort prüft; ohne Befund lautet sie „Keine Befunde.“.
 Beispiel mit beiden Seiten: `spike/tasks/06-form-assertions.txt`,
 Testseiten `spike/fixtures/form-clean.html` (keine Befunde) und
-`form-broken.html` (je Zusicherung mindestens ein Befund).
+`form-broken.html` (je Zusicherung mindestens ein Befund), dazu
+`status-inserted.html` (Statusregion entsteht mitsamt Text). Die Datei
+läuft in den Prüfbefehlen (`CLAUDE.md`) und in der CI (Glob `0[1-6]`,
+Entscheidung des Nutzers, Paket 49).
 
 | Zusicherung | Regel | prüft | Daten |
 |---|---|---|---|
@@ -95,7 +98,7 @@ Testseiten `spike/fixtures/form-clean.html` (keine Befunde) und
 | `fehler-verknüpft [Feld]` | `form/error-linked` (fail) | das Feld (ohne Angabe: jedes ungültige) ist `invalid` und hat über `aria-errormessage`/`aria-describedby` eine wahrnehmbare, nichtleere Meldung | Modell |
 | `fokus-auf-erstem-fehler` | `form/focus-first-error` (fail) | der Fokus liegt auf dem ersten ungültigen Feld in Dokumentreihenfolge | Modell + Fokus |
 | `bestätigungsdialog` | `form/confirm-dialog-name` (fail), `-text` (review), `-focus` (fail), `-cancel` (review) | offener Dialog (der mit dem Fokus, sonst der letzte): Name, Text außer Name und Buttons, Fokus darin, Button „Abbrechen“/„Schließen“/„Nein“ … | Modell + Fokus |
-| `statusmeldung <Text>` | `form/status-message` (fail) | der Text steht vollständig in **einer** Live-Region (status, alert, log, timer, marquee oder `aria-live` polite/assertive) | Modell |
+| `statusmeldung <Text>` | `form/status-message` (fail) | der Text steht vollständig in **einer** Live-Region (status, alert, log, timer, marquee oder `aria-live` polite/assertive), und die letzte `do:`-Zeile hat diese Region **geändert**: nicht mitsamt Text in einen schon wahrnehmbaren Elternknoten neu eingefügt, mindestens ein Knoten darin angelegt oder geändert | Modell + Modell vor dem letzten `do:` |
 | `tabfolge <Feld>, …` | `form/tab-order` (fail) | beobachtete Tab-Folge ab Dokumentanfang erreicht die Felder in dieser Reihenfolge; fehlend und vertauscht getrennt gemeldet | beobachtete Folge |
 
 - **Aufteilung [Entscheidung]:** Auswertung browserfrei in
@@ -121,8 +124,24 @@ Testseiten `spike/fixtures/form-clean.html` (keine Befunde) und
 - **Grenzen [belegt im Code]:** Die DOM-Fakten tragen kein Rendering; per CSS
   verborgener Inhalt zählt für `accname` mit (in `form-broken.html` gewollt
   als Abweichung). iframes und Shadow DOM fehlen in den DOM-Fakten, Felder
-  dort werden `untested`. `statusmeldung` prüft den Endzustand, nicht die
-  Änderung der Live-Region (→ 49).
+  dort werden `untested` (→ 55).
+- **Änderung über `TreeDelta` [Entscheidung, Paket 49]:** Der Vergleich
+  „vorher/nachher“ nutzt `relief_model::TreeDelta::between`, nicht die
+  Diff-Regeln aus `a11y-perception`: `relief-interaction` hängt außerhalb der
+  Tests nicht an `a11y-perception` (im Fork-Build gibt es den Konverter
+  nicht), und die Delta arbeitet schon auf dem Modell. Der Vorher-Stand ist
+  das Modell vor der letzten `do:`-Zeile, auch wenn diese nichts ausgeführt
+  hat; ohne Vorher-Stand (keine `do:`-Zeile seit `url:`) wird nur der
+  Endzustand geprüft.
+- **Wieder wahrnehmbar ist kein Einfügen [belegt, Entscheidung]:** Solange
+  ein modaler Dialog offen ist, enthält die CDP-Aufnahme den Rest der Seite
+  nicht (`form-clean.html`: `<p role=status>` fehlt vor „Rückruf
+  bestätigen“, ist danach `created`). Eine neue Region gilt deshalb nur als
+  eingefügt, wenn ihr Elternknoten schon vorher im Modell war; sonst kein
+  Befund, weil das Modell „eingefügt“ nicht von „wieder wahrnehmbar“ trennt.
+- **Neu eingefügt = Befund [Annahme]:** Dass Screenreader eine mitsamt Text
+  eingefügte Live-Region oft nicht ansagen, ist Praxiswissen, hier nicht
+  gemessen; der Abgleich mit echter Ausgabe ist 43.
 
 ### Relief ersetzt den barrierlab-Reader [Entscheidung 2026-09-30]
 
@@ -156,7 +175,7 @@ Heute nutzt Relief `a11y-perception` im Host und in den Aufnahmen sowie
 |---|---|---|
 | nutzen | `a11y-rules`, `a11y-report` für Befunde im Inspector | 21 |
 | nutzen | `a11y-dom` und `accname` für DOM-basierte Namensprüfungen; der AX-Graph allein genügt dafür nicht | 42 ✓ |
-| nutzen | Diff-Regeln aus `a11y-perception` statt eigener Diff-Logik | 49, 25 |
+| nutzen | Diff-Regeln aus `a11y-perception` statt eigener Diff-Logik (Zusicherungen nutzen `TreeDelta`, → oben) | 25 |
 | ablegen | Screenreader-Treiber-Interface samt Adaptern und Phrasen-Protokoll, sobald ein zweiter Konsument ihn braucht | 43 |
 | ablegen | Formular-Zusicherungen (42 ✓), sobald ein zweites Werkzeug sie braucht | — |
 | ablegen | Interaction Graph für aufgabenbasierte Journeys (→ 00, Kandidat) | nach 24 |

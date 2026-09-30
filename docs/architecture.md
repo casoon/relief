@@ -277,7 +277,7 @@ flowchart LR
   P --> U["Session::update (wie vor do:)"]
   P -->|"namen-wie-accname"| D["DOM.getDocument → DomFacts (a11y-dom-Arena, DOM-ID → Knoten)"]
   P -->|"tabfolge"| T["Tab-Tasten ab Dokumentanfang, Fokus je Schritt → NodeRef"]
-  U --> C["assertions::check(Modell, DOM-Fakten, Fokus, Tab-Folge)"]
+  U --> C["assertions::check(Modell, Modell vor dem letzten do:, DOM-Fakten, Fokus, Tab-Folge)"]
   D --> C
   T --> C
   C --> F["Vec<a11y_report::Finding>"] --> R["render → Antwort, expect: prüft sie"]
@@ -289,6 +289,13 @@ flowchart LR
   `template`, `noscript`, ohne iframes und Shadow DOM, ohne Rendering.
   `accname::name` rechnet darauf; eine Abweichung zu Chromiums Namen ist ein
   `review`-Befund mit beiden Werten.
+- **Statusmeldung als Änderung**: Der Host merkt sich vor jeder
+  `do:`-Zeile das Modell (`before_action`). `TreeDelta::between` davon zum
+  aktuellen Modell: Ist die Live-Region mit dem Text dort `created`, ihr
+  Elternknoten aber nicht, ist das ein Befund (neu eingefügt); liegt kein
+  angelegter oder geänderter Knoten in ihr, ebenfalls (nicht geändert). Ist
+  auch der Elternknoten neu (Seite hinter einem jetzt geschlossenen modalen
+  Dialog, den die CDP-Aufnahme nicht enthält), kein Befund.
 - **Fokus** wird wie bei fokusbezogenen Befehlen live abgefragt
   (`Session::focus`), nicht der Aufnahme entnommen.
 - **Tab-Folge**: ein per Skript fokussiertes `<span tabindex=-1>` am Anfang

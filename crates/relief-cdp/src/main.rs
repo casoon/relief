@@ -141,6 +141,8 @@ struct Session {
     documents: u64,
     model: SemanticGraph,
     graph: Graph,
+    /// Modell vor der letzten Eingabe (`do:`), für `assert: statusmeldung`.
+    before_action: Option<SemanticGraph>,
     /// Jeden übersprungenen Neuaufbau gegen einen Vollsnapshot prüfen
     /// (`RELIEF_VERIFY=1`).
     verify: bool,
@@ -197,6 +199,7 @@ impl Session {
             documents: 1,
             model,
             graph,
+            before_action: None,
             verify: std::env::var_os("RELIEF_VERIFY").is_some(),
             last_stats: None,
             opened,
@@ -272,6 +275,7 @@ impl Session {
     async fn handle(&mut self, input: &str) -> Result<String> {
         // Die Seite kann sich seit der letzten Aufnahme geändert haben.
         self.update(false, None).await?;
+        self.before_action = Some(self.model.clone());
         let (confirmed, cmd) = match parse_input(input) {
             Ok(c) => c,
             Err(msg) => return Ok(msg),
