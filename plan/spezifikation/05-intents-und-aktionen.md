@@ -485,8 +485,13 @@ Buttons kommen als `expanded: false` an (`ax_tree_mirror.cc`,
 `kCollapsed`), Zweck-Titel und Rückfrage je Zweck wie über CDP. Die
 Statuszeile von `consent-zweck-titel.html` steht im Dialog: außerhalb
 blendet Blink sie bei `aria-modal` aus, der Fork sah „Zweck gewählt“ also
-nicht (wie ein Screenreader). Offen: Der Fork meldet nach „Ablehnen“
-zusätzlich „3 Elemente nicht mehr wahrnehmbar“, CDP nicht (→ Paket 141).
+nicht (wie ein Screenreader). Der Fork meldet nach „Ablehnen“ zusätzlich
+„3 Elemente nicht mehr wahrnehmbar“, CDP nicht [belegt, Paket 141]: Das
+sind `main`, die Überschrift „Zeitung“ und der Link „Zum Artikel“ hinter
+dem Dialog. Blink blendet Inhalt hinter `aria-modal` erst aus, wenn der
+Fokus im Dialog liegt; der Klick setzt ihn dorthin. Der Fork sieht damit,
+was Assistenztechnik bekommt, CDP liefert den Inhalt weiter (wie oben bei
+spiegel.de). Die Antwort ist wahr; kein Eingriff.
 
 ## Intent-Format [Annahme]
 
