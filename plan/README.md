@@ -33,6 +33,7 @@ Gültige Entscheidungen und Rahmenbedingungen stehen in `docs/decisions.md` und
 | 75–76 | Querschnitt: Nachträge zu 58 (Formularziel im Fork, Werte außerhalb der Rückfrage) |
 | 80 | Linie A: Nachtrag zu 40 (Consent) |
 | 90 | zurückgestellt |
+| 91 | Linie A: Nachtrag zu 80 (Consent, zweite Ebene) |
 
 ## Jedes Paket hat
 

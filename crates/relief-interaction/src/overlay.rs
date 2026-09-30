@@ -5,7 +5,9 @@
 //! [`Graph::is_reachable`]): Ein Overlay ist ein erreichbarer Dialog oder
 //! ein benannter Bereich, dessen Name nach Einwilligung klingt; seine
 //! Buttons und Links sind alle Bedienelemente darin, auch in einem iframe
-//! darunter (Consent-iframes auf spiegel.de, bild.de).
+//! darunter (Consent-iframes auf spiegel.de, bild.de). Ohne einen solchen
+//! Bereich kann die Seite selbst ein Cookie-Hinweis sein (golem.de:
+//! Einwilligungsseite ohne Dialog, → [`consent_page_overlay`]).
 //!
 //! Alles hier ist **Inferenz** aus Beschriftungen, nie
 //! [`Certainty::Known`]: Ob ein Dialog ein Cookie-Dialog ist und ob ein
@@ -67,8 +69,9 @@ impl ButtonKind {
 /// Ein erkanntes Overlay.
 #[derive(Debug, Clone, Serialize)]
 pub struct Overlay {
-    /// Index in [`Graph::regions`].
-    pub region: usize,
+    /// Index in [`Graph::regions`]; `None`: die Seite selbst ist der
+    /// Cookie-Hinweis (Einwilligungsseite ohne Dialog).
+    pub region: Option<usize>,
     pub kind: Fact<OverlayKind>,
     /// Buttons und Links darin: Index in [`Graph::controls`] und Einordnung,
     /// in Dokumentreihenfolge.
@@ -210,8 +213,12 @@ pub fn blocks_dismissal(name: &str) -> bool {
 }
 
 /// Erreichbare Overlays in Dokumentreihenfolge: Dialoge und nach
-/// Einwilligung benannte Bereiche. Von verschachtelten Cookie-Dialogen zählt
-/// der innerste (dort stehen die Buttons).
+/// Einwilligung benannte Bereiche. Ein solcher Bereich zählt nur mit einem
+/// Button, der zustimmt oder ablehnt; sonst ist er Gliederung (Wikipedia:
+/// Abschnitt „Session cookie“ als benanntes `section`). Von verschachtelten
+/// Cookie-Dialogen zählt der innerste (dort stehen die Buttons). Ist keiner
+/// davon ein Cookie-Dialog, kommt eine Einwilligungsseite ohne Dialog hinzu,
+/// falls die Seite eine ist ([`consent_page_overlay`]).
 pub fn overlays(graph: &Graph) -> Vec<Overlay> {
     let found: Vec<Overlay> = graph
         .regions
@@ -225,20 +232,83 @@ pub fn overlays(graph: &Graph) -> Vec<Overlay> {
                     .is_some_and(|n| hit(&normalize(n), CONSENT).is_some())
         })
         .map(|(i, _)| classify(graph, i))
+        .filter(|o| {
+            o.region
+                .is_some_and(|r| matches!(graph.regions[r].role, Role::Dialog | Role::AlertDialog))
+                || o.buttons
+                    .iter()
+                    .any(|(_, k)| matches!(k.value, Some(ButtonKind::Accept | ButtonKind::Reject)))
+        })
         .collect();
     let consent = |o: &Overlay| o.kind.value == Some(OverlayKind::Consent);
-    found
+    let mut kept: Vec<Overlay> = found
         .iter()
         .filter(|o| {
             !(consent(o)
                 && found.iter().any(|inner| {
                     inner.region != o.region
                         && consent(inner)
-                        && graph.within(Some(inner.region), o.region)
+                        && o.region
+                            .is_some_and(|outer| graph.within(inner.region, outer))
                 }))
         })
         .cloned()
-        .collect()
+        .collect();
+    if !kept.iter().any(consent) {
+        kept.extend(consent_page_overlay(graph));
+    }
+    kept
+}
+
+/// Die Seite selbst als Cookie-Hinweis, ohne `dialog` und ohne nach
+/// Einwilligung benannten Bereich (golem.de: ganze Seite mit „Cookies
+/// zustimmen“, „Zustimmen und weiter“ und „Zu Golem pur“).
+///
+/// Bewusst eng, damit gewöhnliche Seiten mit Datenschutz-Links oder einem
+/// Artikel über Cookies nicht als Hinweis gelten: Es braucht einen
+/// erreichbaren **Button**, der zustimmt, in einem Abschnitt, dessen
+/// **Überschrift** ein Einwilligungswort trägt. Ein Link oder Fließtext mit
+/// „Datenschutz“ reicht nicht. Die Buttons des Hinweises sind die
+/// erreichbaren Buttons und Links im selben Bereich wie der
+/// Zustimmen-Button (golem.de: außerhalb von Bereichen, ohne das Logo im
+/// `banner`).
+pub fn consent_page_overlay(graph: &Graph) -> Option<Overlay> {
+    let (accept, heading, word) = graph.controls.iter().find_map(|c| {
+        if c.role != Role::Button || !graph.is_reachable(c.region, &c.node) {
+            return None;
+        }
+        if button_kind(c.name.value.as_deref().unwrap_or_default()).0 != ButtonKind::Accept {
+            return None;
+        }
+        let h = &graph.headings[c.heading?];
+        if !graph.is_reachable(h.region, &h.node) {
+            return None;
+        }
+        Some((c, h, hit(&normalize(&h.text), CONSENT)?))
+    })?;
+    let buttons = graph
+        .controls
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| {
+            matches!(c.role, Role::Button | Role::Link)
+                && c.region == accept.region
+                && graph.is_reachable(c.region, &c.node)
+        })
+        .map(|(i, c)| (i, button_fact(graph, c, None)))
+        .collect();
+    Some(Overlay {
+        region: None,
+        kind: rule(
+            OverlayKind::Consent,
+            vec![
+                format!("Überschrift „{}“ enthält „{word}“", heading.text),
+                format!("Button „{}“ darunter", accept.display_name()),
+            ],
+            "overlay-cookie-seite",
+        ),
+        buttons,
+    })
 }
 
 /// Der Cookie-Dialog der Seite, falls einer erkannt ist: der zuletzt
@@ -248,7 +318,9 @@ pub fn consent(graph: &Graph) -> Option<Overlay> {
         .into_iter()
         .filter(|o| o.kind.value == Some(OverlayKind::Consent))
         .collect();
-    let modal = all.iter().rposition(|o| graph.regions[o.region].modal);
+    let modal = all
+        .iter()
+        .rposition(|o| o.region.is_some_and(|r| graph.regions[r].modal));
     match modal {
         Some(i) => Some(all.swap_remove(i)),
         None => all.pop(),
@@ -265,7 +337,7 @@ fn classify(graph: &Graph, region: usize) -> Overlay {
                 && graph.within(c.region, region)
                 && graph.is_reachable(c.region, &c.node)
         })
-        .map(|(i, c)| (i, button_fact(c)))
+        .map(|(i, c)| (i, button_fact(graph, c, Some(region))))
         .collect();
 
     let r = &graph.regions[region];
@@ -314,7 +386,7 @@ fn classify(graph: &Graph, region: usize) -> Overlay {
         }
     };
     Overlay {
-        region,
+        region: Some(region),
         kind,
         buttons,
     }
@@ -323,23 +395,42 @@ fn classify(graph: &Graph, region: usize) -> Overlay {
 /// Ein Link, der nach Ablehnen klingt, lehnt den Dialog nicht ab: Er führt
 /// woanders hin (bild.de, welt.de: „für Utiq jetzt ablehnen“ öffnet die
 /// Seite eines Drittanbieters). Nur Buttons lehnen ab.
-fn button_fact(c: &Control) -> Fact<ButtonKind> {
+///
+/// Ein Button ohne Signalwort oder mit „Ablehnen“ gilt als Abo, wenn die
+/// Überschrift seines Abschnitts nach Abo klingt (sueddeutsche.de: „Jetzt
+/// testen“ unter „Weiter mit SZ Plus-Abo“). Die Überschrift zählt nur, wenn
+/// sie im Overlay `region` liegt (`None`: Einwilligungsseite, jede). Das
+/// macht einen Button nie wählbar, sondern nimmt ihn höchstens aus dem
+/// Ablehnen heraus; deshalb nur `Uncertain`.
+fn button_fact(graph: &Graph, c: &Control, region: Option<usize>) -> Fact<ButtonKind> {
     let (mut kind, word) = button_kind(c.name.value.as_deref().unwrap_or_default());
     let mut evidence = match word {
         Some(w) => format!("Name enthält „{w}“"),
         None => "kein Signalwort im Namen".into(),
     };
+    let mut certainty = if word.is_some() {
+        Certainty::Inferred
+    } else {
+        Certainty::Uncertain
+    };
     if kind == ButtonKind::Reject && c.role == Role::Link {
         kind = ButtonKind::Other;
         evidence.push_str(", aber Link statt Button");
     }
+    let section = c
+        .heading
+        .map(|h| &graph.headings[h])
+        .filter(|h| region.is_none_or(|r| graph.within(h.region, r)));
+    if let Some((h, w)) = section.and_then(|h| Some((h, hit(&normalize(&h.text), PAY)?))) {
+        if c.role == Role::Button && matches!(kind, ButtonKind::Other | ButtonKind::Reject) {
+            kind = ButtonKind::Pay;
+            certainty = Certainty::Uncertain;
+            evidence.push_str(&format!(", aber Abschnitt „{}“ enthält „{w}“", h.text));
+        }
+    }
     Fact {
         value: Some(kind),
-        certainty: if word.is_some() {
-            Certainty::Inferred
-        } else {
-            Certainty::Uncertain
-        },
+        certainty,
         source: Source::Rule("overlay-button".into()),
         confidence: None,
         evidence: vec![evidence],
@@ -506,7 +597,10 @@ mod tests {
         let all = overlays(&g);
         assert_eq!(all.len(), 1, "{all:?}");
         let o = consent(&g).unwrap();
-        assert_eq!(g.regions[o.region].label(), "dialog „Ihre Privatsphäre“");
+        assert_eq!(
+            g.regions[o.region.unwrap()].label(),
+            "dialog „Ihre Privatsphäre“"
+        );
         assert_eq!(o.kind.value, Some(OverlayKind::Consent));
         // Text und Button: erschlossen, nie Known.
         assert_eq!(o.kind.certainty, Certainty::Inferred);
@@ -532,6 +626,122 @@ mod tests {
         let o = consent(&g).unwrap();
         assert_eq!(o.of_kind(ButtonKind::Reject).count(), 0);
         assert_eq!(button_kind("Utiq Consenthub").0, ButtonKind::Other);
+    }
+
+    /// Eine Seite ohne Dialog aus (Rolle, Name) unter der Wurzel.
+    fn flat_page(items: &[(Role, &str)]) -> relief_model::SemanticGraph {
+        use relief_model::{SemanticGraph, SemanticNode, SemanticTree};
+        let mut root = SemanticNode::new(NodeId(1), Role::RootWebArea);
+        root.name = Fact::known(Some("Seite".into()));
+        let mut t = SemanticTree::new(TreeId("main".into()));
+        t.root = Some(NodeId(1));
+        for (i, (role, name)) in items.iter().enumerate() {
+            let id = NodeId(10 + i as i32);
+            let mut n = SemanticNode::new(id, role.clone());
+            n.name = Fact::known(Some(name.to_string()));
+            n.parent = Some(NodeId(1));
+            n.dom_node_id = Some(id.0.into());
+            root.children.push(id);
+            t.nodes.insert(id, n);
+        }
+        t.nodes.insert(NodeId(1), root);
+        SemanticGraph {
+            root: Some(TreeId("main".into())),
+            trees: [(t.id.clone(), t)].into_iter().collect(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn consent_page_without_dialog() {
+        // Wie golem.de: Einwilligungsseite ohne `dialog`.
+        let g = Graph::build(&flat_page(&[
+            (Role::Heading, "Willkommen!"),
+            (Role::Heading, "Cookies zustimmen"),
+            (Role::Button, "Zustimmen und weiter"),
+            (Role::Link, "Datenschutzerklärung"),
+            (Role::Heading, "… oder Magazin pur bestellen"),
+            (Role::Link, "Zu Magazin pur"),
+            (Role::Link, "Impressum"),
+        ]));
+        let o = consent(&g).unwrap();
+        assert_eq!(o.region, None);
+        assert_eq!(o.kind.value, Some(OverlayKind::Consent));
+        assert_eq!(o.kind.certainty, Certainty::Inferred);
+        assert_eq!(
+            o.kind.evidence,
+            [
+                "Überschrift „Cookies zustimmen“ enthält „cookie“",
+                "Button „Zustimmen und weiter“ darunter"
+            ]
+        );
+        assert_eq!(o.of_kind(ButtonKind::Accept).count(), 1);
+        assert_eq!(o.of_kind(ButtonKind::Pay).count(), 1);
+        assert_eq!(o.of_kind(ButtonKind::Reject).count(), 0);
+    }
+
+    #[test]
+    fn ordinary_pages_are_no_consent_page() {
+        // Datenschutz-Link und Zustimmen-Button, aber keine
+        // Einwilligungs-Überschrift darüber.
+        let g = Graph::build(&flat_page(&[
+            (Role::Heading, "Kontakt"),
+            (Role::Button, "Bedingungen akzeptieren"),
+            (Role::Link, "Datenschutz"),
+            (Role::Link, "Cookie-Richtlinie"),
+        ]));
+        assert!(overlays(&g).is_empty());
+        // Überschrift über Cookies, aber nur Links darunter (Artikel).
+        let g = Graph::build(&flat_page(&[
+            (Role::Heading, "Cookie-Banner richtig bauen"),
+            (Role::Link, "Alle akzeptieren"),
+            (Role::Button, "Teilen"),
+        ]));
+        assert!(overlays(&g).is_empty());
+        // Benannter Abschnitt „Session cookie“ (Wikipedia) ohne Button, der
+        // zustimmt oder ablehnt: Gliederung, kein Cookie-Hinweis.
+        let mut model = flat_page(&[(Role::Region, "Session cookie"), (Role::Link, "Quelle")]);
+        let tree = model.trees.get_mut(&TreeId("main".into())).unwrap();
+        tree.nodes.get_mut(&NodeId(1)).unwrap().children = vec![NodeId(10)];
+        tree.nodes.get_mut(&NodeId(10)).unwrap().children = vec![NodeId(11)];
+        tree.nodes.get_mut(&NodeId(11)).unwrap().parent = Some(NodeId(10));
+        let g = Graph::build(&model);
+        assert_eq!(g.regions.len(), 1);
+        assert!(overlays(&g).is_empty());
+    }
+
+    #[test]
+    fn button_under_subscription_heading_is_pay() {
+        // Wie sueddeutsche.de: „Jetzt testen“ unter „Weiter mit SZ Plus-Abo“.
+        let mut model = consent_page(&["Ich bin einverstanden", "Jetzt testen"]);
+        let frame = model.trees.get_mut(&TreeId("frame".into())).unwrap();
+        let mut heading = relief_model::SemanticNode::new(NodeId(12), Role::Heading);
+        heading.name = Fact::known(Some("Weiter mit SZ Plus-Abo".into()));
+        heading.parent = Some(NodeId(10));
+        frame.nodes.insert(NodeId(12), heading);
+        let dialog = frame.nodes.get_mut(&NodeId(10)).unwrap();
+        dialog.children = vec![NodeId(11), NodeId(20), NodeId(12), NodeId(21)];
+        let g = Graph::build(&model);
+        let o = consent(&g).unwrap();
+        let (_, fact) = &o.buttons[o.buttons.len() - 1];
+        assert_eq!(fact.value, Some(ButtonKind::Pay));
+        assert_eq!(fact.certainty, Certainty::Uncertain);
+        assert_eq!(
+            fact.evidence,
+            ["kein Signalwort im Namen, aber Abschnitt „Weiter mit SZ Plus-Abo“ enthält „abo“"]
+        );
+        // Eine Überschrift vor dem Dialog zählt nicht.
+        let mut model = consent_page(&["Jetzt testen"]);
+        let main = model.trees.get_mut(&TreeId("main".into())).unwrap();
+        main.nodes.get_mut(&NodeId(2)).unwrap().name = Fact::known(Some("Unsere Abos".into()));
+        let g = Graph::build(&model);
+        let o = consent(&g).unwrap();
+        let (i, _) = o.buttons[0];
+        assert_eq!(
+            g.headings[g.controls[i].heading.unwrap()].text,
+            "Unsere Abos"
+        );
+        assert_eq!(o.of_kind(ButtonKind::Pay).count(), 0);
     }
 
     #[test]
