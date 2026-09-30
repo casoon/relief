@@ -53,6 +53,33 @@ Semantic View ab (→ 09). Dazu kommen:
 | Änderungen ansagen | „Warenkorb jetzt 1“ aus dem Delta | in 25/26 |
 | Fehlende Namen ergänzen | Resolver, auf dem Gerät über das Modell des Betriebssystems möglich (Stufe `os`, → 06) | 28 |
 
+### Formular-Assistent [umgesetzt 2026-09-30, Paket 39]
+
+Browserfrei (`relief_interaction::form`) über die Formulargruppen des
+Seitenmodells (`<form>` mit Feldern): Pflicht und Fehler aus dem AXTree
+(`required`, `invalid`), Meldung aus `aria-errormessage`, sonst
+`aria-describedby`, solange das Feld fehlerhaft ist. Befehle: „was fehlt
+noch“ (leere Pflichtfelder und fehlerhafte), „fehler vorlesen“, „zum ersten
+fehler“ (merkt den Ort davor), „zurück“. Gemeint ist das Formular am Fokus
+bzw. an der Position, sonst das einzige der Seite; bei mehreren fragt
+Relief nach.
+
+Vor dem Absenden (riskant, → 05) nennt die Rückfrage die Werte aller Felder
+des Formulars, sensible verdeckt („(verdeckt)“: Passwort,
+Zahlungs-/Identitäts-`autocomplete`, Anmelde- und Kassenseite); die
+Bestätigung ist an diese Werte gebunden (`Binding::form`, `Changed::Form`):
+Ändert sich ein Wert — durch eine neue Eingabe oder die Seite selbst —, gilt
+sie nicht mehr. Nach dem Absenden sagt die Antwort fehlerhafte Felder samt
+Meldung an und bietet „zum ersten Fehler“ an. Relief speichert keine Werte;
+alles liest den aktuellen Stand.
+
+Belegt: `spike/tasks/15-formular-assistent.txt` im CDP-Host (15/15) und im
+Fork über den AX-Weg (mit 01–05, 07, 09, 14: 133/133); Unit-Test der
+Bindung an Feldwerte (`security.rs`).
+
+Offen (→ Paket 92): Nachweis auf zwei echten Formularen (verlangt Absenden
+auf fremden Seiten, dafür steht die Zustimmung des Nutzers aus).
+
 ### Tastatur-Sprungmarken [umgesetzt 2026-09-30, Paket 38]
 
 Kern browserfrei (`relief_interaction::marks`): Marken bekommen alle

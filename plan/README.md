@@ -32,6 +32,7 @@ Gültige Entscheidungen und Rahmenbedingungen stehen in `docs/decisions.md` und
 | 70 | Linie Prüfen: CDP-Host mit Site Isolation (Nachtrag zu 64) |
 | 75–76 | Querschnitt: Nachträge zu 58 (Formularziel im Fork, Werte außerhalb der Rückfrage) |
 | 80 | Linie A: Nachtrag zu 40 (Consent) |
+| 92 | Linie A: Nachtrag zu 39 (echte Formulare) |
 | 90 | zurückgestellt |
 | 91 | Linie A: Nachtrag zu 80 (Consent, zweite Ebene) |
 

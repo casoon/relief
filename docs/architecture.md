@@ -27,6 +27,7 @@ crates/
 │   └── benches/bridge.rs     # criterion: Grenze, JSON, Anwenden, Neuaufbau auf spike/recordings
 ├── relief-interaction/       # browserfrei, relief-model (ohne `perception`) + serde; a11y-dom, accname, a11y-report (barrierlab)
 │   ├── src/
+│   │   ├── form.rs           # Formular-Assistent: Felder mit Pflicht/Fehler/Meldung, was fehlt, Fehler, Zusammenfassung vor dem Absenden
 │   │   ├── graph.rs          # SemanticGraph → Graph (Bereiche, Überschriften, Bedienelemente, Fließtext; Ziele als NodeRef + DOM-ID); Fokus der Seite
 │   │   ├── marks.rs          # Tastatur-Sprungmarken: Elemente mit Aktion und Position → gleich lange Buchstabenfolgen
 │   │   ├── page.rs           # Seitentyp, funktionale Gruppen (Produkt, Formular), primäre Aktion — erschlossen mit Evidence, nie Known
