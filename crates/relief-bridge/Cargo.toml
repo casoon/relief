@@ -11,13 +11,15 @@ publish.workspace = true
 relief-model = { path = "../relief-model" }
 # Befehle in Sprache: Eingabe → geprüfter Plan → AX-Schritte (Fork).
 relief-interaction = { workspace = true }
+# Inspector-Daten als JSON für die WebUI (im Fork aus //third_party/rust).
+serde = { workspace = true }
+serde_json = { workspace = true }
 # Variante A (in-process): Chromiums Standard-FFI, liegt in //third_party/rust
 # (→ plan/spezifikation/02). Ohne C++-Aufrufer wird nur die Rust-Seite gebaut.
 cxx = "1"
 
 [dev-dependencies]
 a11y-perception = { workspace = true }
-serde_json = { workspace = true }
 criterion = { version = "0.7", default-features = false, features = ["cargo_bench_support"] }
 
 [[bench]]

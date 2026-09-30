@@ -75,6 +75,15 @@ std::string RuntimeHost::DescribePage() {
   return std::string(bridge::describe_page(*runtime_));
 }
 
+std::string RuntimeHost::InspectorJson() {
+  return std::string(bridge::inspector_json(*runtime_));
+}
+
+bridge::Reply RuntimeHost::ShowNode(const std::string& key) {
+  Log("show\t" + key);
+  return bridge::show_node(*runtime_, key);
+}
+
 uint64_t RuntimeHost::NodeCount() {
   return bridge::node_count(*runtime_);
 }

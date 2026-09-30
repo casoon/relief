@@ -63,6 +63,8 @@ class RuntimeHost {
   bridge::Reply RunCommand(const std::string& input);
   std::string FinishCommand();
   std::string DescribePage();
+  std::string InspectorJson();
+  bridge::Reply ShowNode(const std::string& key);
   uint64_t NodeCount();
   void SetDeltaObserverForTesting(DeltaCallback callback);
 

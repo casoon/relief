@@ -15,14 +15,17 @@ unverändert). Zwei Linien: Assistenz im Browser und Prüfen im echten Browser;
 Relief ersetzt den geplanten barrierlab-Reader. Es gibt
 einen CDP-Spike gegen ein normales Chrome: Rust-Workspace mit sechs Crates,
 siehe `docs/architecture.md`. Dazu das Fork-Grundgerüst: Chromium
-154.0.8037.58 mit `//relief/` und zwei Patches (`fork/`), lokal gebaut in
+154.0.8037.58 mit `//relief/` und drei Patches (`fork/`), lokal gebaut in
 `~/chromium/src/out/Relief`. Mit `--enable-relief` liest er den AXTree samt
 Positionen im Browser-Prozess, auch aus cross-site-iframes, führt ihn als
 `SemanticGraph` in der Rust-Runtime nach (über Navigation, Back-Forward-Cache
 und Discard hinweg) und führt Befehle in Sprache über `AXActionData` aus
 (Tasten als Ersatzweg); die Aufgaben `spike/tasks/01`–`05` laufen dort mit
 `--relief-run` vollständig. Browser-Tests je Integrationspunkt
-(`relief_browsertests`). Eine Bedienoberfläche hat der Fork noch nicht.
+(`relief_browsertests`). Erste Oberfläche ist der Semantic Inspector im
+Side Panel (Strg+Umschalt+I auf der Seite oder `--relief-inspector`):
+Bereiche, Überschriften und Bedienelemente live mit Herkunft der Namen,
+Auswahl und „im Dokument zeigen“ getrennt.
 
 ## Ausführen
 
@@ -54,8 +57,9 @@ In Aufgabendateien prüft `assert: <Zusicherung>` den aktuellen Stand eines
 Formulars und antwortet mit Befunden (Regel-IDs `form/…`) oder „Keine
 Befunde.“: `feldnamen`, `namen-wie-accname`, `fehler-verknüpft [Feld]`,
 `fokus-auf-erstem-fehler`, `bestätigungsdialog`, `statusmeldung <Text>`,
-`tabfolge <Feld>, …`. `07-bestaetigung.txt` prüft, dass sich die Rückfrage
-nicht umgehen lässt (beide Hosts). Die CI läuft weiter nur über `01`–`05`.
+`tabfolge <Feld>, …`. `statusmeldung` verlangt zusätzlich, dass die letzte
+`do:`-Zeile eine vorhandene Live-Region geändert hat. `07-bestaetigung.txt`
+prüft, dass sich die Rückfrage nicht umgehen lässt (beide Hosts).
 
 Im Palettenmodus öffnet Strg+Umschalt+Leertaste die Befehlsleiste; riskante
 Aktionen werden mit „ja“ bestätigt, „nein“ verwirft die Rückfrage. Jede
@@ -88,7 +92,7 @@ Release-Tags (`v*`) und per Hand (`workflow_dispatch`) auf `ubuntu-24.04`:
 - **rust:** `cargo fmt --all --check`, `cargo clippy --workspace --all-targets
   -- -D warnings`, `cargo test --workspace`.
 - **browser:** Chrome for Testing 154.0.8037.57 (nächste zu `fork/UPSTREAM`) über
-  `browser-actions/setup-chrome`, dann `relief-cdp run spike/tasks/01`–`05`
+  `browser-actions/setup-chrome`, dann `relief-cdp run spike/tasks/01`–`06`
   (nur `file://`-Seiten). Der Job schlägt fehl, wenn nicht alle
   `expect:`-Zeilen erfüllt sind (`run` selbst endet immer mit 0).
 
@@ -170,14 +174,14 @@ scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurüc
 | `crates/relief-ai-contract` | browserfrei: KI-Vertrag (Hypothesen, Intent-Vorschläge, JSON-Schemas), `ModelProvider` mit Stufen, Privacy-Filter, Grenzen je Aufgabe (`Budget`); Sicherheits-Regressionsmatrix in `tests/missbrauch.rs` |
 | `crates/relief-resolver` | browserfrei: Resolver fehlender Namen (Ausschnitt, Anthropic-Adapter hinter Feature `anthropic`, Kalibrierung) |
 | `crates/relief-cdp` | Spike-Host: steuert Chrome über CDP, führt Aktionen aus |
-| `spike/fixtures`, `spike/tasks` | Testseiten und Aufgabendateien (`url:`/`do:`/`assert:`/`expect:`); `06-form-assertions.txt` mit `form-clean.html`/`form-broken.html` prüft die Formular-Zusicherungen |
+| `spike/fixtures`, `spike/tasks` | Testseiten und Aufgabendateien (`url:`/`do:`/`assert:`/`expect:`); `06-form-assertions.txt` mit `form-clean.html`/`form-broken.html`/`status-inserted.html` prüft die Formular-Zusicherungen |
 | `spike/recordings` | AXTree-Aufnahmen als Fixtures für browserfreie Tests |
 | `spike/kalibrierung` | von Hand beschriftete Stichprobe unbenannter Controls mit Soll-Namen und Begründung |
 | `crates/relief-interaction/tests` | Snapshot- und Aufgabentests gegen die Aufnahmen; Erwartungen neu setzen mit `RELIEF_ERWARTUNGEN=neu` |
-| `fork/` | Fork-Inhalt für einen Chromium-Checkout: Patch-Serie (`patches/`, `series`, 2 Patches), Basisversion (`UPSTREAM`), `//relief/` (`relief/`: Tab-Helfer, eigener AXTree, Runtime-Sequenz, `BUILD.gn`, Browser-Tests in `testing/`); Format in `fork/README.md` |
+| `fork/` | Fork-Inhalt für einen Chromium-Checkout: Patch-Serie (`patches/`, `series`, 3 Patches), Basisversion (`UPSTREAM`), `//relief/` (`relief/`: Tab-Helfer, eigener AXTree, Runtime-Sequenz, Aufgaben-Runner, Inspector (`inspector/`), `BUILD.gn`, Browser-Tests in `testing/`); Format in `fork/README.md` |
 | `scripts/fork-apply.sh`, `scripts/fork-export.sh` | Fork auf einen Checkout anwenden (inkl. Kopie der Crate-Quellen) bzw. Patches daraus neu erzeugen |
 | `scripts/cloud-setup.sh` | Setup-Skript für die Cloud-Umgebung auf claude.ai |
-| `.github/workflows/ci.yml` | CI: Rust-Prüfungen und Aufgaben 01–05 gegen Chrome |
+| `.github/workflows/ci.yml` | CI: Rust-Prüfungen und Aufgaben 01–06 gegen Chrome |
 | `scripts/fork-measure.mjs` | Messknoten über CDP in den Relief-Build schreiben (Ende-zu-Ende-Latenz) |
 | `docs/architecture.md` | Aufbau und Datenfluss |
 | `docs/decisions.md` | aktuell gültige Grundsatzentscheidungen |

@@ -66,6 +66,17 @@ Zahlenfelder.
 CDP-Host und Fork derselbe; Tabelle und Befunde in
 `plan/spezifikation/05` („Im Fork über `AXActionData`“).
 
+**Relief-Oberflächen als WebUI im Side Panel, zur Laufzeit angemeldet**
+Der Inspector ist eine WebUI in einem Side-Panel-Eintrag je Tab; WebUI und
+Aktions-Element meldet `//relief` zur Laufzeit an, Ressourcen kommen ohne
+grit als Header.
+*Grund:* Semantisches HTML mit nativen Bedienelementen ist mit denselben
+Mitteln prüfbar wie Webseiten, Chromium prüft WebUI-Semantik selbst; zur
+Laufzeit angemeldet bleibt es bei einem Patch (Eintrags- und Aktions-ID).
+*Konsequenz:* `WebUIContentsWrapperT` ist nicht nutzbar (prüft WebUI-Namen
+gegen `tools/metrics`), `//relief` hat einen eigenen Wrapper. Details:
+`plan/spezifikation/01`, „Semantic Inspector“.
+
 **Blink bleibt unverändert, Fork minimal**
 *Grund:* Wartbarkeit gegenüber einem schnelllebigen Upstream.
 *Konsequenz:* eigener Code in `//relief/`, jeder Patch außerhalb ist einzeln

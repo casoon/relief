@@ -21,6 +21,7 @@ crates/
 │   ├── src/
 │   │   ├── runtime.rs        # Runtime: Delta anwenden, Auskunft zu Knoten, Suche nach Name, Aktionswunsch → ActionPlan
 │   │   ├── command.rs        # Befehle im Fork: Eingabe → Session → Schritte (AXActionData oder Taste), Antwort nach der Ruhe
+│   │   ├── inspector.rs      # Inspector: Graph als JSON (Herkunft, Zustände, Aktionen, Beziehungen), „im Dokument zeigen“
 │   │   └── cxx_bridge.rs     # Variante A: #[cxx::bridge] mit flachen Strukturen, Umwandlung ↔ Modell
 │   ├── mojom/                # Variante B: Entwurf relief_runtime.mojom (nicht gebaut)
 │   └── benches/bridge.rs     # criterion: Grenze, JSON, Anwenden, Neuaufbau auf spike/recordings
@@ -136,13 +137,14 @@ flowchart LR
 ```
 fork/
 ├── UPSTREAM                  # 154.0.8037.58
-├── patches/                  # series + 2 Patches: tabs/BUILD.gn (deps), tab_features.cc (eine Zeile + Include)
+├── patches/                  # series + 3 Patches: tabs/BUILD.gn (deps), tab_features.cc (eine Zeile + Include), Side-Panel-/Aktions-ID des Inspectors
 └── relief/                   # → src/relief/ (scripts/fork-apply.sh)
     ├── BUILD.gn              # rust_static_library relief_model_rs, relief_bridge_rs (cxx_bindings); source_set relief; group relief_tests
     ├── relief_attach.h       # AttachToTab: einziger Header, den Chromium einbindet
     ├── relief_tab_helper.*   # WebContentsObserver je Tab: AXMode, Pakete/Positionen → Delta, Lebenszyklus der Bäume, Reset, ActionPlan → AXActionData
     ├── relief_switches.h     # --enable-relief, --relief-log, --relief-activate, --relief-run, --relief-screen-reader-mode
     ├── relief_task_runner.*  # --relief-run: Aufgabendateien abarbeiten (url/do/expect), Ruhe = keine AX-Pakete
+    ├── inspector/            # Semantic Inspector: Side-Panel-Eintrag kRelief, WebUI chrome://relief-inspector.top-chrome, Ressourcen (embed_resources.py)
     ├── bridge/
     │   ├── ax_tree_mirror.*  # eigener ui::AXTree je Tree-ID, AXTreeObserver, AXNodeData → cxx-Strukturen, Seitenkoordinaten
     │   └── runtime_host.*    # Rust-Runtime auf eigener Sequenz, Messprotokoll, activate planen
@@ -178,6 +180,12 @@ flowchart LR
   (`finish_command`). Überschriften und Bereiche werden nicht fokussiert,
   sondern als Startpunkt der Tab-Reihenfolge gesetzt; die Sitzung merkt sich
   dort ihre Position (→ `plan/spezifikation/05`).
+- **Inspector**: Strg+Umschalt+I auf der Seite (oder `--relief-inspector`)
+  öffnet das Side Panel des Tabs mit der WebUI; sie bekommt nach jeder
+  Delta (gebündelt, 250 ms) den Graph als JSON aus der Runtime, wählt mit
+  Pfeiltasten aus und zeigt mit der Eingabetaste im Dokument
+  (Fokus/Hinbewegen, nie Auslösen). → `plan/spezifikation/01`, „Semantic
+  Inspector“.
 - **Messen**: `--relief-log=<datei>` schreibt je Paket Zeiten (UI-Thread,
   Warteschlange, Rust) und Knotenzahlen; `scripts/fork-measure.mjs` schreibt
   über CDP Messknoten in die Seite (Ende-zu-Ende-Latenz);
@@ -294,7 +302,7 @@ flowchart LR
   P --> U["Session::update (wie vor do:)"]
   P -->|"namen-wie-accname"| D["DOM.getDocument → DomFacts (a11y-dom-Arena, DOM-ID → Knoten)"]
   P -->|"tabfolge"| T["Tab-Tasten ab Dokumentanfang, Fokus je Schritt → NodeRef"]
-  U --> C["assertions::check(Modell, DOM-Fakten, Fokus, Tab-Folge)"]
+  U --> C["assertions::check(Modell, Modell vor dem letzten do:, DOM-Fakten, Fokus, Tab-Folge)"]
   D --> C
   T --> C
   C --> F["Vec<a11y_report::Finding>"] --> R["render → Antwort, expect: prüft sie"]
@@ -306,6 +314,13 @@ flowchart LR
   `template`, `noscript`, ohne iframes und Shadow DOM, ohne Rendering.
   `accname::name` rechnet darauf; eine Abweichung zu Chromiums Namen ist ein
   `review`-Befund mit beiden Werten.
+- **Statusmeldung als Änderung**: Der Host merkt sich vor jeder
+  `do:`-Zeile das Modell (`before_action`). `TreeDelta::between` davon zum
+  aktuellen Modell: Ist die Live-Region mit dem Text dort `created`, ihr
+  Elternknoten aber nicht, ist das ein Befund (neu eingefügt); liegt kein
+  angelegter oder geänderter Knoten in ihr, ebenfalls (nicht geändert). Ist
+  auch der Elternknoten neu (Seite hinter einem jetzt geschlossenen modalen
+  Dialog, den die CDP-Aufnahme nicht enthält), kein Befund.
 - **Fokus** wird wie bei fokusbezogenen Befehlen live abgefragt
   (`Session::focus`), nicht der Aufnahme entnommen.
 - **Tab-Folge**: ein per Skript fokussiertes `<span tabindex=-1>` am Anfang

@@ -22,6 +22,15 @@ erfüllen dieselbe verbindliche User-Agent-Baseline (→ spezifikation/13).
 5. Abweichungen nur mit Verantwortlicher Person, Begründung und Ablaufdatum
    zulassen.
 
+## Stand
+
+- Inspector (20): automatisierte Prüfungen im Browser-Test `Inspektor`
+  (Namen aller Bedienelemente im AX-Baum der WebUI, Auswahl ohne Wirkung,
+  Aktivierung ohne Auslösen, Kürzel öffnet/schließt) und Chromiums
+  WebUI-Semantikprüfer grün. Offen: manueller Durchgang nur mit Tastatur
+  und mit VoiceOver (Fokus nach Schließen, Ansage der Liste beim
+  Aktualisieren, Statusmeldungen), 200 % Zoom, hoher Kontrast.
+
 ## Fertig, wenn
 
 - Automatisierte Semantik-/Fokusprüfungen und die manuellen macOS-Aufgaben für

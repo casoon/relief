@@ -1,5 +1,6 @@
-# Formular-Zusicherungen (Paket 42): richtiges Formular ohne Befund,
-# kaputtes Gegenstück mit einem Befund je Zusicherung.
+# Formular-Zusicherungen (Pakete 42, 49): richtiges Formular ohne Befund,
+# kaputtes Gegenstück mit einem Befund je Zusicherung, dazu eine
+# Statusregion, die erst mit ihrem Text entsteht.
 # `assert: …` prüft den aktuellen Stand; die Antwort sind die Befunde
 # (Regel-ID im Format von a11y-report), `expect:` prüft sie wie sonst.
 # „Rückruf anfordern“ enthält „order“ und ist HIGH: Erst die Rückfrage, dann
@@ -60,3 +61,11 @@ expect: form/confirm-dialog-cancel
 do: !klicke OK
 assert: statusmeldung Danke, Rückruf angefordert
 expect: in keiner Live-Region
+
+# Statusregion mitsamt Text neu eingefügt: steht in einer Live-Region, ist
+# aber keine Änderung einer vorhandenen.
+url: ../fixtures/status-inserted.html
+do: klicke Speichern
+assert: statusmeldung Einstellungen gespeichert
+expect: form/status-message
+expect: neu eingefügt

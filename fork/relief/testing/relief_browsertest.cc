@@ -28,6 +28,8 @@
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "components/tabs/public/tab_interface.h"
+#include "content/public/test/scoped_accessibility_mode_override.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/host_zoom_map.h"
@@ -42,11 +44,22 @@
 #include "content/public/test/test_utils.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
+#include "relief/inspector/relief_inspector_ui.h"
 #include "relief/relief_switches.h"
 #include "relief/relief_tab_helper.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
+#include "ui/accessibility/ax_enum_util.h"
 #include "ui/accessibility/ax_enums.mojom.h"
+#include "ui/accessibility/ax_mode.h"
+#include "ui/accessibility/ax_role_properties.h"
+#include "components/input/native_web_keyboard_event.h"
+#include "content/public/browser/render_widget_host.h"
+#include "ui/events/keycodes/dom/dom_code.h"
+#include "ui/events/keycodes/dom/dom_key.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/accessibility/ax_tree_update.h"
 #include "ui/accessibility/ax_updates_and_events.h"
@@ -617,5 +630,136 @@ IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, NeuaufbauBegrenzt) {
 }
 
 }  // namespace
+
+}  // namespace relief
+
+namespace relief {
+
+namespace {
+
+content::WebContents* FindInspector() {
+  for (content::WebContents* contents : content::GetAllWebContents()) {
+    if (contents->GetLastCommittedURL() == GURL(kInspectorUrl)) {
+      return contents;
+    }
+  }
+  return nullptr;
+}
+
+// Texte aller Einträge der Knotenliste im Inspector.
+std::string InspectorOptions(content::WebContents* inspector) {
+  return content::EvalJs(inspector,
+                         "Array.from(document.querySelectorAll('#nodes "
+                         "option'), o => o.textContent).join('\\n')")
+      .ExtractString();
+}
+
+}  // namespace
+
+// Semantic Inspector (Paket 20): Panel zeigt den Graph live, Auswahl und
+// Aktivierung sind getrennt, „im Dokument zeigen“ löst nichts aus, die
+// eigenen Bedienelemente haben Namen.
+IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, Inspektor) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
+                                           Url("a.test", "/inspektor.html")));
+  // Strg+Umschalt+I auf der Seite öffnet den Inspector.
+  // Direkt an das Widget des Hauptframes, wie die Tastatur es liefert.
+  auto press_shortcut = [&] {
+    input::NativeWebKeyboardEvent event(
+        blink::WebInputEvent::Type::kRawKeyDown,
+        blink::WebInputEvent::kControlKey | blink::WebInputEvent::kShiftKey,
+        base::TimeTicks::Now());
+    event.windows_key_code = ui::VKEY_I;
+    event.dom_key = ui::DomKey::FromCharacter('I');
+    event.dom_code = static_cast<int>(ui::DomCode::US_I);
+    web_contents()
+        ->GetPrimaryMainFrame()
+        ->GetRenderWidgetHost()
+        ->ForwardKeyboardEvent(event);
+  };
+  SidePanelUI* side_panel = SidePanelUI::From(browser());
+  const SidePanelEntry::Key key(SidePanelEntry::Id::kRelief);
+  web_contents()->Focus();
+  press_shortcut();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return side_panel->IsSidePanelEntryShowing(key); }));
+  content::WebContents* inspector = nullptr;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    inspector = FindInspector();
+    return inspector && !inspector->IsLoading() &&
+           InspectorOptions(inspector).find("H1 Laufschuh") !=
+               std::string::npos;
+  }));
+  const std::string options = InspectorOptions(inspector);
+  EXPECT_NE(options.find("navigation „Hauptmenü“"), std::string::npos);
+  EXPECT_NE(options.find("[button] In den Warenkorb"), std::string::npos);
+  // Ohne Namen: Herkunft wird genannt, nicht verschwiegen.
+  EXPECT_NE(options.find("[Name "), std::string::npos) << options;
+
+  // Live: ein neues Bedienelement erscheint ohne Zutun.
+  ASSERT_TRUE(content::ExecJs(web_contents(), R"(
+      const b = document.createElement('button');
+      b.textContent = 'Neu geladen';
+      document.querySelector('main').append(b);)"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return InspectorOptions(inspector).find("[button] Neu geladen") !=
+           std::string::npos;
+  }));
+
+  // Auswahl: Details, keine Wirkung auf der Seite.
+  const std::string select_kaufen = R"(
+      const nodes = document.getElementById('nodes');
+      nodes.value = Array.from(nodes.options)
+          .find(o => o.textContent.startsWith('[button] In den Warenkorb')).value;
+      nodes.dispatchEvent(new Event('change'));
+      document.getElementById('details').textContent)";
+  EXPECT_NE(content::EvalJs(inspector, select_kaufen).ExtractString().find(
+                "Rolle: buttonName: "),
+            std::string::npos);
+  EXPECT_EQ("BODY", content::EvalJs(web_contents(),
+                                     "document.activeElement.tagName"));
+
+  // Aktivierung: fokussiert im Dokument, löst den Button nicht aus.
+  ASSERT_TRUE(content::ExecJs(
+      inspector,
+      "document.getElementById('nodes').dispatchEvent("
+      "new KeyboardEvent('keydown', {key: 'Enter'}))"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(web_contents(), "document.activeElement.id")
+               .ExtractString() == "kaufen";
+  }));
+  EXPECT_EQ("", content::EvalJs(web_contents(),
+                                "document.getElementById('s').textContent"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(inspector,
+                           "document.getElementById('status').textContent")
+               .ExtractString()
+               .find("Focus auf [button] In den Warenkorb") !=
+           std::string::npos;
+  }));
+
+  // Semantik des Panels: jedes Bedienelement hat einen Namen.
+  content::ScopedAccessibilityModeOverride mode(inspector,
+                                                ui::kAXModeComplete);
+  content::WaitForAccessibilityTreeToContainNodeWithName(
+      inspector, "Im Dokument zeigen");
+  const ui::AXTreeUpdate tree = content::GetAccessibilityTreeSnapshot(inspector);
+  int controls = 0;
+  for (const ui::AXNodeData& node : tree.nodes) {
+    if (ui::IsControl(node.role) && !node.IsIgnored()) {
+      ++controls;
+      EXPECT_FALSE(
+          node.GetStringAttribute(ax::mojom::StringAttribute::kName).empty())
+          << ui::ToString(node.role);
+    }
+  }
+  EXPECT_GE(controls, 3);
+
+  // Dasselbe Kürzel auf der Seite schließt ihn wieder.
+  web_contents()->Focus();
+  press_shortcut();
+  EXPECT_TRUE(base::test::RunUntil(
+      [&] { return !side_panel->IsSidePanelEntryShowing(key); }));
+}
 
 }  // namespace relief

@@ -64,6 +64,7 @@ rust_static_library("relief_bridge_rs") {
   sources = [
     "crates/relief-bridge/src/command.rs",
     "crates/relief-bridge/src/cxx_bridge.rs",
+    "crates/relief-bridge/src/inspector.rs",
     "crates/relief-bridge/src/lib.rs",
     "crates/relief-bridge/src/runtime.rs",
   ]
@@ -75,7 +76,23 @@ rust_static_library("relief_bridge_rs") {
   deps = [
     ":relief_interaction_rs",
     ":relief_model_rs",
+    "//third_party/rust/serde/v1:lib",
+    "//third_party/rust/serde_json/v1:lib",
   ]
+}
+
+# Inspector-Ressourcen als Header (statt grit, → inspector/embed_resources.py).
+action("inspector_resources") {
+  visibility = [ ":*" ]
+  script = "inspector/embed_resources.py"
+  sources = [
+    "inspector/resources/inspector.css",
+    "inspector/resources/inspector.html",
+    "inspector/resources/inspector.js",
+  ]
+  outputs = [ "$target_gen_dir/inspector/inspector_resources.h" ]
+  args = rebase_path(outputs, root_build_dir) +
+         rebase_path(sources, root_build_dir)
 }
 
 # Tab-Helfer: eigener AXTree je Frame (Weg B), Deltas an die Rust-Runtime
@@ -87,6 +104,10 @@ source_set("relief") {
     "bridge/ax_tree_mirror.h",
     "bridge/runtime_host.cc",
     "bridge/runtime_host.h",
+    "inspector/relief_inspector.cc",
+    "inspector/relief_inspector.h",
+    "inspector/relief_inspector_ui.cc",
+    "inspector/relief_inspector_ui.h",
     "relief_attach.h",
     "relief_switches.h",
     "relief_tab_helper.cc",
@@ -95,15 +116,26 @@ source_set("relief") {
     "relief_task_runner.h",
   ]
   deps = [
+    ":inspector_resources",
     ":relief_bridge_rs",
     "//base",
+    "//chrome/app:generated_resources",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/ui:browser_actions",
+    "//chrome/browser/ui/actions:actions_headers",
+    "//chrome/browser/ui/browser_window:browser_window",
+    "//chrome/browser/ui/side_panel",
+    "//chrome/browser/ui/views/side_panel",
+    "//chrome/browser/ui/webui/top_chrome",
     "//components/input",
     "//components/tabs:public",
+    "//components/vector_icons",
     "//content/public/browser",
     "//third_party/abseil-cpp:absl",
     "//third_party/blink/public/common",
     "//net",
     "//ui/accessibility",
+    "//ui/actions",
     "//ui/events:dom_keycode_converter",
     "//ui/events:events_base",
     "//ui/gfx/geometry",

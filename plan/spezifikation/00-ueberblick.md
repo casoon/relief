@@ -77,7 +77,8 @@ für Endnutzer und Prüfen im echten Browser (→ 12).
   für aufgabenbasierte Journeys, VoiceOver-Treiber), wandert nach
   barrierlab-Regel „zwei Konsumenten, dann Bibliothek" nach barrierlab (→ 12,
   „barrierlab einbinden“).
-- Relief ersetzt in `barrierlab/docs/consumers.md` den Reader-Host (→ 46).
+- Relief ersetzt in `barrierlab/docs/consumers.md` den Reader-Host
+  (casoon/barrierlab#29).
 
 Die barrierlab-Regel „Browserfrei bis L3, Pakete nehmen Daten entgegen, sie
 holen sie nicht" gilt für den Relief-Kern unverändert.

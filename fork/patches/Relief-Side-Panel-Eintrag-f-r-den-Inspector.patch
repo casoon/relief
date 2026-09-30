@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: relief <relief@invalid>
+Date: Wed, 30 Sep 2026 14:51:22 +0200
+Subject: =?UTF-8?q?Relief:=20Side-Panel-Eintrag=20f=C3=BCr=20den=20Inspect?=
+ =?UTF-8?q?or?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Eingriff 3 der Eingriffsliste (plan/spezifikation/01, „Nötige Eingriffe
+außerhalb //relief/“): SidePanelEntryId und ActionId sind geschlossene
+Enums aus Makrolisten; ein eigener Side-Panel-Eintrag (Paket 20, Semantic
+Inspector) braucht beide, weil Kopfzeile und Toolbar-Zustand des Side
+Panels die Aktions-ID voraussetzen. Das Aktions-Element selbst meldet
+//relief zur Laufzeit an. Anker: nach kTestTabScopedEntry (vor dem festen
+Listenende kExtension) bzw. nach kActionSidePanelShowReadAnything.
+
+diff --git a/chrome/browser/ui/actions/chrome_action_id.h b/chrome/browser/ui/actions/chrome_action_id.h
+index 954c2933aaf3037d5ecb4c631976dbc48f498049..37ba483224a9196de9fc491137faa90fb3d22d38 100644
+--- a/chrome/browser/ui/actions/chrome_action_id.h
++++ b/chrome/browser/ui/actions/chrome_action_id.h
+@@ -501,6 +501,7 @@
+   E(kActionSidePanelShowLens) \
+   E(kActionSidePanelShowLensOverlayResults) \
+   E(kActionSidePanelShowReadAnything) \
++  E(kActionSidePanelShowRelief) \
+   E(kActionShowReadingModeSidePanel, IDC_SHOW_READING_MODE_SIDE_PANEL) \
+   E(kActionShowReadingModeKeyboard, IDC_SHOW_READING_MODE_KEYBOARD) \
+   E(kActionSidePanelShowReadingList, IDC_READING_LIST_MENU_SHOW_UI) \
+diff --git a/chrome/browser/ui/side_panel/side_panel_entry_id.h b/chrome/browser/ui/side_panel/side_panel_entry_id.h
+index 3e9dc27c0b3e393ecef67e31ce2f5a73e1cccab7..198e70a22cbb90dd1b2a3c71b7e45e9f5f468d77 100644
+--- a/chrome/browser/ui/side_panel/side_panel_entry_id.h
++++ b/chrome/browser/ui/side_panel/side_panel_entry_id.h
+@@ -45,6 +45,7 @@
+     "TabsFromOtherDevices")                                                   \
+   V(kSidePanelDev, std::nullopt, "SidePanelDev")                              \
+   V(kTestTabScopedEntry, std::nullopt, "TestTabScopedEntry")                  \
++  V(kRelief, kActionSidePanelShowRelief, "Relief")                            \
+   /* Extensions (nothing more should be added below here) */                  \
+   V(kExtension, std::nullopt, "Extension")
+ 
