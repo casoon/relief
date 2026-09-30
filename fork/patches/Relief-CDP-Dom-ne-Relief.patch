@@ -1,0 +1,55 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=B6rn=20Seidel?= <joern.seidel@casoon.de>
+Date: Wed, 30 Sep 2026 21:41:15 +0200
+Subject: =?UTF-8?q?Relief:=20CDP-Dom=C3=A4ne=20Relief.*?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+ChromeDevToolsManagerDelegate reicht Nachrichten der Domäne Relief.* an
+//relief weiter (relief::HandleDevToolsCommand) und meldet getrennte
+Clients (Paket 45).
+
+diff --git a/chrome/browser/devtools/BUILD.gn b/chrome/browser/devtools/BUILD.gn
+index f79b8749ce79d38f506b5cb874ac72438369c762..cfee54431d59ac05fb0eacbba5466e85b01304fd 100644
+--- a/chrome/browser/devtools/BUILD.gn
++++ b/chrome/browser/devtools/BUILD.gn
+@@ -164,6 +164,7 @@ static_library("devtools") {
+     "//third_party/blink/public:buildflags",
+     "//third_party/inspector_protocol:crdtp",
+     "//ui/events:dom_keycode_converter",
++    "//relief",
+   ]
+ 
+   if (enable_devtools_frontend) {
+diff --git a/chrome/browser/devtools/chrome_devtools_manager_delegate.cc b/chrome/browser/devtools/chrome_devtools_manager_delegate.cc
+index d1b45e8064923d3bcb78b52f3bdee858fbd9e671..c6d0c1d262396972823189c910913c0082950e09 100644
+--- a/chrome/browser/devtools/chrome_devtools_manager_delegate.cc
++++ b/chrome/browser/devtools/chrome_devtools_manager_delegate.cc
+@@ -15,6 +15,7 @@
+ #include "base/values.h"
+ #include "build/build_config.h"
+ #include "chrome/browser/devtools/chrome_devtools_session.h"
++#include "relief/devtools/relief_devtools.h"
+ #include "chrome/browser/devtools/device/android_device_manager.h"
+ #include "chrome/browser/devtools/device/tcp_device_provider.h"
+ #include "chrome/browser/devtools/devtools_availability_checker.h"
+@@ -289,6 +290,10 @@ void ChromeDevToolsManagerDelegate::HandleCommand(
+     content::DevToolsAgentHostClientChannel* channel,
+     base::span<const uint8_t> message,
+     NotHandledCallback callback) {
++  // Relief: eigene CDP-Domäne Relief.* (Paket 45).
++  if (relief::HandleDevToolsCommand(channel, message)) {
++    return;
++  }
+   auto it = sessions_.find(channel);
+   if (it == sessions_.end()) {
+     std::move(callback).Run(message);
+@@ -426,6 +431,7 @@ void ChromeDevToolsManagerDelegate::ClientAttached(
+ 
+ void ChromeDevToolsManagerDelegate::ClientDetached(
+     content::DevToolsAgentHostClientChannel* channel) {
++  relief::OnDevToolsClientDetached(channel);
+   sessions_.erase(channel);
+ }
+ 

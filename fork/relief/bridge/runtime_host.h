@@ -74,6 +74,9 @@ class RuntimeHost {
   // Grund; keine Werte, keine Namen).
   void LogSecurity();
   std::string FinishCommand();
+  // CDP-Domäne `Relief.*` (Paket 45); protokolliert die Methode.
+  bridge::DevToolsReply DevToolsCommand(const std::string& method,
+                                        const std::string& params);
   std::string DescribePage();
   std::string InspectorJson();
   rust::Vec<bridge::MarkBox> ShowMarks();

@@ -15,7 +15,7 @@ unverändert). Zwei Linien: Assistenz im Browser und Prüfen im echten Browser;
 Relief ersetzt den geplanten barrierlab-Reader. Es gibt
 einen CDP-Spike gegen ein normales Chrome: Rust-Workspace mit sechs Crates,
 siehe `docs/architecture.md`. Dazu das Fork-Grundgerüst: Chromium
-154.0.8037.58 mit `//relief/` und fünf Patches (`fork/`), lokal gebaut in
+154.0.8037.58 mit `//relief/` und sechs Patches (`fork/`), lokal gebaut in
 `~/chromium/src/out/Relief`. Mit `--enable-relief` liest er den AXTree samt
 Positionen im Browser-Prozess, auch aus cross-site-iframes, führt ihn als
 `SemanticGraph` in der Rust-Runtime nach (über Navigation, Back-Forward-Cache
@@ -29,7 +29,9 @@ per Nummer, „ja“, „abbrechen“), darunter der Semantic Inspector
 Bedienelemente live mit Herkunft der Namen, Auswahl und „im Dokument
 zeigen“ getrennt, Befunde aus `a11y-rules` je Knoten (nur Regeln, die auf
 dem Accessibility-Tree laufen; die übrigen als nicht geprüft). Dazu Tastatur-Sprungmarken über der Seite
-(Strg+Umschalt+M).
+(Strg+Umschalt+M). Über CDP beantwortet der Build die Domäne `Relief.*`
+(Seitenmodell, Formular-Zusicherungen); `examples/playwright/` nutzt sie
+aus Playwright.
 
 ## Ausführen
 
@@ -198,6 +200,7 @@ scripts/fork-apply.sh ~/chromium/src --continue # nach Änderungen: nur Quellen 
 node scripts/fork-measure.mjs --port 9222       # Latenz, Build mit --remote-debugging-port=9222 und --use-mock-keychain starten (--scroll 40: Positionen, --parent <Selektor>: Messknoten z. B. in einen aria-modal-Dialog)
 (cd ~/chromium/src && autoninja -C out/Relief relief_browsertests && out/Relief/relief_browsertests)  # Integrationstests
 scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurück nach fork/
+(cd examples/playwright && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install && npx playwright test)  # Playwright gegen den Build (Relief.*)
 ```
 
 ## Geplanter Stack
@@ -230,7 +233,7 @@ scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurüc
 | `spike/recordings` | AXTree-Aufnahmen als Fixtures für browserfreie Tests |
 | `spike/kalibrierung` | von Hand beschriftete Stichprobe unbenannter Controls mit Soll-Namen und Begründung |
 | `crates/relief-interaction/tests` | Snapshot- und Aufgabentests gegen die Aufnahmen; Erwartungen neu setzen mit `RELIEF_ERWARTUNGEN=neu` |
-| `fork/` | Fork-Inhalt für einen Chromium-Checkout: Patch-Serie (`patches/`, `series`, 5 Patches), Basisversion (`UPSTREAM`), `//relief/` (`relief/`: Tab-Helfer, eigener AXTree, Runtime-Sequenz, Aufgaben-Runner, Inspector (`inspector/`), `BUILD.gn`, GN-Ziele für barrierlab-Crates (`third_party/`), Renderer-Agent für Formularangaben (`common/`, `renderer/`), Browser-Tests in `testing/`); Format in `fork/README.md` |
+| `fork/` | Fork-Inhalt für einen Chromium-Checkout: Patch-Serie (`patches/`, `series`, 6 Patches), Basisversion (`UPSTREAM`), `//relief/` (`relief/`: Tab-Helfer, eigener AXTree, Runtime-Sequenz, Aufgaben-Runner, Inspector (`inspector/`), `BUILD.gn`, GN-Ziele für barrierlab-Crates (`third_party/`), Renderer-Agent für Formularangaben (`common/`, `renderer/`), CDP-Domäne `Relief.*` (`devtools/`), Browser-Tests in `testing/`); Format in `fork/README.md` |
 | `scripts/fork-apply.sh`, `scripts/fork-export.sh` | Fork auf einen Checkout anwenden (inkl. Kopie der Crate-Quellen) bzw. Patches daraus neu erzeugen |
 | `scripts/cloud-setup.sh` | Setup-Skript für die Cloud-Umgebung auf claude.ai |
 | `.github/workflows/ci.yml` | CI: Rust-Prüfungen und Aufgaben 01–06 gegen Chrome |

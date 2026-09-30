@@ -388,8 +388,9 @@ Grundlage für 17 (Umsetzung) und den Rebase-Aufwand (Abschnitt
 | 5 | ~~`chrome/browser/ui/webui/chrome_web_ui_configs.cc`~~ — **entfällt [20]** | — | die WebUI registriert `//relief` zur Laufzeit über `content::WebUIConfigMap::AddWebUIConfig`; Ressourcen ohne grit (Header aus `inspector/embed_resources.py`), also auch kein Eintrag in `tools/gritsettings/resource_ids.spec`; `WebUIContentsWrapperT` wird umgangen, weil es den WebUI-Namen gegen eine Histogramm-Liste prüft (`tools/metrics`) |
 | 6 | `chrome/app/theme/chromium/BRANDING`, `chrome/app/chromium_strings.grd` (`IDS_PRODUCT_NAME`, `IDS_SHORT_PRODUCT_NAME`, nicht übersetzt), `chrome/app/app-Info.plist` — **umgesetzt [36], ein Patch** | Produktname „Relief“, Bundle-ID `de.casoon.relief`, `CrProductDirName` = `Relief` | Chromiums vorgesehener Weg für Produktnamen; `.app`-Name, Helfer, Framework und Profilverzeichnis leiten sich daraus ab |
 | 7 | `chrome/renderer/chrome_content_renderer_client.cc` (`RenderFrameCreated`), `chrome/renderer/BUILD.gn` — **umgesetzt [75], ein Patch** | Include und `relief::FormFactsAgent::Create(render_frame);`; `"//relief/renderer"` in `deps` | Renderer-Beobachter je Frame entstehen nur hier; der Agent beantwortet `relief.mojom.FormFacts` (Formularziel, `autocomplete`), → spezifikation/07 |
+| 8 | `chrome/browser/devtools/chrome_devtools_manager_delegate.cc` (`HandleCommand`, `ClientDetached`), `chrome/browser/devtools/BUILD.gn` — **umgesetzt [45], ein Patch** | `relief::HandleDevToolsCommand` vor der Chrome-Sitzung, `relief::OnDevToolsClientDetached`; `"//relief"` in `deps` | Eigene CDP-Methoden nimmt nur der DevTools-Delegate des Embedders an; Domäne `Relief.*` → spezifikation/12 |
 
-Stand: fünf Patches (`fork/patches/series`).
+Stand: sechs Patches (`fork/patches/series`).
 
 Nicht nötig [belegt]:
 
@@ -896,7 +897,7 @@ Severity und Regel-ID stehen am Knoten (Liste „[N Befunde]“, Details
 - **Anbindung:** `inspector_json` hängt je Eintrag `findings` an (Ort über
   `AxDocument::node_ref`), dazu `checks` (Zahl gelaufener Regeln,
   Befunde ohne Eintrag in der Liste, nicht gelaufene Regeln mit Grund).
-- **Bau im Fork:** Die drei barrierlab-Crates stehen nicht in
+- **Bau im Fork:** Die barrierlab-Crates (seit Paket 45 auch `accname`) stehen nicht in
   `//third_party/rust`. Entscheidung: nicht ins Repository kopieren
   (barrierlab bleibt die Quelle), sondern `scripts/fork-apply.sh` holt die
   in `Cargo.lock` festgelegte Version aus der lokalen Cargo-Registry
@@ -941,7 +942,8 @@ Chrome/Chromium. Weg: Patch 6 in der Tabelle oben; der Neubau nach der
 ├── inspector/     # Semantic Inspector: Side-Panel-Eintrag, WebUI, Ressourcen
 ├── common/        # Mojo-Schnittstellen Browser ↔ Renderer (form_facts.mojom)
 ├── renderer/      # Renderer-Seite: FormFactsAgent je Frame
-├── third_party/   # BUILD.gn für a11y-dom, a11y-report, a11y-rules; Quellen legt scripts/fork-apply.sh ab
+├── devtools/      # CDP-Domäne Relief.* (Paket 45)
+├── third_party/   # BUILD.gn für a11y-dom, a11y-report, a11y-rules, accname; Quellen legt scripts/fork-apply.sh ab
 ├── crates/        # Kopie der Crates relief-model, relief-interaction, relief-bridge (scripts/fork-apply.sh)
 ├── speech/        # STT/TTS-Adapter (Annahme)
 ├── ai/            # Modell-Adapter (lokal/Cloud), nur hinter der Privacy Boundary (Annahme)

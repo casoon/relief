@@ -912,6 +912,15 @@ void ReliefTabHelper::FetchFormFacts(
           relief::mojom::FormInfoPtr()));
 }
 
+void ReliefTabHelper::DevToolsCommand(
+    const std::string& method,
+    const std::string& params,
+    base::OnceCallback<void(bridge::DevToolsReply)> done) {
+  runtime_.AsyncCall(&RuntimeHost::DevToolsCommand)
+      .WithArgs(method, params)
+      .Then(std::move(done));
+}
+
 void ReliefTabHelper::FinishCommand(
     base::OnceCallback<void(std::string)> done) {
   runtime_.AsyncCall(&RuntimeHost::FinishCommand).Then(std::move(done));

@@ -1087,6 +1087,7 @@ name = "relief-bridge"
 version = "0.0.1"
 dependencies = [
  "a11y-perception",
+ "a11y-report",
  "criterion",
  "cxx",
  "relief-interaction",

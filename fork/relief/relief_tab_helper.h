@@ -113,6 +113,11 @@ class ReliefTabHelper
   void RunCommand(const std::string& input,
                   base::OnceCallback<void(bridge::Reply)> done);
   void FinishCommand(base::OnceCallback<void(std::string)> done);
+  // Methode der CDP-Domäne `Relief.*` gegen den aktuellen Graphen
+  // (Paket 45, → devtools/relief_devtools.h).
+  void DevToolsCommand(const std::string& method,
+                       const std::string& params,
+                       base::OnceCallback<void(bridge::DevToolsReply)> done);
   void DescribePage(base::OnceCallback<void(std::string)> done);
   void CountNodes(base::OnceCallback<void(uint64_t)> done);
   // Ein Schritt: Aktion als AXActionData an den Frame des Knotens (false,
