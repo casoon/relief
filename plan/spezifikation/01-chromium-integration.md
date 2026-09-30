@@ -386,8 +386,9 @@ Grundlage für 17 (Umsetzung) und den Rebase-Aufwand (Abschnitt
 | 3 | `chrome/browser/DEPS` (ein `chrome/browser/ui/tabs/DEPS` gibt es nicht [belegt]) | `"+relief"` in `include_rules` | checkdeps (Presubmit) verbietet sonst das Include; für den Build nicht nötig → **entfällt**, solange Relief den Chromium-Presubmit nicht fährt [Entscheidung] |
 | 4 | `chrome/browser/ui/side_panel/side_panel_entry_id.h` und `chrome/browser/ui/actions/chrome_action_id.h` — **umgesetzt [20], ein Patch** | `V(kRelief, kActionSidePanelShowRelief, "Relief")` nach `kTestTabScopedEntry`; `E(kActionSidePanelShowRelief)` nach `kActionSidePanelShowReadAnything` | Side-Panel-IDs und Aktions-IDs sind zentrale Makro-Enums. Eine Aktions-ID ist Pflicht [belegt]: Kopfzeile (`SidePanelHelper::GetActionItem`) und Toolbar-Zustand (`SidePanelToolbarPinningController::UpdateActiveState`) prüfen sie per `CHECK`; `std::nullopt` geht nur für Sonderfälle (`kWebView`, `kExtension`). Das Aktions-Element selbst meldet `//relief` zur Laufzeit an `BrowserActions` an |
 | 5 | ~~`chrome/browser/ui/webui/chrome_web_ui_configs.cc`~~ — **entfällt [20]** | — | die WebUI registriert `//relief` zur Laufzeit über `content::WebUIConfigMap::AddWebUIConfig`; Ressourcen ohne grit (Header aus `inspector/embed_resources.py`), also auch kein Eintrag in `tools/gritsettings/resource_ids.spec`; `WebUIContentsWrapperT` wird umgangen, weil es den WebUI-Namen gegen eine Histogramm-Liste prüft (`tools/metrics`) |
+| 6 | `chrome/app/theme/chromium/BRANDING`, `chrome/app/chromium_strings.grd` (`IDS_PRODUCT_NAME`, `IDS_SHORT_PRODUCT_NAME`, nicht übersetzt), `chrome/app/app-Info.plist` — **umgesetzt [36], ein Patch** | Produktname „Relief“, Bundle-ID `de.casoon.relief`, `CrProductDirName` = `Relief` | Chromiums vorgesehener Weg für Produktnamen; `.app`-Name, Helfer, Framework und Profilverzeichnis leiten sich daraus ab |
 
-Stand: drei Patches (`fork/patches/series`).
+Stand: vier Patches (`fork/patches/series`).
 
 Nicht nötig [belegt]:
 
@@ -905,6 +906,29 @@ Severity und Regel-ID stehen am Knoten (Liste „[N Befunde]“, Details
 - **Test:** `relief_browsertests --gtest_filter=*Inspektor*` — der Button
   ohne Namen trägt „[1 Befund]“, der Abschnitt „Prüfung“ nennt die nicht
   geprüften Regeln.
+
+## Name und Branding (Paket 36) [belegt]
+
+Der Build heißt `out/Relief/Relief.app` (Binärdatei `Contents/MacOS/Relief`,
+`Relief Framework.framework`, `Relief Helper*.app`), Bundle-ID
+`de.casoon.relief`; Menüleiste und Dock zeigen `CFBundleName` = „Relief“.
+Das Profil liegt unter `~/Library/Application Support/Relief`
+(`CrProductDirName` im Info.plist, ausgewertet in
+`chrome/common/chrome_paths_mac.mm:31`), Relief läuft also neben
+Chrome/Chromium. Weg: Patch 6 in der Tabelle oben; der Neubau nach der
+Änderung dauerte 2,5 min.
+
+- **Belegt:** Info.plist (`CFBundleName`, `CFBundleIdentifier`,
+  `CrProductDirName` = Relief/de.casoon.relief/Relief), Profilverzeichnis
+  beim ersten Start angelegt, Über-Seite zeigt „Relief“ als Produkt,
+  `relief_browsertests` und Fork-Aufgaben 01–05 laufen mit dem neuen Pfad.
+- **Entscheidung:** Bundle-ID unter der Domain des Projekts
+  (`de.casoon.relief`); Unternehmensangaben in BRANDING bleiben bei den
+  Chromium-Autoren (Copyright des Codes).
+- **Offen (→ 111):** übersetzte Texte mit wörtlichem „Chromium“ („Über
+  Chromium“, „Hilfe für Chromium aufrufen“) und das Symbol.
+- `scripts/chromium-setup.sh` baut weiter unverändertes Chromium
+  (`Chromium.app`); erst `fork-apply.sh` bringt den Namen.
 
 ## Verzeichnisstruktur im Fork [Stand 20 · Rest Annahme]
 

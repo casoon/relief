@@ -15,7 +15,7 @@ unverändert). Zwei Linien: Assistenz im Browser und Prüfen im echten Browser;
 Relief ersetzt den geplanten barrierlab-Reader. Es gibt
 einen CDP-Spike gegen ein normales Chrome: Rust-Workspace mit sechs Crates,
 siehe `docs/architecture.md`. Dazu das Fork-Grundgerüst: Chromium
-154.0.8037.58 mit `//relief/` und drei Patches (`fork/`), lokal gebaut in
+154.0.8037.58 mit `//relief/` und vier Patches (`fork/`), lokal gebaut in
 `~/chromium/src/out/Relief`. Mit `--enable-relief` liest er den AXTree samt
 Positionen im Browser-Prozess, auch aus cross-site-iframes, führt ihn als
 `SemanticGraph` in der Rust-Runtime nach (über Navigation, Back-Forward-Cache
@@ -167,7 +167,7 @@ Voraussetzungen: Xcode mit macOS-SDK, `git-lfs` (`brew install git-lfs && git lf
 install`), Metal-Toolchain (`xcodebuild -downloadComponent MetalToolchain`),
 rund 40 GB Platz; eine Anwendungs-Firewall muss das Python von depot_tools
 zulassen. Erstbuild gut zwei Stunden, inkrementell Sekunden. Der eigene Build
-lässt sich mit `CHROME=~/chromium/src/out/Relief/Chromium.app/Contents/MacOS/Chromium`
+lässt sich mit `CHROME=~/chromium/src/out/Relief/Relief.app/Contents/MacOS/Relief`
 aus `relief-cdp` heraus steuern.
 
 Relief in den Checkout bringen, bauen und starten:
@@ -176,7 +176,7 @@ Relief in den Checkout bringen, bauen und starten:
 scripts/fork-apply.sh ~/chromium/src            # Branch relief, Patches, //relief/ + Crate-Quellen
 scripts/fork-apply.sh ~/chromium/src --continue # nach Änderungen: nur Quellen neu kopieren
 (cd ~/chromium/src && gn gen out/Relief && autoninja -C out/Relief chrome)
-~/chromium/src/out/Relief/Chromium.app/Contents/MacOS/Chromium --enable-relief \
+~/chromium/src/out/Relief/Relief.app/Contents/MacOS/Relief --enable-relief \
   --relief-log=/tmp/relief.log "--relief-activate=In den Warenkorb" \
   "file://$PWD/spike/fixtures/shop-clean.html"
 node scripts/fork-measure.mjs --port 9222       # Latenz, Build mit --remote-debugging-port=9222 und --use-mock-keychain starten (--scroll 40: Positionen, --parent <Selektor>: Messknoten z. B. in einen aria-modal-Dialog)
@@ -214,7 +214,7 @@ scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurüc
 | `spike/recordings` | AXTree-Aufnahmen als Fixtures für browserfreie Tests |
 | `spike/kalibrierung` | von Hand beschriftete Stichprobe unbenannter Controls mit Soll-Namen und Begründung |
 | `crates/relief-interaction/tests` | Snapshot- und Aufgabentests gegen die Aufnahmen; Erwartungen neu setzen mit `RELIEF_ERWARTUNGEN=neu` |
-| `fork/` | Fork-Inhalt für einen Chromium-Checkout: Patch-Serie (`patches/`, `series`, 3 Patches), Basisversion (`UPSTREAM`), `//relief/` (`relief/`: Tab-Helfer, eigener AXTree, Runtime-Sequenz, Aufgaben-Runner, Inspector (`inspector/`), `BUILD.gn`, GN-Ziele für barrierlab-Crates (`third_party/`), Browser-Tests in `testing/`); Format in `fork/README.md` |
+| `fork/` | Fork-Inhalt für einen Chromium-Checkout: Patch-Serie (`patches/`, `series`, 4 Patches), Basisversion (`UPSTREAM`), `//relief/` (`relief/`: Tab-Helfer, eigener AXTree, Runtime-Sequenz, Aufgaben-Runner, Inspector (`inspector/`), `BUILD.gn`, GN-Ziele für barrierlab-Crates (`third_party/`), Browser-Tests in `testing/`); Format in `fork/README.md` |
 | `scripts/fork-apply.sh`, `scripts/fork-export.sh` | Fork auf einen Checkout anwenden (inkl. Kopie der Crate-Quellen) bzw. Patches daraus neu erzeugen |
 | `scripts/cloud-setup.sh` | Setup-Skript für die Cloud-Umgebung auf claude.ai |
 | `.github/workflows/ci.yml` | CI: Rust-Prüfungen und Aufgaben 01–06 gegen Chrome |
