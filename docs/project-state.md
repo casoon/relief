@@ -71,12 +71,12 @@ CDP-Verkehr.
 
 ### CI
 
-`.github/workflows/ci.yml` läuft bei Release-Tags (`v*`) und
-per Hand (`workflow_dispatch`) auf `ubuntu-24.04`:
+`.github/workflows/ci.yml` läuft bei Pull Requests, Push auf `main`,
+Release-Tags (`v*`) und per Hand (`workflow_dispatch`) auf `ubuntu-24.04`:
 
 - **rust:** `cargo fmt --all --check`, `cargo clippy --workspace --all-targets
   -- -D warnings`, `cargo test --workspace`.
-- **browser:** Chrome for Testing 154.0.8037.58 (wie `fork/UPSTREAM`) über
+- **browser:** Chrome for Testing 154.0.8037.57 (nächste zu `fork/UPSTREAM`) über
   `browser-actions/setup-chrome`, dann `relief-cdp run spike/tasks/01`–`05`
   (nur `file://`-Seiten). Der Job schlägt fehl, wenn nicht alle
   `expect:`-Zeilen erfüllt sind (`run` selbst endet immer mit 0).
@@ -90,7 +90,7 @@ In der Umgebung auf claude.ai eintragen:
 - **Setup script:** Inhalt von `scripts/cloud-setup.sh`. Es prüft die
   Rust-Toolchain (≥ 1.85, rustfmt, clippy, C++-Compiler), holt die Crates
   (`cargo fetch`, falls der Checkout gefunden wird) und installiert Chrome for
-  Testing 154.0.8037.58 nach `/opt/chrome-for-testing` samt apt-Bibliotheken.
+  Testing 154.0.8037.57 nach `/opt/chrome-for-testing` samt apt-Bibliotheken.
   `/usr/local/bin/google-chrome-stable` startet ihn mit `--no-sandbox`
   (Chrome als root im Container), `relief-cdp` findet ihn ohne `CHROME`.
   `RELIEF_CHROME=0` lässt Chrome weg.

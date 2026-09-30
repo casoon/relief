@@ -12,7 +12,7 @@
 # als „!!“ in der Ausgabe.
 #
 #   RELIEF_CHROME=0    Chrome nicht installieren (Standard: 1)
-#   CHROME_VERSION     Chrome for Testing   (Standard: 154.0.8037.58 = fork/UPSTREAM)
+#   CHROME_VERSION     Chrome for Testing   (Standard: 154.0.8037.57, nächste zu fork/UPSTREAM)
 #   CHROME_DIR         Ablage               (Standard: /opt/chrome-for-testing)
 #
 # Netz: Das Standardnetz „Trusted“ genügt. Chrome kommt als Chrome for Testing
@@ -28,7 +28,7 @@
 # werden. Der Host selbst startet Chrome weiterhin mit Sandbox.
 set -uo pipefail
 
-CHROME_VERSION="${CHROME_VERSION:-154.0.8037.58}"
+CHROME_VERSION="${CHROME_VERSION:-154.0.8037.57}"
 CHROME_DIR="${CHROME_DIR:-/opt/chrome-for-testing}"
 WRAPPER=/usr/local/bin/google-chrome-stable
 

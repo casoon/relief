@@ -1,4 +1,5 @@
-# Prüfungen je Release-Tag (lokal vorher: scripts/verify.sh): browserfreie Rust-Prüfungen und die file://-Aufgaben
+# Prüfungen je Pull Request und Push auf main (öffentliches Repo; lokal vorher: scripts/verify.sh):
+# browserfreie Rust-Prüfungen und die file://-Aufgaben
 # gegen ein echtes Chrome (zugleich der Linux-Nachweis des CDP-Hosts).
 #
 # Actions sind per Commit-SHA gepinnt (Tag im Kommentar), damit ein
@@ -7,7 +8,9 @@
 name: CI
 
 on:
+  pull_request:
   push:
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -20,8 +23,9 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  # Chrome for Testing in der Version des Fork-Basisstands (fork/UPSTREAM).
-  CHROME_VERSION: 154.0.8037.58
+  # Chrome for Testing möglichst nah am Fork-Basisstand (fork/UPSTREAM: 154.0.8037.58);
+  # genau diese Version führt Chrome for Testing nicht, .57 ist die nächste.
+  CHROME_VERSION: 154.0.8037.57
 
 jobs:
   rust:
@@ -52,7 +56,10 @@ jobs:
           CHROME: ${{ steps.chrome.outputs.chrome-path }}
         run: |
           "$CHROME" --version
-          sysctl kernel.apparmor_restrict_unprivileged_userns || true
+          # Ubuntu 24.04 sperrt unprivilegierte User-Namespaces per AppArmor;
+          # Chromes Sandbox braucht sie (sonst FATAL in der Zygote). Freigeben
+          # statt --no-sandbox.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           tasks=(spike/tasks/0[1-5]-*.txt)
           target/debug/relief-cdp run "${tasks[@]}" | tee relief-run.txt
           # `run` endet auch bei verfehlten Erwartungen mit 0 und überspringt
