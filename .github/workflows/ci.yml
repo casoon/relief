@@ -1,0 +1,66 @@
+# Prüfungen je Release-Tag (lokal vorher: scripts/verify.sh): browserfreie Rust-Prüfungen und die file://-Aufgaben
+# gegen ein echtes Chrome (zugleich der Linux-Nachweis des CDP-Hosts).
+#
+# Actions sind per Commit-SHA gepinnt (Tag im Kommentar), damit ein
+# verschobener Tag nichts Fremdes ausführt. Runner fest auf ubuntu-24.04
+# (wie die Cloud-Umgebung), ubuntu-latest wechselt ab 19.10.2026 auf 26.
+name: CI
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # Chrome for Testing in der Version des Fork-Basisstands (fork/UPSTREAM).
+  CHROME_VERSION: 154.0.8037.58
+
+jobs:
+  rust:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: rustup component add rustfmt clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: browser-actions/setup-chrome@48ad923757ca74d66703209fe939badbdf80f2f4 # v2.2.0
+        id: chrome
+        with:
+          chrome-version: ${{ env.CHROME_VERSION }}
+          install-dependencies: true
+      - run: cargo build -p relief-cdp
+      - name: Aufgaben 01–05 gegen Chrome
+        env:
+          CHROME: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          "$CHROME" --version
+          sysctl kernel.apparmor_restrict_unprivileged_userns || true
+          tasks=(spike/tasks/0[1-5]-*.txt)
+          target/debug/relief-cdp run "${tasks[@]}" | tee relief-run.txt
+          # `run` endet auch bei verfehlten Erwartungen mit 0 und überspringt
+          # Erwartungen nicht ladbarer Seiten; deshalb hier gegen die Zahl
+          # der `expect:`-Zeilen prüfen.
+          expected=$(cat "${tasks[@]}" | grep -c '^expect:')
+          summary="Erwartungen: $expected erfüllt, 0 nicht erfüllt"
+          if ! grep -qxF "$summary" relief-run.txt; then
+            echo "::error::erwartet „$summary“, erhalten: $(tail -n 1 relief-run.txt)"
+            exit 1
+          fi

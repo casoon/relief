@@ -1,0 +1,25 @@
+{
+  "anfang": "snapshot-00.json",
+  "schritte": [
+    {
+      "antwort": "Seite „Welcome to GOV.UK“. Hauptüberschrift: „The best place to find government services and information“. Bereiche: region „Cookies on GOV.UK“, banner, navigation „Navigation menu“, main, search, contentinfo. 38 Überschriften, 88 Bedienelemente.",
+      "eingabe": "Was ist auf dieser Seite?",
+      "nachher": "snapshot-00.json",
+      "vorher": "snapshot-00.json"
+    },
+    {
+      "antwort": "Focus auf [combobox] Search hasPopup=listbox. Fokus jetzt auf combobox „Search“.",
+      "eingabe": "gehe zu Search",
+      "nachher": "snapshot-01.json",
+      "vorher": "snapshot-00.json"
+    },
+    {
+      "antwort": "SetValue(\"passport\") auf [combobox] Search hasPopup=listbox. Ziel jetzt: expanded=true. „Search“: expanded false → true. Neu wahrnehmbar: listbox „passport“, option „passport renewal“, option „passport“, option „passport webchat“, option „update my passport“. Neuer Text: „passport“, „passport“, „ renewal“.",
+      "eingabe": "fülle Search mit passport",
+      "nachher": "snapshot-02.json",
+      "vorher": "snapshot-01.json"
+    }
+  ],
+  "titel": "Welcome to GOV.UK",
+  "url": "https://www.gov.uk/"
+}

@@ -1,0 +1,104 @@
+{
+  "snapshot-00.json": {
+    "titel": "Navigation Menu Button Example | APG | WAI | W3C",
+    "bereiche": [
+      "banner",
+      "navigation „APG“",
+      "navigation „Page Contents“",
+      "main",
+      "complementary „feedback“",
+      "contentinfo „Page“",
+      "contentinfo „Site“"
+    ],
+    "modal": null,
+    "ueberschriften": 18,
+    "h1": [
+      "Navigation Menu Button Example"
+    ],
+    "bedienelemente": 59,
+    "erreichbar": 59,
+    "namen": {
+      "Inferred": 0,
+      "Known": 59,
+      "Uncertain": 0
+    },
+    "texte": 470,
+    "ohne_gesicherten_namen": [],
+    "felder": [],
+    "popups": [
+      "[button] Skip To Content, shortcut Option + 0 hasPopup=menu",
+      "[button] WAI-ARIA Quick Links hasPopup=menu"
+    ],
+    "seitentyp": "Article (Inferred): Hauptüberschrift „Navigation Menu Button Example“; 356 Wörter in längeren Absätzen; 0 von 18 Überschriften verlinkt",
+    "primaere_aktion": null,
+    "gruppen": []
+  },
+  "snapshot-01.json": {
+    "titel": "Navigation Menu Button Example | APG | WAI | W3C",
+    "bereiche": [
+      "banner",
+      "navigation „APG“",
+      "navigation „Page Contents“",
+      "main",
+      "complementary „feedback“",
+      "contentinfo „Page“",
+      "contentinfo „Site“"
+    ],
+    "modal": null,
+    "ueberschriften": 18,
+    "h1": [
+      "Navigation Menu Button Example"
+    ],
+    "bedienelemente": 65,
+    "erreichbar": 65,
+    "namen": {
+      "Inferred": 0,
+      "Known": 65,
+      "Uncertain": 0
+    },
+    "texte": 470,
+    "ohne_gesicherten_namen": [],
+    "felder": [],
+    "popups": [
+      "[button] Skip To Content, shortcut Option + 0 hasPopup=menu",
+      "[button] WAI-ARIA Quick Links expanded=true hasPopup=menu"
+    ],
+    "seitentyp": "Article (Inferred): Hauptüberschrift „Navigation Menu Button Example“; 356 Wörter in längeren Absätzen; 0 von 18 Überschriften verlinkt",
+    "primaere_aktion": null,
+    "gruppen": []
+  },
+  "snapshot-02.json": {
+    "titel": "Navigation Menu Button Example | APG | WAI | W3C",
+    "bereiche": [
+      "banner",
+      "navigation „APG“",
+      "navigation „Page Contents“",
+      "main",
+      "complementary „feedback“",
+      "contentinfo „Page“",
+      "contentinfo „Site“"
+    ],
+    "modal": null,
+    "ueberschriften": 18,
+    "h1": [
+      "Navigation Menu Button Example"
+    ],
+    "bedienelemente": 59,
+    "erreichbar": 59,
+    "namen": {
+      "Inferred": 0,
+      "Known": 59,
+      "Uncertain": 0
+    },
+    "texte": 470,
+    "ohne_gesicherten_namen": [],
+    "felder": [],
+    "popups": [
+      "[button] Skip To Content, shortcut Option + 0 hasPopup=menu",
+      "[button] WAI-ARIA Quick Links hasPopup=menu"
+    ],
+    "seitentyp": "Article (Inferred): Hauptüberschrift „Navigation Menu Button Example“; 356 Wörter in längeren Absätzen; 0 von 18 Überschriften verlinkt",
+    "primaere_aktion": null,
+    "gruppen": []
+  }
+}

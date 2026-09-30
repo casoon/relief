@@ -1,0 +1,54 @@
+{
+  "snapshot-00.json": {
+    "titel": "Seite mit Consent-iframe",
+    "bereiche": [
+      "main",
+      "dialog „Ihre Privatsphäre“"
+    ],
+    "modal": "dialog „Ihre Privatsphäre“",
+    "ueberschriften": 2,
+    "h1": [
+      "Nachrichten"
+    ],
+    "bedienelemente": 3,
+    "erreichbar": 3,
+    "namen": {
+      "Inferred": 0,
+      "Known": 3,
+      "Uncertain": 0
+    },
+    "texte": 4,
+    "ohne_gesicherten_namen": [],
+    "felder": [],
+    "popups": [],
+    "seitentyp": "Unknown (Uncertain): keine Regel trifft zu",
+    "primaere_aktion": null,
+    "gruppen": []
+  },
+  "snapshot-01.json": {
+    "titel": "Seite mit Consent-iframe",
+    "bereiche": [
+      "main",
+      "dialog „Ihre Privatsphäre“"
+    ],
+    "modal": "dialog „Ihre Privatsphäre“",
+    "ueberschriften": 2,
+    "h1": [
+      "Nachrichten"
+    ],
+    "bedienelemente": 3,
+    "erreichbar": 3,
+    "namen": {
+      "Inferred": 0,
+      "Known": 3,
+      "Uncertain": 0
+    },
+    "texte": 5,
+    "ohne_gesicherten_namen": [],
+    "felder": [],
+    "popups": [],
+    "seitentyp": "Unknown (Uncertain): keine Regel trifft zu",
+    "primaere_aktion": null,
+    "gruppen": []
+  }
+}

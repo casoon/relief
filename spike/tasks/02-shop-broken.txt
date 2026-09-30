@@ -1,0 +1,18 @@
+# Absichtlich fehlerhafte Seite: Inferred/Uncertain und Grenzen des Ansatzes.
+url: ../fixtures/shop-broken.html
+do: Was ist auf dieser Seite?
+expect: ohne gesicherten Namen
+do: Was kann ich hier tun?
+expect: (erschlossen: url=
+expect: Name unbekannt
+do: öffne cart
+expect: Activate
+# Unbenannter Button: Wirkung unbekannt → Bestätigung
+url: ../fixtures/shop-broken.html
+do: klicke button
+expect: Bestätigung nötig
+# div mit onclick ist im AXTree kein Bedienelement → Grenze: ohne DOM/KI unsichtbar
+do: klicke In den Warenkorb
+expect: Nichts gefunden
+do: wähle 42
+expect: Kein Auswahlfeld

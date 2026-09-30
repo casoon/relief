@@ -1,0 +1,25 @@
+{
+  "anfang": "snapshot-00.json",
+  "schritte": [
+    {
+      "antwort": "Seite „Accessibility - Wikipedia“. Hauptüberschrift: „Accessibility“. Bereiche: banner, navigation „Site“, search, navigation „Personal tools“, navigation „Appearance“, main, navigation „Contents“, navigation „Namespaces“, navigation „Views“, navigation „Page tools“, navigation „Disability“, navigation „Authority control databases Edit this at Wikidata“, contentinfo, 28 benannte Abschnitte. 29 Überschriften, 658 Bedienelemente, davon 5 ohne gesicherten Namen.",
+      "eingabe": "Was ist auf dieser Seite?",
+      "nachher": "snapshot-00.json",
+      "vorher": "snapshot-00.json"
+    },
+    {
+      "antwort": "H1 Accessibility\n  H2 Legislation\n    H3 National legislation\n  H2 Assistive technology and adaptive technology\n  H2 Employment\n    H3 Disability management\n  H2 Transportation\n    H3 Adapted automobiles for persons with disabilities\n    H3 Low floor\n    H3 Accessibility planning for transportation in the United Kingdom\n  H2 Public space\n  H2 Housing\n    H3 Accessibility and \"ageing in place\"\n  H2 Voting\n  H2 Disability, information technology (IT) and telecommunications\n    H3 Examples of common assistive technologies\n      H4 Mobility impairments\n      H4 Communication (including speech) impairments\n      H4 Hearing impairment\n      H4 Visual impairments\n      H4 Cognitive impairments\n    H3 Web accessibility\n      H4 International standards and guidelines\n      H4 Web accessibility features\n  H2 Education and accessibility for students\n    H3 Accessibility of assessments\n  H2 See also\n  H2 References\n  H2 External links",
+      "eingabe": "Welche Überschriften gibt es?",
+      "nachher": "snapshot-00.json",
+      "vorher": "snapshot-00.json"
+    },
+    {
+      "antwort": "Focus auf [link] Search. Fokus jetzt auf link „Search“.",
+      "eingabe": "gehe zu Search",
+      "nachher": "snapshot-01.json",
+      "vorher": "snapshot-00.json"
+    }
+  ],
+  "titel": "Accessibility - Wikipedia",
+  "url": "https://en.wikipedia.org/wiki/Accessibility"
+}

@@ -1,0 +1,9 @@
+0.134  start
+0.176  mode  kWebContents | kInlineTextBoxes | kExtendedProperties
+0.187  reset  attach
+1613.693  page  dropped=0  trees=0  hosts=0
+1939.479  tree  main  https://www.spiegel.de
+1942.228  packet  version=1  created=567  nodes=567  latency_us=2758
+2046.775  tree  iframe  https://www.spiegel.de
+2046.817  packet  version=2  created=2  nodes=569  latency_us=62
+3405.416  packet  version=3  created=0  nodes=569  latency_us=44

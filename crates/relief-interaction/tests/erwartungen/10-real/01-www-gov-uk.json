@@ -1,0 +1,105 @@
+{
+  "snapshot-00.json": {
+    "titel": "Welcome to GOV.UK",
+    "bereiche": [
+      "region „Cookies on GOV.UK“",
+      "banner",
+      "navigation „Navigation menu“",
+      "main",
+      "search",
+      "contentinfo"
+    ],
+    "modal": null,
+    "ueberschriften": 38,
+    "h1": [
+      "The best place to find government services and information"
+    ],
+    "bedienelemente": 88,
+    "erreichbar": 88,
+    "namen": {
+      "Inferred": 0,
+      "Known": 88,
+      "Uncertain": 0
+    },
+    "texte": 122,
+    "ohne_gesicherten_namen": [],
+    "felder": [
+      "[combobox] Search hasPopup=listbox"
+    ],
+    "popups": [
+      "[combobox] Search hasPopup=listbox"
+    ],
+    "seitentyp": "Unknown (Uncertain): keine Regel trifft zu",
+    "primaere_aktion": null,
+    "gruppen": []
+  },
+  "snapshot-01.json": {
+    "titel": "Welcome to GOV.UK",
+    "bereiche": [
+      "region „Cookies on GOV.UK“",
+      "banner",
+      "navigation „Navigation menu“",
+      "main",
+      "search",
+      "contentinfo"
+    ],
+    "modal": null,
+    "ueberschriften": 38,
+    "h1": [
+      "The best place to find government services and information"
+    ],
+    "bedienelemente": 88,
+    "erreichbar": 88,
+    "namen": {
+      "Inferred": 0,
+      "Known": 88,
+      "Uncertain": 0
+    },
+    "texte": 122,
+    "ohne_gesicherten_namen": [],
+    "felder": [
+      "[combobox] Search hasPopup=listbox"
+    ],
+    "popups": [
+      "[combobox] Search hasPopup=listbox"
+    ],
+    "seitentyp": "Unknown (Uncertain): keine Regel trifft zu",
+    "primaere_aktion": null,
+    "gruppen": []
+  },
+  "snapshot-02.json": {
+    "titel": "Welcome to GOV.UK",
+    "bereiche": [
+      "region „Cookies on GOV.UK“",
+      "banner",
+      "navigation „Navigation menu“",
+      "main",
+      "search",
+      "contentinfo"
+    ],
+    "modal": null,
+    "ueberschriften": 38,
+    "h1": [
+      "The best place to find government services and information"
+    ],
+    "bedienelemente": 89,
+    "erreichbar": 89,
+    "namen": {
+      "Inferred": 0,
+      "Known": 89,
+      "Uncertain": 0
+    },
+    "texte": 122,
+    "ohne_gesicherten_namen": [],
+    "felder": [
+      "[combobox] Search = „passport“ expanded=true hasPopup=listbox",
+      "[listbox] passport Optionen: passport renewal, passport, passport webchat, update my passport, apply for british passport"
+    ],
+    "popups": [
+      "[combobox] Search = „passport“ expanded=true hasPopup=listbox"
+    ],
+    "seitentyp": "Unknown (Uncertain): keine Regel trifft zu",
+    "primaere_aktion": null,
+    "gruppen": []
+  }
+}

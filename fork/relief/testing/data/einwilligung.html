@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Einwilligung</title></head>
+<body>
+<div role="dialog" aria-modal="true" aria-labelledby="t">
+  <h2 id="t">Ihre Privatsphäre</h2>
+  <p>Wir verwenden Cookies.</p>
+  <button id="accept">Alle akzeptieren</button>
+  <button id="reject">Nur notwendige</button>
+  <p role="status" id="s"></p>
+</div>
+<script>
+  document.getElementById('accept').onclick = () => { document.getElementById('s').textContent = 'Zustimmung gespeichert.'; };
+  document.getElementById('reject').onclick = () => { document.getElementById('s').textContent = 'Nur notwendige Cookies.'; };
+</script>
+</body></html>

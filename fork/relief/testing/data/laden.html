@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Laden</title></head>
+<body>
+<main>
+  <h1>Laufschuh</h1>
+  <button id="kaufen">In den Warenkorb</button>
+  <p role="status" id="s"></p>
+</main>
+<script>
+  document.getElementById('kaufen').onclick = () => {
+    document.getElementById('s').textContent = 'Im Warenkorb.';
+  };
+</script>
+</body></html>

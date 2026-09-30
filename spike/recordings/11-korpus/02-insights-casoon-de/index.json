@@ -1,0 +1,13 @@
+{
+  "anfang": "snapshot-00.json",
+  "schritte": [
+    {
+      "antwort": "Focus auf [link] Suche. Fokus jetzt auf link „Suche“.",
+      "eingabe": "gehe zu Suche",
+      "nachher": "snapshot-01.json",
+      "vorher": "snapshot-00.json"
+    }
+  ],
+  "titel": "CASOON Insights: Webentwicklung, Cloud & KI",
+  "url": "https://insights.casoon.de/"
+}

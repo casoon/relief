@@ -1,0 +1,19 @@
+{
+  "anfang": "snapshot-00.json",
+  "schritte": [
+    {
+      "antwort": "dialog „Ihre Privatsphäre“:\n  - [button] Alle akzeptieren\n  - [button] Nur notwendige\n\n1 weitere Bedienelemente der Seite sind gesperrt, solange „Ihre Privatsphäre“ offen ist.",
+      "eingabe": "Was kann ich hier tun?",
+      "nachher": "snapshot-00.json",
+      "vorher": "snapshot-00.json"
+    },
+    {
+      "antwort": "Activate auf [button] Nur notwendige. Fokus jetzt auf Iframe „Einwilligung“. Neuer Text: „Nur notwendige Cookies.“.",
+      "eingabe": "klicke Nur notwendige",
+      "nachher": "snapshot-01.json",
+      "vorher": "snapshot-00.json"
+    }
+  ],
+  "titel": "Seite mit Consent-iframe",
+  "url": "file:///REPO/spike/fixtures/with-iframe.html"
+}

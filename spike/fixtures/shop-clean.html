@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><title>Nike Air Max – Testshop</title></head>
+<body>
+<header>
+  <nav aria-label="Hauptmenü">
+    <a href="#home">Home</a>
+    <a href="#produkte">Produkte</a>
+    <a href="#warenkorb" id="cart">Warenkorb (0)</a>
+    <a href="#konto">Konto</a>
+  </nav>
+  <form role="search" onsubmit="return false">
+    <input type="search" aria-label="Suche" placeholder="Suchen …">
+    <button>Suchen</button>
+  </form>
+</header>
+<main>
+  <h1>Nike Air Max</h1>
+  <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="Seitenansicht des Schuhs in Weiß" width="200" height="120">
+  <p>Preis: <strong>129,00 €</strong></p>
+  <label for="size">Größe</label>
+  <select id="size">
+    <option>39</option><option>40</option><option>41</option><option selected>42</option><option>43</option>
+  </select>
+  <button id="add">In den Warenkorb</button>
+  <button id="sizes" aria-expanded="false" aria-controls="sizechart">Größentabelle</button>
+  <button id="buy">Jetzt kaufen</button>
+  <p role="status" id="status"></p>
+  <dialog id="sizechart" aria-labelledby="sc-title">
+    <h2 id="sc-title">Größentabelle</h2>
+    <p>EU 42 entspricht 26,5 cm.</p>
+    <button id="close">Schließen</button>
+  </dialog>
+  <section aria-labelledby="td">
+    <h2 id="td">Technische Daten</h2>
+    <p>Obermaterial Mesh, Sohle Gummi.</p>
+  </section>
+</main>
+<footer><a href="#impressum">Impressum</a> <a href="#datenschutz">Datenschutz</a></footer>
+<script>
+  let n = 0;
+  document.getElementById('add').onclick = () => {
+    n++;
+    document.getElementById('cart').textContent = `Warenkorb (${n})`;
+    document.getElementById('status').textContent =
+      `Größe ${document.getElementById('size').value} in den Warenkorb gelegt.`;
+  };
+  const dlg = document.getElementById('sizechart'), btn = document.getElementById('sizes');
+  btn.onclick = () => { dlg.showModal(); btn.setAttribute('aria-expanded', 'true'); };
+  document.getElementById('close').onclick = () => { dlg.close(); btn.setAttribute('aria-expanded', 'false'); btn.focus(); };
+  document.getElementById('buy').onclick = () => { document.getElementById('status').textContent = 'Bestellung ausgelöst!'; };
+</script>
+</body>
+</html>

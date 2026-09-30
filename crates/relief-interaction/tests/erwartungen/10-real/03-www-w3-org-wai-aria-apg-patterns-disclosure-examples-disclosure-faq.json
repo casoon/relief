@@ -1,0 +1,68 @@
+{
+  "snapshot-00.json": {
+    "titel": "Example Disclosure (Show/Hide) for Answers to Frequently Asked Questions | APG | WAI | W3C",
+    "bereiche": [
+      "banner",
+      "navigation „APG“",
+      "navigation „Page Contents“",
+      "main",
+      "complementary „feedback“",
+      "contentinfo „Page“",
+      "contentinfo „Site“"
+    ],
+    "modal": null,
+    "ueberschriften": 14,
+    "h1": [
+      "Example Disclosure (Show/Hide) for Answers to Frequently Asked Questions"
+    ],
+    "bedienelemente": 61,
+    "erreichbar": 61,
+    "namen": {
+      "Inferred": 0,
+      "Known": 61,
+      "Uncertain": 0
+    },
+    "texte": 359,
+    "ohne_gesicherten_namen": [],
+    "felder": [],
+    "popups": [
+      "[button] Skip To Content, shortcut Option + 0 hasPopup=menu"
+    ],
+    "seitentyp": "Article (Inferred): Hauptüberschrift „Example Disclosure (Show/Hide) for Answers to Frequently Asked Questions“; 374 Wörter in längeren Absätzen; 0 von 14 Überschriften verlinkt",
+    "primaere_aktion": null,
+    "gruppen": []
+  },
+  "snapshot-01.json": {
+    "titel": "Example Disclosure (Show/Hide) for Answers to Frequently Asked Questions | APG | WAI | W3C",
+    "bereiche": [
+      "banner",
+      "navigation „APG“",
+      "navigation „Page Contents“",
+      "main",
+      "complementary „feedback“",
+      "contentinfo „Page“",
+      "contentinfo „Site“"
+    ],
+    "modal": null,
+    "ueberschriften": 14,
+    "h1": [
+      "Example Disclosure (Show/Hide) for Answers to Frequently Asked Questions"
+    ],
+    "bedienelemente": 61,
+    "erreichbar": 61,
+    "namen": {
+      "Inferred": 0,
+      "Known": 61,
+      "Uncertain": 0
+    },
+    "texte": 364,
+    "ohne_gesicherten_namen": [],
+    "felder": [],
+    "popups": [
+      "[button] Skip To Content, shortcut Option + 0 hasPopup=menu"
+    ],
+    "seitentyp": "Article (Inferred): Hauptüberschrift „Example Disclosure (Show/Hide) for Answers to Frequently Asked Questions“; 402 Wörter in längeren Absätzen; 0 von 14 Überschriften verlinkt",
+    "primaere_aktion": null,
+    "gruppen": []
+  }
+}

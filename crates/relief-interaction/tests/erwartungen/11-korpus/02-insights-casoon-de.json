@@ -1,0 +1,60 @@
+{
+  "snapshot-00.json": {
+    "titel": "CASOON Insights: Webentwicklung, Cloud & KI",
+    "bereiche": [
+      "banner",
+      "navigation „Navigation“",
+      "main",
+      "complementary",
+      "contentinfo"
+    ],
+    "modal": null,
+    "ueberschriften": 11,
+    "h1": [
+      "Insights – Aktuelle Artikel"
+    ],
+    "bedienelemente": 40,
+    "erreichbar": 40,
+    "namen": {
+      "Inferred": 0,
+      "Known": 40,
+      "Uncertain": 0
+    },
+    "texte": 80,
+    "ohne_gesicherten_namen": [],
+    "felder": [],
+    "popups": [],
+    "seitentyp": "Unknown (Uncertain): keine Regel trifft zu",
+    "primaere_aktion": null,
+    "gruppen": []
+  },
+  "snapshot-01.json": {
+    "titel": "CASOON Insights: Webentwicklung, Cloud & KI",
+    "bereiche": [
+      "banner",
+      "navigation „Navigation“",
+      "main",
+      "complementary",
+      "contentinfo"
+    ],
+    "modal": null,
+    "ueberschriften": 11,
+    "h1": [
+      "Insights – Aktuelle Artikel"
+    ],
+    "bedienelemente": 40,
+    "erreichbar": 40,
+    "namen": {
+      "Inferred": 0,
+      "Known": 40,
+      "Uncertain": 0
+    },
+    "texte": 80,
+    "ohne_gesicherten_namen": [],
+    "felder": [],
+    "popups": [],
+    "seitentyp": "Unknown (Uncertain): keine Regel trifft zu",
+    "primaere_aktion": null,
+    "gruppen": []
+  }
+}

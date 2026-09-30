@@ -1,0 +1,13 @@
+# Reale Seiten (eigene Websites). Consent-Dialoge werden erkannt, aber nie
+# bestätigt.
+
+url: https://www.casoon.de/
+do: gehe zu Suche
+# Keine Suche auf der Seite; darf nicht auf „Besucher“ im Text anspringen.
+expect: Nichts gefunden
+do: Was kann ich hier tun?
+expect: navigation „Hauptmenü“
+
+url: https://insights.casoon.de/
+do: gehe zu Suche
+expect: Focus auf [link] Suche

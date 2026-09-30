@@ -1,0 +1,107 @@
+{
+  "beschreibung": [
+    "Stichprobe für den Resolver fehlender Namen (Paket 28): alle Bedienelemente (button, link, menuitem, tab) ohne Namen in den Anfangsaufnahmen von spike/recordings, gesichtet am 2026-09-25.",
+    "Soll-Namen von Hand festgelegt: der Name, den eine sehende Person dem Element geben würde, in der Sprache der Seite. Grundlage ist die Aufnahme (Nachbarn, Vorfahren, URL) und bei eigenen Fixtures das HTML; das Modell sieht davon nur den gefilterten Ausschnitt.",
+    "Treffer: Der vorgeschlagene Name enthält einen der akzeptierten Wortteile (ohne Groß-/Kleinschreibung).",
+    "02-shop-broken/02-shop-broken ist dieselbe Seite wie 01 und fehlt deshalb."
+  ],
+  "aufnahmen": "../recordings",
+  "stichprobe": [
+    {
+      "aufnahme": "02-shop-broken/01-shop-broken",
+      "knoten": 15,
+      "rolle": "link",
+      "soll": "Warenkorb",
+      "akzeptiert": [
+        "warenkorb",
+        "einkaufswagen",
+        "cart"
+      ],
+      "begruendung": "spike/fixtures/shop-broken.html: <a href=\"/cart\"> mit SVG-Einkaufswagen im Seitenkopf. Im Ausschnitt: url file:///cart."
+    },
+    {
+      "aufnahme": "02-shop-broken/01-shop-broken",
+      "knoten": 18,
+      "rolle": "link",
+      "soll": "Mein Konto",
+      "akzeptiert": [
+        "konto",
+        "profil",
+        "anmelden"
+      ],
+      "begruendung": "Fixture: <a href=\"/mein-konto\"> mit SVG-Kopf (Kreis). Im Ausschnitt: url file:///mein-konto."
+    },
+    {
+      "aufnahme": "02-shop-broken/01-shop-broken",
+      "knoten": 21,
+      "rolle": "button",
+      "soll": "Menü",
+      "akzeptiert": [
+        "menü",
+        "menu",
+        "navigation"
+      ],
+      "begruendung": "Fixture: <button id=\"menu\"> mit drei waagerechten Linien (Hamburger). Im Ausschnitt nur: button mit Bild als letztes Element im Seitenkopf neben Produkte, Warenkorb, Konto – schwerer Fall."
+    },
+    {
+      "aufnahme": "10-real/02-en-wikipedia-org-wiki-accessibility",
+      "knoten": 1690,
+      "rolle": "link",
+      "soll": "A wheelchair accessible taxi",
+      "akzeptiert": [
+        "taxi"
+      ],
+      "begruendung": "Bild-Link auf File:Taxi_wheelchair.jpg in einer Abbildung; die Bildunterschrift daneben beschreibt das Bild."
+    },
+    {
+      "aufnahme": "10-real/02-en-wikipedia-org-wiki-accessibility",
+      "knoten": 1851,
+      "rolle": "link",
+      "soll": "Harrington Hump at Harrington station",
+      "akzeptiert": [
+        "harrington"
+      ],
+      "begruendung": "Bild-Link auf File:Harrington_railway_station… in einer Abbildung mit Bildunterschrift „Harrington Hump, Harrington station …“."
+    },
+    {
+      "aufnahme": "10-real/02-en-wikipedia-org-wiki-accessibility",
+      "knoten": 4000,
+      "rolle": "link",
+      "soll": "Jump up to: b",
+      "akzeptiert": [
+        "jump",
+        "back",
+        "return",
+        "zurück"
+      ],
+      "begruendung": "Zweiter Rückverweis („b“) eines Einzelnachweises zur Textstelle; der erste heißt „Jump up to: “. Der Buchstabe steht in einem ignorierten Knoten, das Fragment #cite_ref-… entfernt der Filter."
+    },
+    {
+      "aufnahme": "10-real/02-en-wikipedia-org-wiki-accessibility",
+      "knoten": 4062,
+      "rolle": "link",
+      "soll": "Jump up to: b",
+      "akzeptiert": [
+        "jump",
+        "back",
+        "return",
+        "zurück"
+      ],
+      "begruendung": "Wie Knoten 4000, anderer Einzelnachweis."
+    },
+    {
+      "aufnahme": "10-real/02-en-wikipedia-org-wiki-accessibility",
+      "knoten": 4378,
+      "rolle": "link",
+      "soll": "Jump up to: b",
+      "akzeptiert": [
+        "jump",
+        "back",
+        "return",
+        "zurück"
+      ],
+      "begruendung": "Wie Knoten 4000, anderer Einzelnachweis."
+    }
+  ],
+  "ausgeschlossen": []
+}

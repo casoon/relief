@@ -1,0 +1,23 @@
+[package]
+name = "relief-resolver"
+description = "Resolver für fehlende Namen: Ausschnitt, Anbieter-Adapter (Stufe api), Kalibrierung. Browserfrei; Netzcode nur mit Feature `anthropic`."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# Adapter für die Anthropic Messages API (Stufe `api`). Ohne das Feature
+# enthält die Crate keinen Netzcode.
+anthropic = ["dep:ureq"]
+
+[dependencies]
+a11y-perception = { workspace = true }
+relief-ai-contract = { workspace = true }
+relief-model = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+# Synchroner HTTP-Client mit rustls: passt zum synchronen `ModelProvider`
+# ohne Async-Runtime (→ plan/spezifikation/06, Vertrag).
+ureq = { version = "3", default-features = false, features = ["rustls"], optional = true }

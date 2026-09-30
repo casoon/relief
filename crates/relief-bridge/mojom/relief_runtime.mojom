@@ -1,0 +1,174 @@
+// Entwurf, Variante B: Relief-Runtime in einem Utility-Prozess hinter Mojo.
+// Nicht gebaut; Ziel im Fork: //relief/runtime/public/mojom/ (Paket 17).
+//
+// Typen spiegeln das Modell (crates/relief-model) und die cxx-Strukturen
+// (crates/relief-bridge/src/cxx_bridge.rs). Im Utility-Prozess kopiert die
+// C++-Implementierung von ReliefRuntime die Mojo-Strukturen in die
+// cxx-Strukturen und ruft die Rust-Runtime auf (Vorbild
+// services/data_decoder/xml, → plan/spezifikation/02).
+//
+// Anders als in cxx sind hier optionale Werte als nullable Typen möglich.
+// Aus Chromium kommen nur Known-Aussagen; Certainty taucht erst in den
+// Antworten auf.
+//
+// Schreibrichtung: nur der Browser-Prozess ruft auf. Der Utility-Prozess ist
+// weniger vertrauenswürdig als der Browser; der Browser prüft jeden
+// ActionPlan vor dem Senden an den Renderer erneut (Knoten existiert,
+// Aktion erlaubt).
+
+module relief.mojom;
+
+enum Toggle { kFalse, kTrue, kMixed };
+enum Invalid { kTrue, kSpelling, kGrammar };
+enum Editable { kPlaintext, kRichtext };
+enum HasPopup { kTrue, kMenu, kListbox, kTree, kGrid, kDialog };
+enum Orientation { kHorizontal, kVertical };
+enum NameFrom { kAttribute, kRelatedElement, kContents, kPlaceholder, kTitle };
+
+// Auswahl aus ax.mojom.Action.
+enum Action {
+  kDoDefault, kFocus, kBlur, kSetValue, kIncrement, kDecrement,
+  kExpand, kCollapse, kScrollToMakeVisible, kShowContextMenu,
+};
+
+enum Certainty { kKnown, kInferred, kUncertain };
+
+// Tree-ID wie ui.mojom.AXTreeID; im Entwurf als Text wie im Modell.
+struct NodeRef {
+  string tree;
+  int32 node;
+};
+
+struct Rect {
+  float x;
+  float y;
+  float width;
+  float height;
+};
+
+struct States {
+  bool focusable;
+  bool disabled;
+  bool readonly;
+  bool required;
+  bool modal;
+  bool multiline;
+  bool multiselectable;
+  bool settable;
+  bool busy;
+  bool? expanded;
+  bool? selected;
+  Toggle? checked;
+  Toggle? pressed;
+  Invalid? invalid;
+  Editable? editable;
+  HasPopup? has_popup;
+  Orientation? orientation;
+};
+
+struct Relations {
+  array<int32> labelled_by;
+  array<int32> described_by;
+  array<int32> controls;
+  array<int32> details;
+  array<int32> error_message;
+  array<int32> flow_to;
+  int32? active_descendant;
+};
+
+// Ein Knoten, vollständig (SemanticNode ohne CDP-eigene ignored_reasons).
+struct Node {
+  int32 id;
+  // Relief-Rollenname (ARIA, sonst Chromium-intern in lowerCamelCase).
+  string role;
+  string? name;
+  NameFrom? name_from;
+  string? description;
+  string? value;
+  States states;
+  array<Action> actions;
+  Rect? bounds;
+  bool ignored;
+  uint32? level;
+  string? url;
+  int32? parent;
+  array<int32> children;
+  string? child_tree;
+  Relations relations;
+  int64? dom_node_id;
+  map<string, string> extra;
+};
+
+struct TreeData {
+  NodeRef? parent;
+  string? url;
+  string? title;
+  int32? focus;
+};
+
+struct BoundsChange {
+  int32 node;
+  Rect? bounds;
+};
+
+struct TreeUpdate {
+  string tree;
+  TreeData? data;
+  int32? root;
+  array<int32> removed;
+  array<Node> created;
+  array<Node> changed;
+  array<BoundsChange> bounds;
+};
+
+struct TreeDelta {
+  uint64 base;
+  string? root;
+  array<string> removed_trees;
+  array<TreeUpdate> trees;
+};
+
+struct Answer {
+  uint64 version;
+  NodeRef node;
+  string role;
+  string? name;
+  Certainty name_certainty;
+};
+
+struct ActionRequest {
+  NodeRef target;
+  Action action;
+  string? value;
+  uint64 version;
+};
+
+struct ActionPlan {
+  NodeRef target;
+  Action action;
+  string? value;
+  uint64 version;
+};
+
+enum Rejection {
+  kStale, kUnknownNode, kIgnored, kDisabled, kUnsupported, kValueMismatch,
+};
+
+union PlanResult {
+  ActionPlan plan;
+  Rejection rejection;
+};
+
+// Eine Instanz je Tab. Der Browser-Prozess sendet Deltas, ohne auf die
+// Antwort zu warten: Die Quittung an den Renderer (HandleAXEvents => ())
+// hängt nicht an der Runtime.
+interface ReliefRuntime {
+  // Version nach dem Anwenden, null bei unpassender Delta (Graph
+  // unverändert; der Browser schickt dann einen Vollstand).
+  ApplyDelta(TreeDelta delta) => (uint64? version);
+
+  // Rolle und Name eines Knotens; null, wenn er nicht existiert.
+  Describe(NodeRef node) => (Answer? answer);
+
+  PlanAction(ActionRequest request) => (PlanResult result);
+};

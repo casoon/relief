@@ -1,0 +1,19 @@
+{
+  "anfang": "snapshot-00.json",
+  "schritte": [
+    {
+      "antwort": "Activate auf [button] WAI-ARIA Quick Links hasPopup=menu. Ziel jetzt: expanded=true. Fokus jetzt auf menuitem „W3C Home Page“. „WAI-ARIA Quick Links “: expanded false → true. Neu wahrnehmbar: menu „WAI-ARIA Quick Links “, menuitem „W3C Home Page“, menuitem „W3C Web Accessibility Initiative“, menuitem „Accessible Rich Internet Application Specification“, menuitem „WAI-ARIA Authoring Practices“. Neuer Text: „W3C Home Page“, „W3C Web Accessibility Initiative“, „Accessible Rich Internet Application Specification“.",
+      "eingabe": "öffne WAI-ARIA Quick Links",
+      "nachher": "snapshot-01.json",
+      "vorher": "snapshot-00.json"
+    },
+    {
+      "antwort": "Escape für button „WAI-ARIA Quick Links“ (kein Schließen-Button gefunden). Fokus jetzt auf button „WAI-ARIA Quick Links “. „WAI-ARIA Quick Links “: expanded true → false. 7 Elemente nicht mehr wahrnehmbar.",
+      "eingabe": "schließe das Menü",
+      "nachher": "snapshot-02.json",
+      "vorher": "snapshot-01.json"
+    }
+  ],
+  "titel": "Navigation Menu Button Example | APG | WAI | W3C",
+  "url": "https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/examples/menu-button-links/"
+}

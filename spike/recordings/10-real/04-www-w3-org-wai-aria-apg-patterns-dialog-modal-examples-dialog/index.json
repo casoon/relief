@@ -1,0 +1,13 @@
+{
+  "anfang": "snapshot-00.json",
+  "schritte": [
+    {
+      "antwort": "Activate auf [button] Add Delivery Address. Fokus jetzt auf textbox „Street:“. Dialog „Add Delivery Address“ geöffnet.",
+      "eingabe": "öffne Add Delivery Address",
+      "nachher": "snapshot-01.json",
+      "vorher": "snapshot-00.json"
+    }
+  ],
+  "titel": "Modal Dialog Example | APG | WAI | W3C",
+  "url": "https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/examples/dialog/"
+}

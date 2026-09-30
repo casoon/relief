@@ -1,0 +1,50 @@
+{
+  "snapshot-00.json": {
+    "titel": "Air Max – kaputter Testshop",
+    "bereiche": [],
+    "modal": null,
+    "ueberschriften": 0,
+    "h1": [],
+    "bedienelemente": 4,
+    "erreichbar": 4,
+    "namen": {
+      "Inferred": 2,
+      "Known": 1,
+      "Uncertain": 1
+    },
+    "texte": 7,
+    "ohne_gesicherten_namen": [
+      "[link] cart (erschlossen: url=file:///cart)",
+      "[link] mein konto (erschlossen: url=file:///mein-konto)",
+      "[button] unbenannt (button) (Name unbekannt)"
+    ],
+    "felder": [],
+    "popups": [],
+    "seitentyp": "Product (Uncertain): „In den Warenkorb“ nur als Text, nicht bedienbar; Preis „129,00 €“",
+    "primaere_aktion": null,
+    "gruppen": []
+  },
+  "snapshot-01.json": {
+    "titel": "file:///cart",
+    "bereiche": [],
+    "modal": null,
+    "ueberschriften": 1,
+    "h1": [
+      "Zugriff auf die Datei nicht möglich"
+    ],
+    "bedienelemente": 0,
+    "erreichbar": 0,
+    "namen": {
+      "Inferred": 0,
+      "Known": 0,
+      "Uncertain": 0
+    },
+    "texte": 3,
+    "ohne_gesicherten_namen": [],
+    "felder": [],
+    "popups": [],
+    "seitentyp": "Unknown (Uncertain): keine Regel trifft zu",
+    "primaere_aktion": null,
+    "gruppen": []
+  }
+}

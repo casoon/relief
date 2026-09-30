@@ -1,0 +1,49 @@
+{
+  "anfang": "snapshot-00.json",
+  "schritte": [
+    {
+      "antwort": "form „Kontaktformular“:\n  - [textbox] Name\n  - [textbox] E-Mail required=true\n  - [textbox] Nachricht\n  - [checkbox] Datenschutzhinweise gelesen\n  - [button] Nachricht senden",
+      "eingabe": "Was kann ich hier tun?",
+      "nachher": "snapshot-00.json",
+      "vorher": "snapshot-00.json"
+    },
+    {
+      "antwort": "SetValue(\"Erika Muster\") auf [textbox] Name. Fokus jetzt auf textbox „Name“. Neuer Text: „Erika Muster“.",
+      "eingabe": "fülle Name mit Erika Muster",
+      "nachher": "snapshot-01.json",
+      "vorher": "snapshot-00.json"
+    },
+    {
+      "antwort": "Bestätigung nötig (High): Name enthält „senden“ — Ziel: [button] Nachricht senden. Mit „!“ davor bestätigen.",
+      "eingabe": "klicke Nachricht senden",
+      "nachher": "snapshot-01.json",
+      "vorher": "snapshot-01.json"
+    },
+    {
+      "antwort": "Activate auf [button] Nachricht senden. Fokus jetzt auf textbox „E-Mail“. „E-Mail“: invalid false → true. Neuer Text: „Bitte E-Mail angeben.“.",
+      "eingabe": "!klicke Nachricht senden",
+      "nachher": "snapshot-02.json",
+      "vorher": "snapshot-01.json"
+    },
+    {
+      "antwort": "SetValue(\"erika@example.org\") auf [textbox] E-Mail invalid=true required=true. Neuer Text: „erika@example.org“.",
+      "eingabe": "fülle E-Mail mit erika@example.org",
+      "nachher": "snapshot-03.json",
+      "vorher": "snapshot-02.json"
+    },
+    {
+      "antwort": "Activate auf [checkbox] Datenschutzhinweise gelesen. Ziel jetzt: checked=true. Fokus jetzt auf checkbox „Datenschutzhinweise gelesen“.",
+      "eingabe": "klicke Datenschutzhinweise",
+      "nachher": "snapshot-04.json",
+      "vorher": "snapshot-03.json"
+    },
+    {
+      "antwort": "Activate auf [button] Nachricht senden. Fokus jetzt auf button „Nachricht senden“. „E-Mail“: invalid true → false. Neuer Text: „Danke, Nachricht gesendet.“.",
+      "eingabe": "!klicke Nachricht senden",
+      "nachher": "snapshot-05.json",
+      "vorher": "snapshot-04.json"
+    }
+  ],
+  "titel": "Kontakt – Testseite",
+  "url": "file:///REPO/spike/fixtures/form.html"
+}

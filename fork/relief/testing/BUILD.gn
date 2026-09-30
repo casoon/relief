@@ -1,0 +1,50 @@
+# Relief. MIT-Lizenz wie das Relief-Repository.
+#
+# Browser-Tests der Integrationspunkte (→ plan/spezifikation/10, Fork-
+# Strategie in spezifikation/01: nach jedem Rebase). Bauen und laufen lassen:
+#
+#   autoninja -C out/Relief relief_browsertests
+#   out/Relief/relief_browsertests
+#
+# Aufbau wie sync_performance_tests (chrome/test/BUILD.gn): eigener kleiner
+# Test statt eines Eintrags in browser_tests, damit kein Chromium-Build-File
+# einen Patch braucht und der Test ohne die ~10 000 Quellen von
+# browser_tests baut. Gefunden wird das Target über die Gruppe
+# //relief:relief_tests.
+
+import("//testing/test.gni")
+
+test("relief_browsertests") {
+  sources = [ "relief_browsertest.cc" ]
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  deps = [
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser",
+    "//chrome/browser/ui",
+    "//chrome/test:browser_tests_runner",
+    "//chrome/test:test_support",
+    "//chrome/test:test_support_ui",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//net:test_support",
+    "//relief",
+    "//testing/gtest",
+    "//third_party/blink/public/common",
+    "//ui/accessibility",
+  ]
+  data = [ "data/" ]
+  data_deps = [ "//chrome:packed_resources" ]
+  if (is_mac) {
+    # Wie browser_tests: InProcessBrowserTest nutzt Framework und Helfer aus
+    # Chromium.app.
+    data_deps += [
+      "//chrome",
+      "//chrome:chrome_framework",
+    ]
+
+    # Ohne -ObjC fehlen Kategorien aus statischen Bibliotheken
+    # (vgl. sync_performance_tests).
+    ldflags = [ "-Wl,-ObjC" ]
+  }
+}

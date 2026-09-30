@@ -1,0 +1,25 @@
+{
+  "anfang": "snapshot-00.json",
+  "schritte": [
+    {
+      "antwort": "Seite „Air Max – kaputter Testshop“. 0 Überschriften, 4 Bedienelemente, davon 3 ohne gesicherten Namen.",
+      "eingabe": "Was ist auf dieser Seite?",
+      "nachher": "snapshot-00.json",
+      "vorher": "snapshot-00.json"
+    },
+    {
+      "antwort": "außerhalb von Bereichen:\n  - [link] Produkte\n  - [link] cart (erschlossen: url=file:///cart)\n  - [link] mein konto (erschlossen: url=file:///mein-konto)\n  - [button] unbenannt (button) (Name unbekannt)",
+      "eingabe": "Was kann ich hier tun?",
+      "nachher": "snapshot-00.json",
+      "vorher": "snapshot-00.json"
+    },
+    {
+      "antwort": "Activate auf [link] cart (erschlossen: url=file:///cart). Neue Adresse: chrome-error://chromewebdata/. Neuer Titel: „file:///cart“. Fokus jetzt auf none „“. Neu wahrnehmbar: RootWebArea „file:///cart“, heading „Zugriff auf die Datei nicht möglich“. 12 Elemente nicht mehr wahrnehmbar. Neuer Text: „Zugriff auf die Datei nicht möglich“, „Eventuell wurde sie verschoben, bearbeitet oder gelöscht.“, „ERR_FILE_NOT_FOUND“.",
+      "eingabe": "öffne cart",
+      "nachher": "snapshot-01.json",
+      "vorher": "snapshot-00.json"
+    }
+  ],
+  "titel": "file:///cart",
+  "url": "file:///REPO/spike/fixtures/shop-broken.html"
+}

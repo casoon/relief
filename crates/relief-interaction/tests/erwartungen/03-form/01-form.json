@@ -1,0 +1,200 @@
+{
+  "snapshot-00.json": {
+    "titel": "Kontakt – Testseite",
+    "bereiche": [
+      "main",
+      "form „Kontaktformular“"
+    ],
+    "modal": null,
+    "ueberschriften": 1,
+    "h1": [
+      "Kontakt"
+    ],
+    "bedienelemente": 5,
+    "erreichbar": 5,
+    "namen": {
+      "Inferred": 0,
+      "Known": 5,
+      "Uncertain": 0
+    },
+    "texte": 1,
+    "ohne_gesicherten_namen": [],
+    "felder": [
+      "[textbox] Name",
+      "[textbox] E-Mail required=true",
+      "[textbox] Nachricht",
+      "[checkbox] Datenschutzhinweise gelesen"
+    ],
+    "popups": [],
+    "seitentyp": "Form (Inferred): Formular „Kontaktformular“ mit 4 Feldern; Hauptüberschrift „Kontakt“",
+    "primaere_aktion": "[button] Nachricht senden (Inferred): Button im Formular „Kontaktformular“; Name enthält „senden“",
+    "gruppen": [
+      "Form „Kontaktformular“: 5 Bedienelemente, primär [button] Nachricht senden (Inferred): Button im Formular „Kontaktformular“; Name enthält „senden“"
+    ]
+  },
+  "snapshot-01.json": {
+    "titel": "Kontakt – Testseite",
+    "bereiche": [
+      "main",
+      "form „Kontaktformular“"
+    ],
+    "modal": null,
+    "ueberschriften": 1,
+    "h1": [
+      "Kontakt"
+    ],
+    "bedienelemente": 5,
+    "erreichbar": 5,
+    "namen": {
+      "Inferred": 0,
+      "Known": 5,
+      "Uncertain": 0
+    },
+    "texte": 1,
+    "ohne_gesicherten_namen": [],
+    "felder": [
+      "[textbox] Name = „Erika Muster“",
+      "[textbox] E-Mail required=true",
+      "[textbox] Nachricht",
+      "[checkbox] Datenschutzhinweise gelesen"
+    ],
+    "popups": [],
+    "seitentyp": "Form (Inferred): Formular „Kontaktformular“ mit 4 Feldern; Hauptüberschrift „Kontakt“",
+    "primaere_aktion": "[button] Nachricht senden (Inferred): Button im Formular „Kontaktformular“; Name enthält „senden“",
+    "gruppen": [
+      "Form „Kontaktformular“: 5 Bedienelemente, primär [button] Nachricht senden (Inferred): Button im Formular „Kontaktformular“; Name enthält „senden“"
+    ]
+  },
+  "snapshot-02.json": {
+    "titel": "Kontakt – Testseite",
+    "bereiche": [
+      "main",
+      "form „Kontaktformular“"
+    ],
+    "modal": null,
+    "ueberschriften": 1,
+    "h1": [
+      "Kontakt"
+    ],
+    "bedienelemente": 5,
+    "erreichbar": 5,
+    "namen": {
+      "Inferred": 0,
+      "Known": 5,
+      "Uncertain": 0
+    },
+    "texte": 2,
+    "ohne_gesicherten_namen": [],
+    "felder": [
+      "[textbox] Name = „Erika Muster“",
+      "[textbox] E-Mail invalid=true required=true",
+      "[textbox] Nachricht",
+      "[checkbox] Datenschutzhinweise gelesen"
+    ],
+    "popups": [],
+    "seitentyp": "Form (Inferred): Formular „Kontaktformular“ mit 4 Feldern; Hauptüberschrift „Kontakt“",
+    "primaere_aktion": "[button] Nachricht senden (Inferred): Button im Formular „Kontaktformular“; Name enthält „senden“",
+    "gruppen": [
+      "Form „Kontaktformular“: 5 Bedienelemente, primär [button] Nachricht senden (Inferred): Button im Formular „Kontaktformular“; Name enthält „senden“"
+    ]
+  },
+  "snapshot-03.json": {
+    "titel": "Kontakt – Testseite",
+    "bereiche": [
+      "main",
+      "form „Kontaktformular“"
+    ],
+    "modal": null,
+    "ueberschriften": 1,
+    "h1": [
+      "Kontakt"
+    ],
+    "bedienelemente": 5,
+    "erreichbar": 5,
+    "namen": {
+      "Inferred": 0,
+      "Known": 5,
+      "Uncertain": 0
+    },
+    "texte": 2,
+    "ohne_gesicherten_namen": [],
+    "felder": [
+      "[textbox] Name = „Erika Muster“",
+      "[textbox] E-Mail = „erika@example.org“ invalid=true required=true",
+      "[textbox] Nachricht",
+      "[checkbox] Datenschutzhinweise gelesen"
+    ],
+    "popups": [],
+    "seitentyp": "Form (Inferred): Formular „Kontaktformular“ mit 4 Feldern; Hauptüberschrift „Kontakt“",
+    "primaere_aktion": "[button] Nachricht senden (Inferred): Button im Formular „Kontaktformular“; Name enthält „senden“",
+    "gruppen": [
+      "Form „Kontaktformular“: 5 Bedienelemente, primär [button] Nachricht senden (Inferred): Button im Formular „Kontaktformular“; Name enthält „senden“"
+    ]
+  },
+  "snapshot-04.json": {
+    "titel": "Kontakt – Testseite",
+    "bereiche": [
+      "main",
+      "form „Kontaktformular“"
+    ],
+    "modal": null,
+    "ueberschriften": 1,
+    "h1": [
+      "Kontakt"
+    ],
+    "bedienelemente": 5,
+    "erreichbar": 5,
+    "namen": {
+      "Inferred": 0,
+      "Known": 5,
+      "Uncertain": 0
+    },
+    "texte": 2,
+    "ohne_gesicherten_namen": [],
+    "felder": [
+      "[textbox] Name = „Erika Muster“",
+      "[textbox] E-Mail = „erika@example.org“ invalid=true required=true",
+      "[textbox] Nachricht",
+      "[checkbox] Datenschutzhinweise gelesen checked=true"
+    ],
+    "popups": [],
+    "seitentyp": "Form (Inferred): Formular „Kontaktformular“ mit 4 Feldern; Hauptüberschrift „Kontakt“",
+    "primaere_aktion": "[button] Nachricht senden (Inferred): Button im Formular „Kontaktformular“; Name enthält „senden“",
+    "gruppen": [
+      "Form „Kontaktformular“: 5 Bedienelemente, primär [button] Nachricht senden (Inferred): Button im Formular „Kontaktformular“; Name enthält „senden“"
+    ]
+  },
+  "snapshot-05.json": {
+    "titel": "Kontakt – Testseite",
+    "bereiche": [
+      "main",
+      "form „Kontaktformular“"
+    ],
+    "modal": null,
+    "ueberschriften": 1,
+    "h1": [
+      "Kontakt"
+    ],
+    "bedienelemente": 5,
+    "erreichbar": 5,
+    "namen": {
+      "Inferred": 0,
+      "Known": 5,
+      "Uncertain": 0
+    },
+    "texte": 2,
+    "ohne_gesicherten_namen": [],
+    "felder": [
+      "[textbox] Name = „Erika Muster“",
+      "[textbox] E-Mail = „erika@example.org“ required=true",
+      "[textbox] Nachricht",
+      "[checkbox] Datenschutzhinweise gelesen checked=true"
+    ],
+    "popups": [],
+    "seitentyp": "Form (Inferred): Formular „Kontaktformular“ mit 4 Feldern; Hauptüberschrift „Kontakt“",
+    "primaere_aktion": "[button] Nachricht senden (Inferred): Button im Formular „Kontaktformular“; Name enthält „senden“",
+    "gruppen": [
+      "Form „Kontaktformular“: 5 Bedienelemente, primär [button] Nachricht senden (Inferred): Button im Formular „Kontaktformular“; Name enthält „senden“"
+    ]
+  }
+}

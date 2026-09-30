@@ -1,0 +1,6 @@
+# Consent-Dialog in einem iframe (Backlog 08, Punkt 5).
+url: ../fixtures/with-iframe.html
+do: Was kann ich hier tun?
+expect: Nur notwendige
+do: klicke Nur notwendige
+expect: Nur notwendige Cookies.

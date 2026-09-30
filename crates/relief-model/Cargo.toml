@@ -1,0 +1,22 @@
+[package]
+name = "relief-model"
+description = "Semantisches Datenmodell und Delta-Format für Relief. Browserfrei."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = ["perception"]
+# Konverter aus `a11y_perception` (CDP-Host, Aufnahmen). Im Chromium-Build
+# des Forks aus: `a11y-perception` liegt nicht in `//third_party/rust`
+# (→ plan/spezifikation/02, „Rust im GN-Build“).
+perception = ["dep:a11y-perception"]
+
+[dependencies]
+a11y-perception = { workspace = true, optional = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

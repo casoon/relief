@@ -1,0 +1,31 @@
+{
+  "anfang": "snapshot-00.json",
+  "schritte": [
+    {
+      "antwort": "Activate auf [button] Add Delivery Address. Fokus jetzt auf textbox „Street:“. Dialog „Add Delivery Address“ geöffnet.",
+      "eingabe": "öffne Add Delivery Address",
+      "nachher": "snapshot-02.json",
+      "vorher": "snapshot-01.json"
+    },
+    {
+      "antwort": "dialog „Add Delivery Address“:\n  - [textbox] Street:\n  - [textbox] City:\n  - [textbox] State:\n  - [textbox] Zip:\n  - [textbox] Special instructions:\n  - [button] Verify Address\n  - [button] Add\n  - [button] Cancel\n\n59 weitere Bedienelemente der Seite sind gesperrt, solange „Add Delivery Address“ offen ist.",
+      "eingabe": "was kann ich tun",
+      "nachher": "snapshot-02.json",
+      "vorher": "snapshot-02.json"
+    },
+    {
+      "antwort": "„Open In CodePen“ ist gesperrt, solange „Add Delivery Address“ offen ist. Erst den Dialog schließen.",
+      "eingabe": "öffne Open In CodePen",
+      "nachher": "snapshot-02.json",
+      "vorher": "snapshot-02.json"
+    },
+    {
+      "antwort": "Activate auf [button] Cancel. Fokus jetzt auf button „Add Delivery Address“. Dialog „Add Delivery Address“ geschlossen.",
+      "eingabe": "schließe den Dialog",
+      "nachher": "snapshot-03.json",
+      "vorher": "snapshot-02.json"
+    }
+  ],
+  "titel": "Modal Dialog Example | APG | WAI | W3C",
+  "url": "https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/examples/dialog/"
+}

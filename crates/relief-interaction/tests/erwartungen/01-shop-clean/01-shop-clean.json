@@ -1,0 +1,284 @@
+{
+  "snapshot-00.json": {
+    "titel": "Nike Air Max – Testshop",
+    "bereiche": [
+      "banner",
+      "navigation „Hauptmenü“",
+      "search",
+      "main",
+      "region „Technische Daten“",
+      "contentinfo"
+    ],
+    "modal": null,
+    "ueberschriften": 2,
+    "h1": [
+      "Nike Air Max"
+    ],
+    "bedienelemente": 12,
+    "erreichbar": 12,
+    "namen": {
+      "Inferred": 0,
+      "Known": 12,
+      "Uncertain": 0
+    },
+    "texte": 11,
+    "ohne_gesicherten_namen": [],
+    "felder": [
+      "[searchbox] Suche",
+      "[combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 42 hasPopup=menu"
+    ],
+    "popups": [
+      "[combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 42 hasPopup=menu"
+    ],
+    "seitentyp": "Product (Inferred): Button „In den Warenkorb“; Preis „129,00 €“; Hauptüberschrift „Nike Air Max“",
+    "primaere_aktion": "[button] In den Warenkorb (Inferred): Name enthält „in den warenkorb“; im Abschnitt „Nike Air Max“; im Hauptbereich",
+    "gruppen": [
+      "Product „Nike Air Max“: 4 Bedienelemente, primär [button] In den Warenkorb (Inferred): Name enthält „in den warenkorb“; im Abschnitt „Nike Air Max“; im Hauptbereich"
+    ]
+  },
+  "snapshot-01.json": {
+    "titel": "Nike Air Max – Testshop",
+    "bereiche": [
+      "banner",
+      "navigation „Hauptmenü“",
+      "search",
+      "main",
+      "region „Technische Daten“",
+      "contentinfo"
+    ],
+    "modal": null,
+    "ueberschriften": 2,
+    "h1": [
+      "Nike Air Max"
+    ],
+    "bedienelemente": 12,
+    "erreichbar": 12,
+    "namen": {
+      "Inferred": 0,
+      "Known": 12,
+      "Uncertain": 0
+    },
+    "texte": 11,
+    "ohne_gesicherten_namen": [],
+    "felder": [
+      "[searchbox] Suche",
+      "[combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 43 hasPopup=menu"
+    ],
+    "popups": [
+      "[combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 43 hasPopup=menu"
+    ],
+    "seitentyp": "Product (Inferred): Button „In den Warenkorb“; Preis „129,00 €“; Hauptüberschrift „Nike Air Max“",
+    "primaere_aktion": "[button] In den Warenkorb (Inferred): Name enthält „in den warenkorb“; im Abschnitt „Nike Air Max“; im Hauptbereich",
+    "gruppen": [
+      "Product „Nike Air Max“: 4 Bedienelemente, primär [button] In den Warenkorb (Inferred): Name enthält „in den warenkorb“; im Abschnitt „Nike Air Max“; im Hauptbereich"
+    ]
+  },
+  "snapshot-02.json": {
+    "titel": "Nike Air Max – Testshop",
+    "bereiche": [
+      "banner",
+      "navigation „Hauptmenü“",
+      "search",
+      "main",
+      "region „Technische Daten“",
+      "contentinfo"
+    ],
+    "modal": null,
+    "ueberschriften": 2,
+    "h1": [
+      "Nike Air Max"
+    ],
+    "bedienelemente": 12,
+    "erreichbar": 12,
+    "namen": {
+      "Inferred": 0,
+      "Known": 12,
+      "Uncertain": 0
+    },
+    "texte": 12,
+    "ohne_gesicherten_namen": [],
+    "felder": [
+      "[searchbox] Suche",
+      "[combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 43 hasPopup=menu"
+    ],
+    "popups": [
+      "[combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 43 hasPopup=menu"
+    ],
+    "seitentyp": "Product (Inferred): Button „In den Warenkorb“; Preis „129,00 €“; Hauptüberschrift „Nike Air Max“",
+    "primaere_aktion": "[button] In den Warenkorb (Inferred): Name enthält „in den warenkorb“; im Abschnitt „Nike Air Max“; im Hauptbereich",
+    "gruppen": [
+      "Product „Nike Air Max“: 4 Bedienelemente, primär [button] In den Warenkorb (Inferred): Name enthält „in den warenkorb“; im Abschnitt „Nike Air Max“; im Hauptbereich"
+    ]
+  },
+  "snapshot-03.json": {
+    "titel": "Nike Air Max – Testshop",
+    "bereiche": [
+      "dialog „Größentabelle“"
+    ],
+    "modal": "dialog „Größentabelle“",
+    "ueberschriften": 1,
+    "h1": [],
+    "bedienelemente": 1,
+    "erreichbar": 1,
+    "namen": {
+      "Inferred": 0,
+      "Known": 1,
+      "Uncertain": 0
+    },
+    "texte": 2,
+    "ohne_gesicherten_namen": [],
+    "felder": [],
+    "popups": [],
+    "seitentyp": "Unknown (Uncertain): keine Regel trifft zu",
+    "primaere_aktion": null,
+    "gruppen": []
+  },
+  "snapshot-04.json": {
+    "titel": "Nike Air Max – Testshop",
+    "bereiche": [
+      "banner",
+      "navigation „Hauptmenü“",
+      "search",
+      "main",
+      "region „Technische Daten“",
+      "contentinfo"
+    ],
+    "modal": null,
+    "ueberschriften": 2,
+    "h1": [
+      "Nike Air Max"
+    ],
+    "bedienelemente": 12,
+    "erreichbar": 12,
+    "namen": {
+      "Inferred": 0,
+      "Known": 12,
+      "Uncertain": 0
+    },
+    "texte": 12,
+    "ohne_gesicherten_namen": [],
+    "felder": [
+      "[searchbox] Suche",
+      "[combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 43 hasPopup=menu"
+    ],
+    "popups": [
+      "[combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 43 hasPopup=menu"
+    ],
+    "seitentyp": "Product (Inferred): Button „In den Warenkorb“; Preis „129,00 €“; Hauptüberschrift „Nike Air Max“",
+    "primaere_aktion": "[button] In den Warenkorb (Inferred): Name enthält „in den warenkorb“; im Abschnitt „Nike Air Max“; im Hauptbereich",
+    "gruppen": [
+      "Product „Nike Air Max“: 4 Bedienelemente, primär [button] In den Warenkorb (Inferred): Name enthält „in den warenkorb“; im Abschnitt „Nike Air Max“; im Hauptbereich"
+    ]
+  },
+  "snapshot-05.json": {
+    "titel": "Nike Air Max – Testshop",
+    "bereiche": [
+      "banner",
+      "navigation „Hauptmenü“",
+      "search",
+      "main",
+      "region „Technische Daten“",
+      "contentinfo"
+    ],
+    "modal": null,
+    "ueberschriften": 2,
+    "h1": [
+      "Nike Air Max"
+    ],
+    "bedienelemente": 12,
+    "erreichbar": 12,
+    "namen": {
+      "Inferred": 0,
+      "Known": 12,
+      "Uncertain": 0
+    },
+    "texte": 12,
+    "ohne_gesicherten_namen": [],
+    "felder": [
+      "[searchbox] Suche",
+      "[combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 43 hasPopup=menu"
+    ],
+    "popups": [
+      "[combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 43 hasPopup=menu"
+    ],
+    "seitentyp": "Product (Inferred): Button „In den Warenkorb“; Preis „129,00 €“; Hauptüberschrift „Nike Air Max“",
+    "primaere_aktion": "[button] In den Warenkorb (Inferred): Name enthält „in den warenkorb“; im Abschnitt „Nike Air Max“; im Hauptbereich",
+    "gruppen": [
+      "Product „Nike Air Max“: 4 Bedienelemente, primär [button] In den Warenkorb (Inferred): Name enthält „in den warenkorb“; im Abschnitt „Nike Air Max“; im Hauptbereich"
+    ]
+  },
+  "snapshot-06.json": {
+    "titel": "Nike Air Max – Testshop",
+    "bereiche": [
+      "banner",
+      "navigation „Hauptmenü“",
+      "search",
+      "main",
+      "region „Technische Daten“",
+      "contentinfo"
+    ],
+    "modal": null,
+    "ueberschriften": 2,
+    "h1": [
+      "Nike Air Max"
+    ],
+    "bedienelemente": 12,
+    "erreichbar": 12,
+    "namen": {
+      "Inferred": 0,
+      "Known": 12,
+      "Uncertain": 0
+    },
+    "texte": 12,
+    "ohne_gesicherten_namen": [],
+    "felder": [
+      "[searchbox] Suche = „Laufschuhe“",
+      "[combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 43 hasPopup=menu"
+    ],
+    "popups": [
+      "[combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 43 hasPopup=menu"
+    ],
+    "seitentyp": "Product (Inferred): Button „In den Warenkorb“; Preis „129,00 €“; Hauptüberschrift „Nike Air Max“",
+    "primaere_aktion": "[button] In den Warenkorb (Inferred): Name enthält „in den warenkorb“; im Abschnitt „Nike Air Max“; im Hauptbereich",
+    "gruppen": [
+      "Product „Nike Air Max“: 4 Bedienelemente, primär [button] In den Warenkorb (Inferred): Name enthält „in den warenkorb“; im Abschnitt „Nike Air Max“; im Hauptbereich"
+    ]
+  },
+  "snapshot-07.json": {
+    "titel": "Nike Air Max – Testshop",
+    "bereiche": [
+      "banner",
+      "navigation „Hauptmenü“",
+      "search",
+      "main",
+      "region „Technische Daten“",
+      "contentinfo"
+    ],
+    "modal": null,
+    "ueberschriften": 2,
+    "h1": [
+      "Nike Air Max"
+    ],
+    "bedienelemente": 12,
+    "erreichbar": 12,
+    "namen": {
+      "Inferred": 0,
+      "Known": 12,
+      "Uncertain": 0
+    },
+    "texte": 12,
+    "ohne_gesicherten_namen": [],
+    "felder": [
+      "[searchbox] Suche = „Laufschuhe“",
+      "[combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 43 hasPopup=menu"
+    ],
+    "popups": [
+      "[combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 43 hasPopup=menu"
+    ],
+    "seitentyp": "Product (Inferred): Button „In den Warenkorb“; Preis „129,00 €“; Hauptüberschrift „Nike Air Max“",
+    "primaere_aktion": "[button] In den Warenkorb (Inferred): Name enthält „in den warenkorb“; im Abschnitt „Nike Air Max“; im Hauptbereich",
+    "gruppen": [
+      "Product „Nike Air Max“: 4 Bedienelemente, primär [button] In den Warenkorb (Inferred): Name enthält „in den warenkorb“; im Abschnitt „Nike Air Max“; im Hauptbereich"
+    ]
+  }
+}

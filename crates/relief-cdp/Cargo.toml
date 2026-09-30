@@ -1,0 +1,20 @@
+[package]
+name = "relief-cdp"
+description = "Spike-Host: Relief gegen ein normales Chrome über CDP (Phase 0a)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+relief-interaction = { workspace = true }
+# Mit `perception` (Standard): jede Aufnahme wird zum Modell konvertiert.
+relief-model = { workspace = true }
+a11y-perception = { workspace = true }
+serde_json = { workspace = true }
+chromiumoxide = { version = "0.8", default-features = false, features = ["tokio-runtime"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "io-std", "io-util"] }
+futures = "0.3"
+anyhow = "1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

@@ -1,0 +1,71 @@
+# Intent-Katalog: wo bin ich, Abschnitte, Vorlesen, Abfragen, Felder,
+# erhöhen/verringern, Scrollen.
+url: ../fixtures/intents.html
+do: Wo bin ich?
+expect: Fokus liegt auf keinem Bedienelement
+expect: Seite „Bergstiefel Alpin – Testseite“
+do: Gehe zum nächsten Abschnitt
+expect: NavigateTo auf Abschnitt H1 „Bergstiefel Alpin“
+expect: Fokus jetzt auf heading „Bergstiefel Alpin“
+do: nächster Abschnitt
+expect: Fokus jetzt auf heading „Beschreibung“
+do: Wo bin ich?
+expect: Fokus auf Überschrift H2 „Beschreibung“
+do: Lies den Abschnitt
+expect: Abschnitt H2 „Beschreibung“: Wasserdichter Bergstiefel
+expect: Mehr in den Pflegehinweisen
+do: Gehe zur Überschrift Technische Daten
+expect: Fokus jetzt auf heading „Technische Daten“
+do: vorheriger Abschnitt
+expect: Fokus jetzt auf heading „Beschreibung“
+do: Lies den Abschnitt Technische Daten
+expect: Obermaterial Nubukleder, Sohle Vibram
+do: Lies den Abschnitt Bestellung
+expect: [H3 Versand] Lieferung in zwei Werktagen
+expect: [spinbutton] Menge
+do: Gehe zur Überschrift Kommentare
+expect: Keine Überschrift und kein Bereich
+do: zum Bereich Fußzeile
+expect: NavigateTo auf Bereich contentinfo
+# Formularfelder der Reihe nach, von der Überschrift aus.
+do: Gehe zur Überschrift Bestellung
+expect: Fokus jetzt auf heading „Bestellung“
+do: Gehe zum nächsten Formularfeld
+expect: Focus auf [combobox] Größe
+do: Welche Größen gibt es?
+expect: 5 Optionen: 40, 41, 42, 43, 44. Gewählt: 42.
+do: nächstes Formularfeld
+expect: Focus auf [spinbutton] Menge
+do: Wo bin ich?
+expect: Fokus auf [spinbutton] Menge
+expect: Bereich: form „Bestellformular“. Abschnitt: H2 „Bestellung“
+do: Erhöhe die Menge
+expect: Increment auf [spinbutton] Menge
+expect: Wert 1 → 2
+do: Menge verringern
+expect: Wert 2 → 1
+do: verringere Menge
+expect: Abgelehnt: Wert steht schon auf dem Minimum (1)
+# ARIA-Schieberegler, der nur auf Tasten reagiert. `aria-valuetext` meldet
+# Chrome über CDP leer; der neue Text kommt über den Diff.
+do: Details zu Sohlenhärte
+expect: Wert: 3, möglich von 1 bis 5
+do: erhöhe Sohlenhärte
+expect: Wert 3 → 4
+expect: Neuer Text: „fest“
+do: vorheriges Formularfeld
+expect: Focus auf [spinbutton] Menge
+do: erhöhe Name
+expect: Nichts gefunden
+# Scrollen, frisch geladen am Seitenanfang.
+url: ../fixtures/intents.html
+do: scrolle nach oben
+expect: schon am Seitenanfang
+do: Scrolle nach unten
+expect: Scroll nach unten: jetzt bei
+do: scrolle zum Ende
+expect: Seitenende erreicht
+do: scroll down
+expect: schon am Seitenende
+do: Scrolle zum Anfang
+expect: Seitenanfang erreicht

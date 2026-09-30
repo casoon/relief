@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: relief <relief@invalid>
+Date: Thu, 24 Sep 2026 19:26:41 +0200
+Subject: Relief: Tab-Helfer je Tab erzeugen
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Eingriff 1 der Eingriffsliste (plan/spezifikation/01, „Nötige Eingriffe
+außerhalb //relief/“): Tab-Features entstehen nur in TabFeatures::Init;
+TabHelpers::AttachTabHelpers ist für Desktop nicht mehr zu verwenden.
+Ohne Header-Patch: der Helfer hängt als WebContentsUserData am Tab, die
+Subscription aus relief::AttachToTab (Nachfolge nach Discard) liegt im
+vorhandenen tab_subscriptions_, wie webui::InitEmbeddingContext.
+Ohne --enable-relief ist die Subscription leer.
+Anker: Include nach dem letzten net/-Include, Aufruf direkt nach
+webui::InitEmbeddingContext am Funktionsanfang.
+
+diff --git a/chrome/browser/ui/tabs/tab_features.cc b/chrome/browser/ui/tabs/tab_features.cc
+index b898e05789186f658553b20ddd7417496744d937..975bc3e1e249fc59213c39b7ef5a74acdddab11e 100644
+--- a/chrome/browser/ui/tabs/tab_features.cc
++++ b/chrome/browser/ui/tabs/tab_features.cc
+@@ -167,6 +167,7 @@
+ #include "components/tabs/public/tab_interface.h"
+ #include "components/wallet/core/common/wallet_features.h"
+ #include "net/base/features.h"
++#include "relief/relief_attach.h"
+ #include "ui/accessibility/accessibility_features.h"
+ #include "ui/base/unowned_user_data/user_data_factory.h"
+ 
+@@ -206,6 +207,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
+       tab.RegisterWillDiscardContents(base::BindRepeating(
+           &TabFeatures::WillDiscardContents, weak_factory_.GetWeakPtr())));
+   tab_subscriptions_.push_back(webui::InitEmbeddingContext(&tab));
++  tab_subscriptions_.push_back(relief::AttachToTab(tab));
+ 
+   // TODO(crbug.com/346148554): Do not create a SidePanelRegistry or
+   // dependencies for non-normal browsers.

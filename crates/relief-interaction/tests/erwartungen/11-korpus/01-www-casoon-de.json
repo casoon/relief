@@ -1,0 +1,31 @@
+{
+  "snapshot-00.json": {
+    "titel": "CASOON | Webseiten, Onlineshops & SEO aus Rostock",
+    "bereiche": [
+      "banner",
+      "navigation „Hauptmenü“",
+      "main",
+      "contentinfo",
+      "navigation „Rechtliches“"
+    ],
+    "modal": null,
+    "ueberschriften": 44,
+    "h1": [
+      "Webseiten & Webanwendungen. Direkt vom Entwickler."
+    ],
+    "bedienelemente": 98,
+    "erreichbar": 98,
+    "namen": {
+      "Inferred": 0,
+      "Known": 98,
+      "Uncertain": 0
+    },
+    "texte": 256,
+    "ohne_gesicherten_namen": [],
+    "felder": [],
+    "popups": [],
+    "seitentyp": "Unknown (Uncertain): keine Regel trifft zu",
+    "primaere_aktion": null,
+    "gruppen": []
+  }
+}

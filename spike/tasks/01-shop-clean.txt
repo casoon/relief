@@ -1,0 +1,33 @@
+# Semantisch saubere Produktseite: der Known-Pfad.
+url: ../fixtures/shop-clean.html
+do: Was ist auf dieser Seite?
+expect: Nike Air Max
+do: Was kann ich hier tun?
+expect: Optionen: 39, 40, 41, 42, 43; gewählt: 42
+do: Welche Überschriften gibt es?
+expect: H2 Technische Daten
+do: Wähle 43
+expect: Select("43")
+do: Öffne den Warenkorb
+# „Warenkorb (0)“ (Link) vs. „In den Warenkorb“ (Button) → muss nachfragen
+expect: Mehrdeutig
+do: klicke In den Warenkorb
+expect: Größe 43 in den Warenkorb gelegt
+do: Öffne die Größentabelle
+expect: Dialog „Größentabelle“ geöffnet
+do: Schließe den Dialog
+expect: Activate auf [button] Schließen
+expect: Dialog „Größentabelle“ geschlossen
+expect: Fokus jetzt auf button „Größentabelle“
+do: Schließe den Dialog
+expect: Kein Dialog
+do: gehe zu Suche
+expect: Focus
+do: fülle Suche mit Laufschuhe
+expect: SetValue("Laufschuhe")
+do: Jetzt kaufen
+expect: Nicht verstanden
+do: klicke Jetzt kaufen
+expect: Bestätigung nötig
+do: !klicke Jetzt kaufen
+expect: Activate

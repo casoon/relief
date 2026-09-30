@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: relief <relief@invalid>
+Date: Thu, 24 Sep 2026 19:25:58 +0200
+Subject: Relief: //relief in deps der Tab-Features
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Eingriff 2 der Eingriffsliste (plan/spezifikation/01, „Nötige Eingriffe
+außerhalb //relief/“): tab_features.cc (Eingriff 1) ruft
+relief::AttachToTab auf, die GN-Abhängigkeit muss beim Nutzer stehen.
+Anker: neben dem alten Eintrag "//net" in der Mitte der deps-Liste, nicht
+am Listenende.
+
+diff --git a/chrome/browser/ui/tabs/BUILD.gn b/chrome/browser/ui/tabs/BUILD.gn
+index 85004b42ada7fea181dea21a1230ed9fcd5b60bc..c78d4cd57e8abb871f87593a8d8880bb2d26f127 100644
+--- a/chrome/browser/ui/tabs/BUILD.gn
++++ b/chrome/browser/ui/tabs/BUILD.gn
+@@ -634,6 +634,7 @@ if (!is_android) {
+       "//components/tabs:impl",
+       "//components/wallet/core/common:features",
+       "//net",
++      "//relief",
+       "//ui/base/unowned_user_data",
+       "//ui/webui",
+     ]

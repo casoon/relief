@@ -1,0 +1,19 @@
+{
+  "anfang": "snapshot-00.json",
+  "schritte": [
+    {
+      "antwort": "außerhalb von Bereichen:\n  - [button] Skip To Content, shortcut Option + 0 hasPopup=menu\nbanner:\n  - [link] ARIA Authoring Practices Guide (APG)\n  - [link] W3C homepage\n  - [link] Web Accessibility Initiative (WAI) homepage\nnavigation „APG“:\n  - [link] APG Home\n  - [link] Patterns\n  - [link] Practices\n  - [link] Index\n  - [link] About\nnavigation „Page Contents“:\n  - [link] Read This First\n  - [link] About This Example\n  - [link] Example\n  - [link] Accessibility Features\n  - [link] Keyboard Support\n  - [link] Role, Property, State, and Tabindex Attributes\n  - [link] Assistive Technology Support\n  - [link] JavaScript and CSS Source Code\n  - [link] HTML Source Code\nmain:\n  - [link] Disclosure Pattern\n  - [link] Example Disclosure (Show/Hide) for an Image Description\n  - [link] Example Disclosure Navigation Menu\n  - [link] Example Disclosure Navigation Menu with Top-Level Links\n  - [link] Disclosure (Show/Hide) Card\n  - [button] Open In CodePen\n  - [button] What do I do if I have a permit for an assigned lot, but can't find a space there?\n  - [button] What do I do if I lose my permit or if my permit is stolen?\n  - [button] Is there free parking on holidays?\n  - [button] Do all parking facilities have the same enforcement rules?\n  - [link] Learn how to interpret and use assistive technology support data\n  - [link] JAWS 2025.2508.120 - Chrome\n  - [link] NVDA 2025.2 - Chrome\n  - [link] VoiceOver for macOS 15.6 - Safari\n  - [button] View Complete Report in New Window\n  - [button] Copy Embed Code\n  - [link] disclosure-faq.css\n  - [link] disclosureButton.js\n  - [button] Open In CodePen\ncomplementary „feedback“:\n  - [link] public-aria-practices@w3.org\n  - [link] E-mail\n  - [link] Fork & Edit on GitHub\n  - [link] New GitHub Issue\naußerhalb von Bereichen:\n  - [link] Back to Top\ncontentinfo „Page“:\n  - [link] View issues related to this example\ncontentinfo „Site“:\n  - [link] W3C Web Accessibility Initiative (WAI)\n  - [link] Get News in Email\n  - [link] LinkedIn\n  - [link] Mastodon\n  - [link] YouTube\n  - [link] Home\n  - [link] Contact\n  - [link] Site map\n  - [link] Support WAI\n  - [link] News\n  - [link] Accessibility statement\n  - [link] All Translations\n  - [link] Resources for roles\n  - [link] World Wide Web Consortium\n  - [link] liability\n  - [link] trademark\n  - [link] permissive license\n  - [link] Permission to Use WAI Material",
+      "eingabe": "Was kann ich hier tun?",
+      "nachher": "snapshot-00.json",
+      "vorher": "snapshot-00.json"
+    },
+    {
+      "antwort": "Activate auf [button] Is there free parking on holidays?. Ziel jetzt: expanded=true. Fokus jetzt auf button „Is there free parking on holidays?“. „Is there free parking on holidays?“: expanded false → true. 2 Elemente neu wahrnehmbar. 1 Elemente nicht mehr wahrnehmbar. Neuer Text: „All facilities are restricted from 2:00 am - 6:00 am on all days. No exceptions are made for any holiday or recess except those officially listed as a “, „Holidays“, „ in the calendar. Please note: 24-hour rental spaces, 24-hour rental lots, and disabled parking is enforced at all times.“.",
+      "eingabe": "öffne Is there free parking on holidays",
+      "nachher": "snapshot-01.json",
+      "vorher": "snapshot-00.json"
+    }
+  ],
+  "titel": "Example Disclosure (Show/Hide) for Answers to Frequently Asked Questions | APG | WAI | W3C",
+  "url": "https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/examples/disclosure-faq/"
+}

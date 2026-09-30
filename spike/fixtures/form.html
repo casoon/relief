@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><title>Kontakt – Testseite</title></head>
+<body>
+<main>
+  <h1>Kontakt</h1>
+  <form id="f" novalidate aria-label="Kontaktformular">
+    <p><label for="name">Name</label> <input id="name" autocomplete="name"></p>
+    <p><label for="email">E-Mail</label> <input id="email" type="email" required aria-describedby="email-err">
+       <span id="email-err" role="alert"></span></p>
+    <p><label for="msg">Nachricht</label> <textarea id="msg"></textarea></p>
+    <p><input type="checkbox" id="dsgvo"> <label for="dsgvo">Datenschutzhinweise gelesen</label></p>
+    <button type="submit">Nachricht senden</button>
+  </form>
+  <p role="status" id="done"></p>
+</main>
+<script>
+  document.getElementById('f').onsubmit = (e) => {
+    e.preventDefault();
+    const email = document.getElementById('email');
+    if (!email.value) {
+      email.setAttribute('aria-invalid', 'true');
+      document.getElementById('email-err').textContent = 'Bitte E-Mail angeben.';
+      email.focus();
+      return;
+    }
+    email.removeAttribute('aria-invalid');
+    document.getElementById('email-err').textContent = '';
+    document.getElementById('done').textContent = 'Danke, Nachricht gesendet.';
+  };
+</script>
+</body>
+</html>

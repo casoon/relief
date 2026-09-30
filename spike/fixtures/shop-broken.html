@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><title>Air Max – kaputter Testshop</title>
+<style>.h1{font-size:2em;font-weight:bold}.size{display:inline-block;border:1px solid;padding:4px;cursor:pointer}.btn{background:#000;color:#fff;padding:8px;cursor:pointer;display:inline-block}</style>
+</head>
+<body>
+<div class="top">
+  <a href="/produkte">Produkte</a>
+  <a href="/cart"><svg width="24" height="24"><path d="M3 3h2l3 12h10l3-8H7"/></svg></a>
+  <a href="/mein-konto"><svg width="24" height="24"><circle cx="12" cy="8" r="4"/></svg></a>
+  <button id="menu"><svg width="24" height="24"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+</div>
+<div class="h1">Air Max</div>
+<div>129,00 €</div>
+<div>
+  <span class="size" onclick="pick(this)">41</span>
+  <span class="size" onclick="pick(this)">42</span>
+  <span class="size" onclick="pick(this)">43</span>
+</div>
+<div class="btn" onclick="document.getElementById('msg').textContent='Hinzugefügt'">In den Warenkorb</div>
+<div id="msg"></div>
+<ul id="menulist" hidden><li><a href="/hilfe">Hilfe</a></li></ul>
+<script>
+  function pick(el) { document.querySelectorAll('.size').forEach(s => s.style.background=''); el.style.background='#ccc'; }
+  document.getElementById('menu').onclick = () => { document.getElementById('menulist').hidden = false; };
+</script>
+</body>
+</html>

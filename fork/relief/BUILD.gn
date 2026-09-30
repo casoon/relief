@@ -1,0 +1,84 @@
+# Relief im Chromium-Build (//relief). MIT-Lizenz wie das Relief-Repository.
+#
+# Die Rust-Crates liegen im Relief-Repository unter crates/ (Quelle der
+# Wahrheit ist der Cargo-Workspace); scripts/fork-apply.sh kopiert ihre
+# Quellen nach //relief/crates/. Aufbau und Datenfluss:
+# plan/spezifikation/01-chromium-integration.md und 02-rust-core-und-bridge.md.
+
+import("//build/rust/rust_static_library.gni")
+
+# Datenmodell und Delta-Format, browserfrei. Ohne das Cargo-Feature
+# `perception`: a11y-perception liegt nicht in //third_party/rust, der
+# Konverter aus CDP-Aufnahmen wird im Browser nicht gebraucht.
+rust_static_library("relief_model_rs") {
+  visibility = [ ":*" ]
+
+  # Fester Crate-Name, damit `use relief_model::…` in relief-bridge im
+  # Cargo- und im GN-Build gleich bleibt (GN vergibt sonst einen
+  # verfremdeten Namen, siehe build/rust/rust_static_library.gni).
+  crate_name = "relief_model"
+  crate_root = "crates/relief-model/src/lib.rs"
+  edition = "2021"
+  sources = [
+    "crates/relief-model/src/delta.rs",
+    "crates/relief-model/src/fact.rs",
+    "crates/relief-model/src/graph.rs",
+    "crates/relief-model/src/id.rs",
+    "crates/relief-model/src/lib.rs",
+    "crates/relief-model/src/node.rs",
+    "crates/relief-model/src/role.rs",
+  ]
+  deps = [ "//third_party/rust/serde/v1:lib" ]
+}
+
+# Runtime hinter der Grenze und cxx-Bridge (Variante A, in-process).
+rust_static_library("relief_bridge_rs") {
+  visibility = [ ":*" ]
+  crate_name = "relief_bridge"
+  crate_root = "crates/relief-bridge/src/lib.rs"
+  edition = "2021"
+  sources = [
+    "crates/relief-bridge/src/cxx_bridge.rs",
+    "crates/relief-bridge/src/lib.rs",
+    "crates/relief-bridge/src/runtime.rs",
+  ]
+  cxx_bindings = [ "crates/relief-bridge/src/cxx_bridge.rs" ]
+
+  # Der von cxx erzeugte Code braucht `unsafe`; der eigene Code verbietet es
+  # per `#![deny(unsafe_code)]` außerhalb des Bridge-Moduls.
+  allow_unsafe = true
+  deps = [ ":relief_model_rs" ]
+}
+
+# Tab-Helfer: eigener AXTree je Frame (Weg B), Deltas an die Rust-Runtime
+# auf eigener Sequenz, Rückweg über AXActionData. Nur mit --enable-relief.
+source_set("relief") {
+  sources = [
+    "bridge/ax_tree_mirror.cc",
+    "bridge/ax_tree_mirror.h",
+    "bridge/runtime_host.cc",
+    "bridge/runtime_host.h",
+    "relief_attach.h",
+    "relief_switches.h",
+    "relief_tab_helper.cc",
+    "relief_tab_helper.h",
+  ]
+  deps = [
+    ":relief_bridge_rs",
+    "//base",
+    "//components/tabs:public",
+    "//content/public/browser",
+    "//third_party/abseil-cpp:absl",
+    "//third_party/blink/public/common",
+    "//ui/accessibility",
+    "//ui/gfx/geometry",
+    "//url",
+  ]
+}
+
+# Browser-Tests der Integrationspunkte; hier eingehängt, damit GN
+# //relief/testing lädt, ohne dass ein Chromium-Build-File es nennt.
+group("relief_tests") {
+  testonly = true
+  deps = [ "//relief/testing:relief_browsertests" ]
+}

@@ -1,0 +1,262 @@
+# Architektur
+
+Stand: CDP-Spike (Phase 0a) und Fork-Grundgerüst (Phase 0b): Der
+Relief-Build von Chromium 154.0.8037.58 liest den AXTree im Browser-Prozess,
+gibt Deltas an die Rust-Runtime und führt `activate` über `AXActionData` aus
+(Abschnitt „Fork“). Zielbild in `plan/spezifikation/`.
+
+## Crates
+
+```
+Cargo.toml                    # Workspace, MIT, publish = false
+crates/
+├── relief-model/             # browserfrei, serde; a11y-perception nur mit Feature `perception` (Standard)
+│   └── src/
+│       ├── graph.rs          # SemanticGraph: ein Baum je Frame/Dokument, Child-Trees, Dokumentreihenfolge
+│       ├── node.rs, role.rs  # SemanticNode mit typisierten Zuständen, Relationen, Rolle
+│       ├── fact.rs, id.rs    # Fact/Certainty/Source; TreeId, NodeId, NodeRef, GraphVersion
+│       ├── delta.rs          # TreeDelta: ableiten (between) und anwenden (apply)
+│       └── perception.rs     # Konverter a11y_perception::AXTree → SemanticGraph (Feature `perception`)
+├── relief-bridge/            # browserfrei, relief-model + cxx
+│   ├── src/
+│   │   ├── runtime.rs        # Runtime: Delta anwenden, Auskunft zu Knoten, Suche nach Name, Aktionswunsch → ActionPlan
+│   │   └── cxx_bridge.rs     # Variante A: #[cxx::bridge] mit flachen Strukturen, Umwandlung ↔ Modell
+│   ├── mojom/                # Variante B: Entwurf relief_runtime.mojom (nicht gebaut)
+│   └── benches/bridge.rs     # criterion: Grenze, JSON, Anwenden, Neuaufbau auf spike/recordings
+├── relief-interaction/       # browserfrei, nur relief-model (ohne `perception`) + serde
+│   ├── src/
+│   │   ├── graph.rs          # SemanticGraph → Graph (Bereiche, Überschriften, Bedienelemente, Fließtext; Ziele als NodeRef + DOM-ID); Fokus der Seite
+│   │   ├── page.rs           # Seitentyp, funktionale Gruppen (Produkt, Formular), primäre Aktion — erschlossen mit Evidence, nie Known
+│   │   ├── command.rs        # Text → Command (feste Formulierungen, kein LLM)
+│   │   ├── resolve.rs        # Zielbeschreibung → Bedienelement oder Abschnitt/Bereich; Schritte vom Fokus; was sich schließen lässt
+│   │   ├── validate.rs       # Bedienelement + Aktion → ActionPlan mit Risikoklasse; Seitentyp Anmeldung/Kasse erhöht (plan_on_page)
+│   │   └── respond.rs        # Antworttexte (auch wo bin ich, Vorlesen, Scrollergebnis), Wirkung einer Aktion aus zwei Modellständen
+│   └── tests/                # browserfrei gegen spike/recordings (über den Konverter als Modell)
+│       ├── recordings.rs     # Graph-Zusammenfassung je Aufnahme ↔ erwartungen/, Graph-Stabilität
+│       ├── aufgaben.rs       # Aufgaben aus spike/tasks nachgespielt, Spike-Befunde
+│       └── erwartungen/      # erwartete Zusammenfassungen (JSON) je Seite
+├── relief-ai-contract/       # browserfrei, relief-model + relief-interaction (Risk) + serde/serde_json
+│   ├── schema/               # JSON-Schemas der Modellausgaben (handgeschrieben, Test gegen die Typen)
+│   └── src/
+│       ├── privacy.rs        # Privacy-Filter: SemanticGraph → FilteredInput (einziger Weg zur Modelleingabe); Ausschnitt um einen Knoten
+│       ├── provider.rs       # ModelProvider, Tier none/os/local/api, NoModel; resolve_missing, propose_intent
+│       ├── hypothesis.rs     # Hypothese zu fehlendem Namen/Beschreibung, strenge Prüfung; gemessene Schwellen je Modell (leer)
+│       ├── intent.rs         # Intent-Vorschlag aus einer Nutzeräußerung, strenge Prüfung
+│       └── risk.rs           # assess_risk: Hypothesen erhöhen die Risikoklasse nur
+├── relief-resolver/          # browserfrei, relief-ai-contract + a11y-perception; ureq nur mit Feature `anthropic`
+│   ├── src/
+│   │   ├── lib.rs            # resolve_node: Ausschnitt (40 Knoten + Vorfahren) → resolve_missing → Name des Knotens
+│   │   ├── anthropic.rs      # Adapter Stufe api: Anfrage/Antwort der Messages API; HTTP nur mit Feature `anthropic`
+│   │   ├── replay.rs         # Antworten aufzeichnen und wiedergeben (Tests, Auswertung ohne erneute Kosten)
+│   │   ├── sample.rs         # Stichprobe spike/kalibrierung laden, Aufnahme → FilteredInput
+│   │   ├── calibrate.rs      # Trefferquote je Confidence-Band, Schwellenvorschlag, Tokens je Anfrage/Seite
+│   │   └── main.rs           # `relief-resolver kalibrieren`
+│   └── tests/calibrate.rs    # nur Fake-Anbieter (Stufe none, Wiedergabe)
+└── relief-cdp/               # Host, chromiumoxide 0.8 + tokio
+    └── src/
+        ├── capture.rs        # getFullAXTree je Frame, iframes eingehängt, Fokus → AXSnapshot
+        ├── live.rs           # DOM-Mutationen + Netzwerk → „Seite ruht“; „geändert seit letzter Aufnahme“
+        ├── act.rs            # ActionPlan → DOM/JS am Element (Backend-ID); Escape/Pfeiltasten als Taste; Scrollen
+        ├── palette.rs        # Befehlsleiste: Binding, Bestätigung, Protokoll, Selbsttest
+        ├── record.rs         # Aufgaben abspielen, AXSnapshots vorher/nachher speichern
+        ├── palette.js        # in jedes Dokument eingefügte Leiste (modaler <dialog>, Status-Popover)
+        └── main.rs           # Session (Aufnahme → Modell → Graph, Tree-ID je Dokument), Modi run / repl / measure / record / palette
+spike/
+├── fixtures/                 # eigene Testseiten
+├── tasks/                    # Aufgabendateien (url:/do:/expect:)
+├── recordings/               # AXSnapshot-Aufnahmen je Seite und Schritt (JSON)
+└── kalibrierung/             # von Hand beschriftete Stichprobe unbenannter Controls (Soll-Namen)
+```
+
+`relief-interaction` kennt keinen Browser und kein CDP und liest nur das
+Modell (`SemanticGraph`); es ist der Teil, der unverändert hinter dem
+Fork-Adapter laufen soll (eingebunden ist er dort noch nicht).
+`a11y-perception` kommt aus barrierlab (crates.io).
+
+`relief-model` ist das Modell, das der Fork-Adapter füllt: ein Baum je
+Tree-ID, Knoten über (Tree-ID, Node-ID), inkrementelle Änderungen als
+`TreeDelta`. Der CDP-Host nimmt `a11y_perception::AXSnapshot`s auf und macht
+jede mit dem Konverter zum Modell; Tests tun dasselbe mit den Aufnahmen.
+Der Rundtest „Delta aus zwei Aufnahmen anwenden ergibt
+die zweite“ läuft auf allen Aufnahmepaaren in `spike/recordings`.
+
+`relief-bridge` ist die Rust-Seite der Grenze zum Fork: Delta rein,
+Auskünfte (mit `Certainty`) und geprüfte `ActionPlan`s raus. Der Fork ruft
+sie über die `cxx`-Bridge im Browser-Prozess auf (Variante A); die C++-Hälfte
+erzeugt Chromiums Build. Der Mojo-Entwurf spiegelt dieselben Strukturen für
+einen späteren Utility-Prozess (nicht gebaut).
+
+`relief-ai-contract` ist die Grenze zu Modellen. Ein `ModelProvider` nimmt nur eine
+`ModelRequest` an, die nur aus einer `FilteredInput` entsteht, und die nur
+aus `filter` (privat, ohne `Deserialize`). Der Filter kopiert nach
+Positivliste: keine Werte, kein Feldinhalt, sensible Felder nur mit Rolle,
+URLs ohne Query, Tree-IDs durch lokale IDs (`t0:18`) ersetzt. Anbieter liefern
+nur Text; `resolve_missing`/`propose_intent` prüfen ihn gegen Schema und
+Eingabe und machen daraus `Hypothesis` oder `IntentProposal` — keine
+Aktion. Eine Hypothese ist `Uncertain`, außer für ihr Modell ist in
+`CALIBRATED_THRESHOLDS` eine gemessene Schwelle eingetragen (heute keine).
+
+`relief-resolver` benennt einzelne Controls ohne Namen: Es schneidet aus der
+gefilterten Eingabe einen Ausschnitt um den Knoten (`FilteredInput::excerpt`,
+nimmt nur weg) und fragt über `resolve_missing`. Der einzige Adapter spricht
+die Anthropic Messages API (Stufe `api`, Key aus `ANTHROPIC_API_KEY`); sein
+HTTP-Teil existiert nur mit dem Feature `anthropic`. Die Runtime ruft den
+Resolver noch nicht auf; genutzt wird er vom Kalibrierwerkzeug.
+
+```mermaid
+flowchart LR
+  G["SemanticGraph"] --> F["privacy::filter"] --> I["FilteredInput"] --> X["excerpt (Resolver)"] --> R["ModelRequest"]
+  U["Äußerung der Nutzerin"] --> R
+  R --> P["ModelProvider (none: nichts; api: Anthropic)"] --> T["Text"]
+  T --> V["validate_hypotheses / validate_intent"]
+  I --> V
+  V --> H["Hypothesis → Fact (Uncertain ohne gemessene Schwelle)"]
+  V --> IP["IntentProposal → Runtime-Validierung (05)"]
+```
+
+## Fork
+
+```
+fork/
+├── UPSTREAM                  # 154.0.8037.58
+├── patches/                  # series + 2 Patches: tabs/BUILD.gn (deps), tab_features.cc (eine Zeile + Include)
+└── relief/                   # → src/relief/ (scripts/fork-apply.sh)
+    ├── BUILD.gn              # rust_static_library relief_model_rs, relief_bridge_rs (cxx_bindings); source_set relief; group relief_tests
+    ├── relief_attach.h       # AttachToTab: einziger Header, den Chromium einbindet
+    ├── relief_tab_helper.*   # WebContentsObserver je Tab: AXMode, Pakete/Positionen → Delta, Lebenszyklus der Bäume, Reset, ActionPlan → AXActionData
+    ├── relief_switches.h     # --enable-relief, --relief-log, --relief-activate, --relief-screen-reader-mode
+    ├── bridge/
+    │   ├── ax_tree_mirror.*  # eigener ui::AXTree je Tree-ID, AXTreeObserver, AXNodeData → cxx-Strukturen, Seitenkoordinaten
+    │   └── runtime_host.*    # Rust-Runtime auf eigener Sequenz, Messprotokoll, activate planen
+    └── testing/              # relief_browsertests (InProcessBrowserTest je Integrationspunkt), data/ Testseiten
+```
+
+`scripts/fork-apply.sh` kopiert zusätzlich `crates/relief-model/src` und
+`crates/relief-bridge/src` nach `src/relief/crates/`; `relief-interaction`
+ist im Fork noch nicht dabei.
+
+```mermaid
+flowchart LR
+  R["Renderer: AXTreeUpdate je Frame"] --> O["ReliefTabHelper::AccessibilityEventReceived (UI-Thread)"]
+  R --> L["ReliefTabHelper::AccessibilityLocationChangesReceived"] --> M
+  O --> M["AXTreeMirror: Unserialize, Änderungen und Positionen sammeln"] --> D["bridge::Delta (cxx)"]
+  D --> H["RuntimeHost (eigene Sequenz): apply_delta"] --> G["SemanticGraph (Rust)"]
+  H -->|"--relief-activate: find_node + plan_action"| P["ActionPlan"]
+  P --> A["ReliefTabHelper::Perform: AXActionData über AXActionHandlerRegistry"] --> R
+```
+
+- **Aktivierung**: nur mit `--enable-relief`; sonst ist die Subscription aus
+  `AttachToTab` leer und Chromium unverändert.
+- **Wirkung einer Aktion** steht in der nächsten Delta (PerformAction hat
+  keine Antwort); das Protokoll zeigt nach `activate` die benannten Knoten
+  der folgenden Deltas.
+- **Messen**: `--relief-log=<datei>` schreibt je Paket Zeiten (UI-Thread,
+  Warteschlange, Rust) und Knotenzahlen; `scripts/fork-measure.mjs` schreibt
+  über CDP Messknoten in die Seite (Ende-zu-Ende-Latenz);
+  `--relief-log-nodes=<Rolle,…>` protokolliert Knoten dieser Rollen mit
+  Namen und Position (nur lesend). Messläufe mit `--use-mock-keychain`,
+  sonst wartet die erste Navigation eines frischen Profils auf den
+  Schlüsselbund. Ergebnisse in `plan/spezifikation/09`.
+- **Bäume**: die Runtime hält nur Bäume der angezeigten Seite (Wegfall über
+  `TreeRemoved` und `PrimaryPageChanged`, Back-Forward-Cache eingeschlossen);
+  ein Paket ohne gültigen Anfang wird verworfen, der Baum per
+  `ResetAccessibility` neu angefordert, höchstens einmal je 5 s.
+- **Positionen**: Seitenkoordinaten des Hauptdokuments in CSS-Pixeln, auch
+  für iframe-Bäume (Host-Knoten im Elternbaum als Ursprung), Geräte-Skalierung
+  und Browser-Zoom herausgerechnet; bei Verschiebung nur geänderte Knoten als
+  `BoundsChange`.
+- **Testen**: `autoninja -C out/Relief relief_browsertests &&
+  out/Relief/relief_browsertests` (Beobachter, Baum, Aktion, Positionen mit
+  Zoom und im iframe, OOPIF, Navigation, Discard, Neuaufbau).
+- **Grenzen**: VoiceOver läuft parallel unverändert (→
+  `plan/spezifikation/09`, „Nachtrag Paket 19“), der Speicheraufschlag durch
+  VoiceOver selbst ist nicht belegt; auf echten Seiten nachgemessen (Wikipedia, spiegel.de,
+  Consent-iframes auf spiegel.de und bild.de), cross-site-OOPIFs live
+  nicht gesehen, nur im Browser-Test (→ `plan/spezifikation/09`, Nachtrag
+  Paket 35). Solange ein Dialog mit `aria-modal` offen ist, enthält der
+  Graph nur den Dialog, weil Blink den Rest aus dem Baum nimmt.
+
+## Ablauf eines Befehls (CDP-Host)
+
+```mermaid
+flowchart LR
+  In["Eingabe"] --> Upd["Session::update: neu aufnehmen nur bei Mutation/Navigation"]
+  Upd --> M["perception::from_snapshot"] --> G["graph::Graph::build"]
+  In --> Parse["command::parse"] --> Res["resolve / dismissal"]
+  G --> Res --> Val["validate::plan_on_page (Graph::page)"]
+  Val -->|"HIGH oder unsicherer Name ohne !"| Ask["Rückfrage"]
+  Val --> Act["act.rs: DOM/JS, Escape oder Pfeiltaste"] --> Settle["live.rs: Ruhe abwarten"]
+  Settle --> Cap["capture.rs: Aufnahme → Modell"] --> Resp["respond::describe_diff(Modell vorher, nachher)"]
+```
+
+- **Modell**: Jede Aufnahme wird mit `relief_model::perception` zum
+  `SemanticGraph`. Die Tree-ID des Hauptdokuments (`dokument-N`) wechselt bei
+  Navigation und `DOM.documentUpdated`; über Dokumente hinweg wird kein Knoten
+  zugeordnet. Ziele von Aktionen sind `NodeRef`s, ausgeführt wird über ihre
+  DOM-ID.
+
+- **Änderungssignal**: `live.rs` hört auf DOM-Mutationsereignisse (der
+  DOM-Agent meldet sie nur für übertragene Knoten, deshalb `DOM.getDocument`
+  mit `depth: -1`). „Seite ruht“ = 150 ms ohne Mutation, keine Anfrage
+  ausstehend und, falls seit Beginn des Wartens Netzverkehr war, 500 ms ohne
+  Netzwerkereignis (`requestWillBeSent`, `loadingFinished`, `loadingFailed`);
+  höchstens 3 s. Nicht ausstehend zählen `EventSource`, Beacons (`Ping`),
+  Medien, WebSockets (kein `requestWillBeSent`) und Anfragen, die länger als
+  1 s offen sind. Die Abos starten vor dem Laden und bleiben über
+  Navigationen, damit die Anfragen des Ladens mitzählen.
+  Ersetzt die Seite ihr Dokument (`DOM.documentUpdated`), wird es neu
+  angefordert. AX-Deltas (`Accessibility.nodesUpdated`) sendet Chrome nicht.
+- **Aufnahme**: vor einem Befehl nur, wenn seit der letzten Aufnahme etwas
+  mutiert oder navigiert wurde; nach eigenen Aktionen immer, weil nicht jede
+  Wirkung eine Mutation auslöst.
+- **iframes**: je Frame `getFullAXTree { frameId }`, Knoten-IDs mit
+  Frame-Präfix, Frame-Wurzel unter dem `iframe`-Knoten eingehängt. Chrome
+  läuft dafür mit `--disable-site-isolation-trials`.
+- **Modalität**: Ist ein modaler Dialog offen (`modal`-Eigenschaft), sind in
+  seinem Dokument nur seine Bedienelemente erreichbar
+  (`Graph::reachable_controls`) — auch bei `aria-modal`, wo Chrome den Rest
+  der Seite im AXTree lässt. Ein Dialog im iframe sperrt das Elterndokument
+  nicht (`Graph::frames`, wie `inert` in HTML je Dokument).
+- **Schließen** („schließe den Dialog“): Ziel ist ein modaler Dialog, sonst
+  der Dialog mit dem Fokus, sonst ein aufgeklapptes Popup, sonst der letzte
+  Dialog (`resolve::dismissal`, Fokus live abgefragt). Ohne Schließen-Button
+  Escape an das fokussierte Element; liegt es nicht im Ziel, sagt die
+  Antwort, wohin Escape ging.
+- **Befehlsleiste** (`palette`): `palette.js` kommt per
+  `Page.addScriptToEvaluateOnNewDocument` in jedes Dokument und ruft den Host
+  über die Binding `reliefCommand`. Sie ist selbst ein modaler `<dialog>`, damit
+  sie über modalen Seitendialogen bedienbar bleibt; weil sie dann die Seite
+  inert macht, schließt der Host sie vor jedem Befehl (der Browser gibt den
+  Fokus zurück), nimmt auf und zeigt die Antwort danach in der Leiste oder —
+  nach ausgeführten Aktionen — als Status-Popover, ohne den Fokus zu nehmen.
+  Leiste und Popover werden aus jeder Aufnahme entfernt.
+- **Erfolg einer Aktion** wird am Diff und am Zustand des Zielelements
+  (Wert, Zustände) abgelesen, nicht am Rückgabewert.
+- **Fokusbezogene Befehle** („wo bin ich“, nächster Abschnitt/nächstes
+  Feld, „lies den Abschnitt“ ohne Namen, „schließe den Dialog“) fragen den Fokus vor der Antwort neu
+  ab, weil ein Fokuswechsel keine DOM-Mutation ist, und ordnen ihn über die
+  DOM-ID einem Knoten des Modells zu. Im Diff nach einer Aktion kommt der
+  Fokus dagegen aus den Baumdaten (im iframe: das Element im Frame). Seine Stelle in der
+  Gliederung: Bedienelemente und Fließtext tragen die vorausgehende
+  Überschrift; ein Abschnitt reicht bis zur nächsten Überschrift gleicher
+  oder höherer Ebene.
+- **Navigation** zu Überschrift/Bereich: `ActionKind::NavigateTo` setzt bei
+  nicht fokussierbaren Zielen `tabindex="-1"` bis zum Verlassen, fokussiert
+  und scrollt dorthin. **Erhöhen/Verringern** sendet echte Pfeiltasten an das
+  fokussierte Element (native Felder und Tasten-Widgets). **Scrollen** hat
+  kein Zielelement und läuft wie Escape ohne `ActionPlan`; die Antwort kommt
+  aus der Scrollposition.
+
+## Grenzen des Hosts
+
+- Aktionen laufen über DOM/JavaScript (`click()`, nativer `value`-Setter,
+  `select.value`, `focus()`, `scrollTo`) bzw. echte Escape- und
+  Pfeiltasten, nicht über `AXActionData`.
+- `aria-valuetext` kommt über CDP leer an (`valuetext: ""`); der Textwert
+  eines ARIA-Schiebereglers ist nur über den Diff (neuer Text) sichtbar.
+- Vollsnapshot bei jeder Änderung; keine inkrementellen AX-Updates.
+- Einzelne iframes bleiben unerreichbar (werden gezählt).
+- Websites erkennen den Host als Automatisierung (zeit.de headless, amazon.de).
+- Der Status-Popover liegt bei offenem modalem Seitendialog im inerten Bereich:
+  sichtbar, aber nicht von Screenreadern angesagt (für die Studienzielgruppe
+  ohne Zeigerbedienung ausreichend).

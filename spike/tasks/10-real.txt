@@ -1,0 +1,48 @@
+# Reale Seiten. Erwartungen bewusst grob: Seiten ändern sich.
+url: https://www.gov.uk/
+do: Was ist auf dieser Seite?
+expect: Bereiche
+do: gehe zu Search
+expect: Focus
+do: fülle Search mit passport
+expect: SetValue
+
+url: https://en.wikipedia.org/wiki/Accessibility
+do: Was ist auf dieser Seite?
+expect: Accessibility
+do: Welche Überschriften gibt es?
+expect: H2
+# Bei 1280 px Fensterbreite ist die Suche zu einem Link „Search“ eingeklappt.
+do: gehe zu Search
+expect: Focus
+
+url: https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/examples/disclosure-faq/
+do: Was kann ich hier tun?
+expect: Is there free parking on holidays
+do: öffne Is there free parking on holidays
+expect: expanded=true
+
+url: https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/examples/dialog/
+do: öffne Add Delivery Address
+expect: dialog
+
+# amazon.de: nicht mehr fester Bestandteil. Am 2026-09-24 zuerst erfolgreich
+# (Kategorie, Suche, Ergebnisseite), bei späteren Läufen lieferte Amazon dem
+# automatisierten Chrome eine leere Seite (Bot-Erkennung, schwankend).
+
+url: https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/examples/menu-button-links/
+do: öffne WAI-ARIA Quick Links
+expect: expanded=true
+do: schließe das Menü
+expect: Escape
+expect: expanded true → false
+
+# ARIA-modaler Dialog: Chrome blendet den Rest nicht aus, Relief schon.
+url: https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/examples/dialog/
+do: öffne Add Delivery Address
+do: was kann ich tun
+expect: weitere Bedienelemente der Seite sind gesperrt
+do: öffne Open In CodePen
+expect: ist gesperrt, solange „Add Delivery Address“ offen ist
+do: schließe den Dialog
+expect: Activate auf [button] Cancel

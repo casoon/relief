@@ -1,0 +1,91 @@
+{
+  "anfang": "snapshot-00.json",
+  "schritte": [
+    {
+      "antwort": "Seite „Nike Air Max – Testshop“. Hauptüberschrift: „Nike Air Max“. Bereiche: banner, navigation „Hauptmenü“, search, main, region „Technische Daten“, contentinfo. 2 Überschriften, 12 Bedienelemente.",
+      "eingabe": "Was ist auf dieser Seite?",
+      "nachher": "snapshot-00.json",
+      "vorher": "snapshot-00.json"
+    },
+    {
+      "antwort": "navigation „Hauptmenü“:\n  - [link] Home\n  - [link] Produkte\n  - [link] Warenkorb (0)\n  - [link] Konto\nsearch:\n  - [searchbox] Suche\n  - [button] Suchen\nmain:\n  - [combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 42 hasPopup=menu\n  - [button] In den Warenkorb\n  - [button] Größentabelle\n  - [button] Jetzt kaufen\ncontentinfo:\n  - [link] Impressum\n  - [link] Datenschutz",
+      "eingabe": "Was kann ich hier tun?",
+      "nachher": "snapshot-00.json",
+      "vorher": "snapshot-00.json"
+    },
+    {
+      "antwort": "H1 Nike Air Max\n  H2 Technische Daten",
+      "eingabe": "Welche Überschriften gibt es?",
+      "nachher": "snapshot-00.json",
+      "vorher": "snapshot-00.json"
+    },
+    {
+      "antwort": "Select(\"43\") auf [combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 42 hasPopup=menu. Fokus jetzt auf combobox „Größe“. „42“: selected true → false. „43“: selected false → true.",
+      "eingabe": "Wähle 43",
+      "nachher": "snapshot-01.json",
+      "vorher": "snapshot-00.json"
+    },
+    {
+      "antwort": "Mehrdeutig, „Warenkorb“ passt auf:\n  - [link] Warenkorb (0) in navigation „Hauptmenü“\n  - [button] In den Warenkorb in main",
+      "eingabe": "Öffne den Warenkorb",
+      "nachher": "snapshot-01.json",
+      "vorher": "snapshot-01.json"
+    },
+    {
+      "antwort": "Activate auf [button] In den Warenkorb. Fokus jetzt auf button „In den Warenkorb“. Neuer Text: „Warenkorb (1)“, „Größe 43 in den Warenkorb gelegt.“.",
+      "eingabe": "klicke In den Warenkorb",
+      "nachher": "snapshot-02.json",
+      "vorher": "snapshot-01.json"
+    },
+    {
+      "antwort": "Activate auf [button] Größentabelle. Fokus jetzt auf button „Schließen“. Dialog „Größentabelle“ geöffnet. Rest der Seite ist gesperrt, solange er offen ist.",
+      "eingabe": "Öffne die Größentabelle",
+      "nachher": "snapshot-03.json",
+      "vorher": "snapshot-02.json"
+    },
+    {
+      "antwort": "Activate auf [button] Schließen. Fokus jetzt auf button „Größentabelle“. Dialog „Größentabelle“ geschlossen. Neuer Text: „Technische Daten“, „Obermaterial Mesh, Sohle Gummi.“, „Impressum“.",
+      "eingabe": "Schließe den Dialog",
+      "nachher": "snapshot-04.json",
+      "vorher": "snapshot-03.json"
+    },
+    {
+      "antwort": "Kein Dialog und kein aufgeklapptes Menü offen.",
+      "eingabe": "Schließe den Dialog",
+      "nachher": "snapshot-04.json",
+      "vorher": "snapshot-04.json"
+    },
+    {
+      "antwort": "Focus auf [searchbox] Suche. Fokus jetzt auf searchbox „Suche“.",
+      "eingabe": "gehe zu Suche",
+      "nachher": "snapshot-05.json",
+      "vorher": "snapshot-04.json"
+    },
+    {
+      "antwort": "SetValue(\"Laufschuhe\") auf [searchbox] Suche. Neuer Text: „Laufschuhe“.",
+      "eingabe": "fülle Suche mit Laufschuhe",
+      "nachher": "snapshot-06.json",
+      "vorher": "snapshot-05.json"
+    },
+    {
+      "antwort": "Nicht verstanden: „Jetzt kaufen“. „hilfe“ zeigt die Befehle.",
+      "eingabe": "Jetzt kaufen",
+      "nachher": "snapshot-06.json",
+      "vorher": "snapshot-06.json"
+    },
+    {
+      "antwort": "Bestätigung nötig (High): Name enthält „kaufen“ — Ziel: [button] Jetzt kaufen. Mit „!“ davor bestätigen.",
+      "eingabe": "klicke Jetzt kaufen",
+      "nachher": "snapshot-06.json",
+      "vorher": "snapshot-06.json"
+    },
+    {
+      "antwort": "Activate auf [button] Jetzt kaufen. Fokus jetzt auf button „Jetzt kaufen“. Neuer Text: „Bestellung ausgelöst!“.",
+      "eingabe": "!klicke Jetzt kaufen",
+      "nachher": "snapshot-07.json",
+      "vorher": "snapshot-06.json"
+    }
+  ],
+  "titel": "Nike Air Max – Testshop",
+  "url": "file:///REPO/spike/fixtures/shop-clean.html"
+}

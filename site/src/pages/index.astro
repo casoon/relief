@@ -1,0 +1,66 @@
+---
+import { Badge, Badges, Facts, Features, Hero, Quickstart, Terminal } from '@casoon/pages-theme/components';
+import Base from '@casoon/pages-theme/layouts/Base.astro';
+// Echter Auszug aus `--relief-log` (spiegel.de mit Consent-iframe), Felder gekürzt.
+import log from '../relief-log.txt?raw';
+---
+
+<Base>
+  <Hero
+    eyebrow="CASOON research project · in development"
+    title="A website is a surface. Relief makes its structure tangible."
+    lead="Relief is a research browser built on Chromium. It reads the accessibility tree inside the browser, turns it into a semantic model of the page and lets people operate the page by intent — alongside VoiceOver or NVDA, not instead of them."
+  >
+    <Badges>
+      <Badge>Research project</Badge>
+      <Badge>Chromium 154</Badge>
+      <Badge>Rust core</Badge>
+      <Badge>macOS first</Badge>
+      <Badge>MIT</Badge>
+    </Badges>
+    <Terminal slot="output" title="Relief --relief-log (spiegel.de, excerpt)" dots ansi={log} />
+  </Hero>
+
+  <Facts
+    items={[
+      { value: '≤ 1.1 ms', label: 'p95 from accessibility packet to updated page model' },
+      { value: '2', label: 'patches outside Relief’s own directory in the Chromium fork' },
+      { value: '13 / 13', label: 'recorded pages with correct page type and primary action' },
+      { value: 'unchanged', label: 'VoiceOver output with Relief running, compared step by step' },
+    ]}
+  />
+
+  <Features
+    heading="What Relief is built to do"
+    items={[
+      {
+        title: 'Understand the page, not just read it',
+        body: 'Page type, functional groups, the primary action and what changed — derived from Chromium’s own accessibility tree, including cross-site iframes such as consent dialogs.',
+      },
+      {
+        title: 'Operate by intent, safely',
+        body: '“What can I do here?”, “add size 43 to the cart”. Every action runs through a validated plan in Rust; risky actions need an explicit confirmation. A model may suggest, never act.',
+      },
+      {
+        title: 'Say where a statement comes from',
+        body: 'Every answer carries its certainty: known from the page, inferred, or uncertain. Guesses are never presented as facts.',
+      },
+      {
+        title: 'Test accessibility the way people use it',
+        body: 'The same core runs as a test mode: form journeys, focus after errors, live announcements and the real VoiceOver output, checked in the real browser.',
+      },
+    ]}
+  />
+
+  <Quickstart
+    title="Where the project stands"
+    lead="Phase 0 — feasibility inside a real Chromium build — is complete. Phase 1 builds the first user-facing surfaces."
+    steps={[
+      'Done: Chromium fork builds on Apple silicon; accessibility tree → Rust → page model → action → result, measured on real sites.',
+      'Done: VoiceOver keeps working unchanged next to Relief.',
+      'Next: actions back into the page, an inspector, a native command bar.',
+      'Then: speech on the device, keyboard hints, form assistant, consent handling, a simplified semantic view.',
+      'In parallel: test mode for form journeys and real screen-reader output.',
+    ]}
+  />
+</Base>

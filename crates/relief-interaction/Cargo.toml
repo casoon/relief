@@ -1,0 +1,20 @@
+[package]
+name = "relief-interaction"
+description = "Interaction Graph, Befehle und Aktionsvalidierung über dem semantischen Modell. Browserfrei."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# Ohne `perception`: Der Konverter aus `a11y-perception` gehört dem Host,
+# nicht der Interaktion (im Fork-Build gibt es ihn nicht).
+relief-model = { path = "../relief-model", default-features = false }
+serde = { workspace = true }
+
+[dev-dependencies]
+# Tests lesen die CDP-Aufnahmen und bringen sie über den Konverter ins Modell.
+relief-model = { path = "../relief-model" }
+a11y-perception = { workspace = true }
+serde_json = { workspace = true }

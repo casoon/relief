@@ -1,0 +1,25 @@
+{
+  "anfang": "snapshot-00.json",
+  "schritte": [
+    {
+      "antwort": "Bestätigung nötig (High): unbenannter Button, Wirkung unbekannt; Ziel hat keinen sicheren Namen — Ziel: [button] unbenannt (button) (Name unbekannt). Mit „!“ davor bestätigen.",
+      "eingabe": "klicke button",
+      "nachher": "snapshot-00.json",
+      "vorher": "snapshot-00.json"
+    },
+    {
+      "antwort": "Nichts gefunden für „In den Warenkorb“.",
+      "eingabe": "klicke In den Warenkorb",
+      "nachher": "snapshot-00.json",
+      "vorher": "snapshot-00.json"
+    },
+    {
+      "antwort": "Kein Auswahlfeld mit Option „42“.",
+      "eingabe": "wähle 42",
+      "nachher": "snapshot-00.json",
+      "vorher": "snapshot-00.json"
+    }
+  ],
+  "titel": "Air Max – kaputter Testshop",
+  "url": "file:///REPO/spike/fixtures/shop-broken.html"
+}

@@ -1,0 +1,76 @@
+{
+  "snapshot-00.json": {
+    "titel": "Modal Dialog Example | APG | WAI | W3C",
+    "bereiche": [
+      "banner",
+      "navigation „APG“",
+      "navigation „Page Contents“",
+      "main",
+      "complementary „feedback“",
+      "contentinfo „Page“",
+      "contentinfo „Site“"
+    ],
+    "modal": null,
+    "ueberschriften": 14,
+    "h1": [
+      "Modal Dialog Example"
+    ],
+    "bedienelemente": 59,
+    "erreichbar": 59,
+    "namen": {
+      "Inferred": 0,
+      "Known": 59,
+      "Uncertain": 0
+    },
+    "texte": 1019,
+    "ohne_gesicherten_namen": [],
+    "felder": [],
+    "popups": [
+      "[button] Skip To Content, shortcut Option + 0 hasPopup=menu"
+    ],
+    "seitentyp": "Article (Inferred): Hauptüberschrift „Modal Dialog Example“; 566 Wörter in längeren Absätzen; 0 von 14 Überschriften verlinkt",
+    "primaere_aktion": null,
+    "gruppen": []
+  },
+  "snapshot-01.json": {
+    "titel": "Modal Dialog Example | APG | WAI | W3C",
+    "bereiche": [
+      "banner",
+      "navigation „APG“",
+      "navigation „Page Contents“",
+      "main",
+      "dialog „Add Delivery Address“",
+      "complementary „feedback“",
+      "contentinfo „Page“",
+      "contentinfo „Site“"
+    ],
+    "modal": "dialog „Add Delivery Address“",
+    "ueberschriften": 15,
+    "h1": [
+      "Modal Dialog Example",
+      "Add Delivery Address"
+    ],
+    "bedienelemente": 67,
+    "erreichbar": 8,
+    "namen": {
+      "Inferred": 0,
+      "Known": 67,
+      "Uncertain": 0
+    },
+    "texte": 1021,
+    "ohne_gesicherten_namen": [],
+    "felder": [
+      "[textbox] Street:",
+      "[textbox] City:",
+      "[textbox] State:",
+      "[textbox] Zip:",
+      "[textbox] Special instructions:"
+    ],
+    "popups": [
+      "[button] Skip To Content, shortcut Option + 0 hasPopup=menu"
+    ],
+    "seitentyp": "Article (Inferred): Hauptüberschrift „Modal Dialog Example“; 566 Wörter in längeren Absätzen; 0 von 15 Überschriften verlinkt",
+    "primaere_aktion": null,
+    "gruppen": []
+  }
+}

@@ -1,0 +1,24 @@
+[package]
+name = "relief-bridge"
+description = "Grenze zwischen Browser und Relief-Runtime: Delta rein, Antworten und ActionPlans raus. Browserfrei."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+relief-model = { path = "../relief-model" }
+# Variante A (in-process): Chromiums Standard-FFI, liegt in //third_party/rust
+# (→ plan/spezifikation/02). Ohne C++-Aufrufer wird nur die Rust-Seite gebaut.
+cxx = "1"
+
+[dev-dependencies]
+a11y-perception = { workspace = true }
+relief-interaction = { workspace = true }
+serde_json = { workspace = true }
+criterion = { version = "0.7", default-features = false, features = ["cargo_bench_support"] }
+
+[[bench]]
+name = "bridge"
+harness = false
