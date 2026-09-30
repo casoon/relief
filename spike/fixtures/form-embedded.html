@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><title>Kontakt – Felder mit Rendering, iframe und Shadow DOM</title>
+<style>
+  .verborgen { display: none; }
+  .unsichtbar { visibility: hidden; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Kontakt</h1>
+  <!-- Namensvergleich (spike/tasks/06-form-assertions.txt, Paket 55):
+       per CSS verborgener Label-Inhalt, Inline-Elemente mit und ohne
+       Leerraum dazwischen, ein Feld im Shadow DOM (mit Slot), ein Feld in
+       einem iframe mit derselben ID wie im Hauptdokument. Ohne Befund. -->
+  <form aria-label="Kontaktformular">
+    <p><label for="name">Name <span class="verborgen">(intern: Feld 1)</span></label> <input id="name"></p>
+    <p><label for="mail">E-Mail<span class="unsichtbar"> (intern: Feld 2)</span></label> <input id="mail" type="email"></p>
+    <p><label for="ort"><span>Wohn</span><span>ort</span> <span>und</span> <b>PLZ</b></label> <input id="ort"></p>
+    <p><relief-feld><span slot="beschriftung">Postleitzahl</span></relief-feld></p>
+  </form>
+  <iframe title="Rückfrage" width="400" height="80"
+          srcdoc='<!doctype html><html lang="de"><head><style>body.zusatz label::after { content: " (Rückfrage)"; }</style></head><body><label for="name">Telefon</label> <input id="name" type="tel"></body></html>'></iframe>
+  <!-- Blendet CSS-Inhalt in den Beschriftungen im iframe und im Shadow DOM
+       ein: Chromium zählt ihn mit, die DOM-Berechnung nicht. -->
+  <button type="button" id="zusatz">Zusatz zeigen</button>
+</main>
+<script>
+  customElements.define('relief-feld', class extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({ mode: 'open' }).innerHTML =
+        '<style>:host(.zusatz) label::after { content: " (Zusatz)"; }</style>' +
+        '<label for="f"><slot name="beschriftung"></slot></label> <input id="f">';
+    }
+  });
+  document.getElementById('zusatz').onclick = () => {
+    document.querySelector('relief-feld').classList.add('zusatz');
+    document.querySelector('iframe').contentDocument.body.classList.add('zusatz');
+  };
+</script>
+</body>
+</html>

@@ -66,7 +66,7 @@ dem Relief-Graphen.
 
 | Baustein | Paket |
 |---|---|
-| Formular-Zusicherungen: Beschriftung je Feld, Fehlermeldung mit dem Feld verknüpft, Fokus auf dem ersten Fehler, Bestätigung als Live-Region, Tab-Erreichbarkeit und -Reihenfolge | 42 ✓, 49 ✓ (unten); 55 |
+| Formular-Zusicherungen: Beschriftung je Feld, Fehlermeldung mit dem Feld verknüpft, Fokus auf dem ersten Fehler, Bestätigung als Live-Region, Tab-Erreichbarkeit und -Reihenfolge | 42 ✓, 49 ✓, 55 ✓ (unten) |
 | Echte Screenreader-Ausgabe über gemeinsamen Treiber; zuerst VoiceOver, später NVDA | 43 |
 | Lauf ohne Fenster, Bericht als JUnit für CI | 44 |
 | Playwright-Anbindung: Relief über CDP steuern, Seitenmodell über eine eigene Domäne abfragen | 45 |
@@ -77,7 +77,7 @@ Für reine Funktionstests bleibt Playwright das bessere Werkzeug; Relief
 lohnt sich für den Ablauf aus Sicht von Screenreader- und
 Tastaturnutzenden.
 
-### Formular-Zusicherungen [umgesetzt 2026-09-30, Pakete 42, 49]
+### Formular-Zusicherungen [umgesetzt 2026-09-30, Pakete 42, 49, 55]
 
 Aufgabendateien kennen die Zeile `assert: <Zusicherung>`. Sie prüft den
 **aktuellen** Stand der Seite; der Ablauf davor (Absenden, Dialog öffnen)
@@ -87,14 +87,16 @@ steht als `do:`-Zeilen davor. Die Antwort sind Befunde im Format von
 Beispiel mit beiden Seiten: `spike/tasks/06-form-assertions.txt`,
 Testseiten `spike/fixtures/form-clean.html` (keine Befunde) und
 `form-broken.html` (je Zusicherung mindestens ein Befund), dazu
-`status-inserted.html` (Statusregion entsteht mitsamt Text). Die Datei
+`status-inserted.html` (Statusregion entsteht mitsamt Text) und
+`form-embedded.html` (Namensvergleich mit per CSS verborgenem Label-Inhalt,
+Feld im iframe und im Shadow DOM, danach CSS-Inhalt dort). Die Datei
 läuft in den Prüfbefehlen (`CLAUDE.md`) und in der CI (Glob `0[1-6]`,
 Entscheidung des Nutzers, Paket 49).
 
 | Zusicherung | Regel | prüft | Daten |
 |---|---|---|---|
 | `feldnamen` | `form/field-name` (fail) | jedes wahrnehmbare Feld (textbox, searchbox, combobox, listbox, spinbutton, slider, checkbox, radio, switch) hat einen nichtleeren Namen | Modell |
-| `namen-wie-accname` | `form/name-accname` (review) | Chromiums Name = `accname::name` auf den DOM-Fakten; jede Abweichung ist ein Befund mit beiden Werten und vermuteter Ursache | Modell + DOM-Fakten |
+| `namen-wie-accname` | `form/name-accname` (review) | Chromiums Name = `accname::name_rendered` auf den DOM-Fakten; jede Abweichung ist ein Befund mit beiden Werten und vermuteter Ursache | Modell + DOM-Fakten |
 | `fehler-verknüpft [Feld]` | `form/error-linked` (fail) | das Feld (ohne Angabe: jedes ungültige) ist `invalid` und hat über `aria-errormessage`/`aria-describedby` eine wahrnehmbare, nichtleere Meldung | Modell |
 | `fokus-auf-erstem-fehler` | `form/focus-first-error` (fail) | der Fokus liegt auf dem ersten ungültigen Feld in Dokumentreihenfolge | Modell + Fokus |
 | `bestätigungsdialog` | `form/confirm-dialog-name` (fail), `-text` (review), `-focus` (fail), `-cancel` (review) | offener Dialog (der mit dem Fokus, sonst der letzte): Name, Text außer Name und Buttons, Fokus darin, Button „Abbrechen“/„Schließen“/„Nein“ … | Modell + Fokus |
@@ -103,11 +105,33 @@ Entscheidung des Nutzers, Paket 49).
 
 - **Aufteilung [Entscheidung]:** Auswertung browserfrei in
   `relief-interaction` (`assertions.rs`); der CDP-Host (`relief-cdp`,
-  `assertions.rs`) erhebt nur. DOM-Fakten sind eine `a11y-dom`-Arena mit
-  Tag, Text und den Attributen aus `dom_attribute_needed` (`id`, `for`,
-  `role`, `tabindex`, `hidden`, `type`, `title`, `alt`, `placeholder`,
-  `value`, `aria-*`) plus Zuordnung DOM-ID → Knoten; der Host füllt sie aus
-  `DOM.getDocument` des Hauptdokuments.
+  `assertions.rs`) erhebt nur. DOM-Fakten sind je Dokument eine
+  `a11y-dom`-Arena mit Tag, Text und den Attributen aus
+  `dom_attribute_needed` (`id`, `for`, `role`, `tabindex`, `hidden`, `type`,
+  `title`, `alt`, `placeholder`, `value`, `aria-*`), dazu `display` und
+  `visibility` je Element und die Zuordnung DOM-ID → (Dokument, Knoten); der
+  Host füllt sie aus `DOM.getDocument` (mit `pierce`) und
+  `DOMSnapshot.captureSnapshot`.
+- **Rendering über `a11y_dom::Rendering` [Entscheidung, Paket 55]:** Das
+  Dokument der DOM-Fakten (`DomDocument`) erfüllt `Rendering` mit
+  `computed_style` (nur `display`, `visibility`), ohne Geometrie
+  (`bounds` = `None`); `accname::name_rendered` lässt damit per Stil
+  versteckte Knoten weg und setzt Inline-Elemente ohne Leerzeichen an.
+  Nichts davon ist in Relief nachgebaut, nur die Erhebung.
+- **Stile aus dem DOMSnapshot [Entscheidung, Paket 55]:** ein
+  `captureSnapshot` je Prüfung statt `CSS.getComputedStyleForNode` je
+  Element. Ein Element ohne Layout-Objekt gilt als `display: none`, als
+  `contents`, wenn darunter etwas gerendert wird; die Leerraum-Textknoten,
+  die `DOM.getDocument` auslässt, kommen aus dem Snapshot dazu (sonst hinge
+  `<span>a</span> <span>b</span>` zu „ab“ zusammen). Verfahren aus
+  auditmysite (`accessibility/dom_document.rs`) übernommen [belegt dort im
+  Code, hier an `form-embedded.html` gemessen].
+- **iframes und Shadow DOM [Entscheidung, Paket 55]:** Ein iframe im selben
+  Renderer-Prozess (`contentDocument`) ist ein eigenes Dokument mit eigenem
+  ID-Index, weil `<label for>` und `aria-labelledby` nur im eigenen Dokument
+  gelten. Shadow DOM des Autors hängt flach unter dem Host, Light-DOM-Kinder
+  nur dort, wo ein `<slot>` sie aufnimmt (`distributedNodes`); Shadow DOM des
+  Browsers (Innenleben von `<input>`) bleibt draußen.
 - **Outcome statt Certainty [Entscheidung]:** Befunde tragen ihre
   Belastbarkeit über `a11y-report`: `fail` ist aus AX-Daten belegt,
   `review` ist Heuristik (Abbruchweg an Wörtern erkannt, „verständlicher“
@@ -121,10 +145,20 @@ Entscheidung des Nutzers, Paket 49).
 - **Planparameter [Annahme]:** „verständliche Planparameter“ eines
   Bestätigungsdialogs heißt hier: der Dialog nennt außer Name und Buttons,
   was bestätigt wird. Ob das verständlich ist, bleibt ein `review`.
-- **Grenzen [belegt im Code]:** Die DOM-Fakten tragen kein Rendering; per CSS
-  verborgener Inhalt zählt für `accname` mit (in `form-broken.html` gewollt
-  als Abweichung). iframes und Shadow DOM fehlen in den DOM-Fakten, Felder
-  dort werden `untested` (→ 55).
+- **Echte Abweichung im Test [Entscheidung, Paket 55]:** `form-broken.html`
+  weicht über CSS-Inhalt (`::after`) ab: Chromium zählt ihn mit, `accname`
+  auf dem DOM sieht ihn nicht. Der Befund nennt dann „meist CSS-Inhalt“ als
+  Ursache; Text in CSS erreicht nicht jede Assistenztechnik gleich, deshalb
+  `review` [Annahme, nicht gegen Screenreader gemessen].
+- **Grenzen [belegt im Code]:** iframes in einem anderen Renderer-Prozess
+  (Site Isolation, fremde Herkunft) liefert `DOM.getDocument` nicht mit;
+  Felder dort bleiben `untested`. Im Shadow DOM gilt ein gemeinsamer
+  ID-Index mit dem umgebenden Dokument; gleiche IDs in Shadow-Root und
+  Dokument können einen falschen Namen ergeben [Annahme: selten, nicht
+  gemessen]. Inhalt geschlossener `<details>` (`content-visibility`) meldet
+  der Snapshot mit normalem `display`, `accname` zählt ihn dann mit [laut
+  auditmysite-Kommentar, hier nicht gemessen]. Fremde Frames und ID-Bereich
+  → 64.
 - **Änderung über `TreeDelta` [Entscheidung, Paket 49]:** Der Vergleich
   „vorher/nachher“ nutzt `relief_model::TreeDelta::between`, nicht die
   Diff-Regeln aus `a11y-perception`: `relief-interaction` hängt außerhalb der
@@ -198,7 +232,7 @@ Konsument es **nachweislich gleich** braucht.
 | Kandidat | in Relief | zweiter Konsument | Folge |
 |---|---|---|---|
 | CDP-`getFullAXTree`-JSON → `a11y_perception::AXNode` | `relief-cdp/src/capture.rs` (`convert_node`) | auditmysite, `accessibility/extractor.rs`; Relief hat die Umwandlung von dort übernommen [belegt, Modulkopf] | echte Doppelung; offen, ob ein barrierlab-Paket CDP-förmiges JSON entgegennehmen darf („keine CDP-Typen in einer öffentlichen API“) — in barrierlab zu entscheiden |
-| DOM-Fakten aus `DOM.getDocument` → `a11y-dom` | `relief-cdp/src/assertions.rs` | auditmysite, `accessibility/dom_document.rs` (`build_document`, mit AX-Fakten und Stilen) | Doppelung im Zweck, nicht im Umfang [Annahme: nicht Zeile für Zeile verglichen]; dieselbe CDP-Frage wie oben |
+| DOM-Fakten aus `DOM.getDocument` → `a11y-dom` | `relief-cdp/src/assertions.rs` | auditmysite, `accessibility/dom_document.rs` (`build_document`, mit AX-Fakten und Stilen) | Doppelung im Zweck; seit 55 auch im Verfahren (Stile und Leerraum aus dem DOMSnapshot, Shadow DOM mit Slots, von dort übernommen); auditmysite ohne iframes, Relief ohne AX-Fakten [belegt, beide Module]; dieselbe CDP-Frage wie oben |
 | Formular-Zusicherungen | `relief-interaction/src/assertions.rs` | keiner bekannt; auditmysites `form_error`-Journey (Live-Region nach Absenden) und `a11y-rules` `forms/label-missing` (statisch) überschneiden sich nur in Teilen [Annahme, nicht im Code verglichen] | bleibt in Relief; zudem über `SemanticGraph` statt `a11y-perception` formuliert |
 | Screenreader-Treiber-Interface, Phrasen-Protokoll | noch nicht gebaut (→ 43) | keiner bekannt (die Kalibrierung gegen echte Screenreader war Teil der geschlossenen Reader-Planung) | bleibt in Relief |
 | Interaction Graph für aufgabenbasierte Journeys | `relief-interaction/src/graph.rs` | keiner bekannt; auditmysite-Journeys arbeiten auf `a11y-perception` | bleibt in Relief |
