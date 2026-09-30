@@ -43,7 +43,7 @@ cargo run -p relief-cdp -- run spike/tasks/11-korpus.txt --headful          # re
 cargo run -p relief-cdp -- test spike/tasks/0*.txt --junit out.xml --report befunde.json   # ohne Fenster, Bericht für CI, Fehler bei verfehlter Erwartung
 cargo run -p relief-cdp -- test --fork spike/tasks/0[1-5]*.txt --junit out.xml             # dasselbe im eigenen Build (--headless=new, AX-Weg)
 cargo run -p relief-cdp -- repl https://www.gov.uk/     # interaktiv, --headful für sichtbares Fenster
-cargo run -p relief-cdp -- measure <url>... --repeat 5  # Zeiten und Graph-Stabilität
+cargo run -p relief-cdp -- measure <url>... --repeat 5  # Zeiten, Graph-Stabilität, iframes je Weg
 cargo run -p relief-cdp -- record spike/tasks/0*.txt   # AX-Aufnahmen nach spike/recordings
 cargo run -p relief-cdp -- palette https://www.gov.uk/  # Befehlsleiste im Browser (Studienprototyp)
 cargo run -p relief-cdp -- palette-selftest <url> "was ist hier" "gehe zu Suche"   # Leiste per echten Tastenereignissen prüfen
@@ -218,7 +218,7 @@ scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurüc
 | `crates/relief-ai-contract` | browserfrei: KI-Vertrag (Hypothesen, Intent-Vorschläge, JSON-Schemas), `ModelProvider` mit Stufen, Privacy-Filter, Grenzen je Aufgabe (`Budget`); Sicherheits-Regressionsmatrix in `tests/missbrauch.rs` |
 | `crates/relief-resolver` | browserfrei: Resolver fehlender Namen (Ausschnitt, Anthropic-Adapter hinter Feature `anthropic`, Kalibrierung) |
 | `crates/relief-cdp` | Spike-Host: steuert Chrome über CDP, führt Aktionen aus |
-| `spike/fixtures`, `spike/tasks` | Testseiten und Aufgabendateien (`url:`/`do:`/`assert:`/`expect:`); `06-form-assertions.txt` mit `form-clean.html`/`form-broken.html`/`status-inserted.html`/`form-embedded.html` prüft die Formular-Zusicherungen |
+| `spike/fixtures`, `spike/tasks` | Testseiten und Aufgabendateien (`url:`/`do:`/`assert:`/`expect:`, `wait: <ms>` nur im CDP-Host); `06-form-assertions.txt` mit `form-clean.html`/`form-broken.html`/`status-inserted.html`/`form-embedded.html` prüft die Formular-Zusicherungen, mit `form-fremd.html` und `frame-nachladen.html` (über `server:`) auch iframes in einem anderen Prozess |
 | `spike/recordings` | AXTree-Aufnahmen als Fixtures für browserfreie Tests |
 | `spike/kalibrierung` | von Hand beschriftete Stichprobe unbenannter Controls mit Soll-Namen und Begründung |
 | `crates/relief-interaction/tests` | Snapshot- und Aufgabentests gegen die Aufnahmen; Erwartungen neu setzen mit `RELIEF_ERWARTUNGEN=neu` |

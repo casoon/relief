@@ -14,7 +14,8 @@
 //! `server:` davor über einen lokalen HTTP-Server → `server.rs`), `do: …`
 //! (mit `!` davor bestätigt), `expect: …`
 //! (Teilstring der letzten Antwort), `assert: …` (Formular-Zusicherung, Befunde
-//! als Antwort → `assertions.rs`), `#` Kommentar.
+//! als Antwort → `assertions.rs`), `wait: <ms>` (Seite läuft ohne Eingabe
+//! weiter), `#` Kommentar.
 //!
 //! Security-Log: Mit `RELIEF_LOG=<datei>` hängt jede Eingabe die
 //! Entscheidungen der Sitzung als JSON-Zeilen an (`{"t":…,"security":{…}}`,
@@ -197,10 +198,10 @@ impl Session {
     /// laden. `new_page(url)` + `wait_for_navigation` kehrt teils vor dem
     /// Commit des eigentlichen Dokuments zurück; `goto` wartet auf das Laden.
     async fn open_page(browser: &Browser, page: Page, url: &str) -> Result<Self> {
-        let frames = frames::Frames::connect(browser.websocket_address()).await?;
+        let (frames, frame_events) = frames::Frames::connect(browser.websocket_address()).await?;
         // Vor dem Laden starten, damit die Anfragen des Ladens als ausstehend
         // zählen („Seite ruht“ auch über das Netz).
-        let mut live = live::Live::start(&page).await?;
+        let mut live = live::Live::start(&page, frame_events).await?;
         // Manche Seiten erreichen `load` nie innerhalb des Zeitlimits von
         // chromiumoxide (tagesschau.de): dann mit dem aktuellen Stand weiter.
         if let Err(e) = page.goto(url).await {
@@ -541,6 +542,13 @@ async fn run_files(
                     };
                     println!("\n? {text}\n{}", indent(&last));
                 }
+                TaskLine::Wait(ms) => {
+                    if session.is_none() {
+                        continue;
+                    }
+                    println!("\n… {ms} ms warten");
+                    tokio::time::sleep(Duration::from_millis(ms)).await;
+                }
                 TaskLine::Expect(expected) => {
                     if session.is_none() {
                         continue;
@@ -643,7 +651,7 @@ fn test_fork(files: &[&String], junit: Option<PathBuf>) -> Result<()> {
 }
 
 async fn measure(browser: &Browser, urls: &[&String], repeat: usize) -> Result<()> {
-    println!("url | Knoten | Bedienelemente | iframes (eingehängt/nicht erreichbar) | Aufnahme ms (min/max) | Modell+Graph µs (max) | Ruhe ms | stabil");
+    println!("url | Knoten | Bedienelemente | iframes im Prozess (eingehängt/nicht erreichbar) | iframes eigene Sitzung (eingehängt/nicht erreichbar) | Aufnahme ms (min/max) | Modell+Graph µs (max) | Ruhe ms | stabil");
     for url in urls {
         let url = to_url(url, Path::new("."));
         let session = match Session::open(browser, &url).await {
@@ -656,7 +664,7 @@ async fn measure(browser: &Browser, urls: &[&String], repeat: usize) -> Result<(
         let mut tree_ms = Vec::new();
         let mut graph_us = Vec::new();
         let mut signatures = Vec::new();
-        let mut frames = (0, 0);
+        let mut frames = capture::FrameCount::default();
         for i in 0..repeat {
             let c = capture::capture(&session.page, &session.frames, &format!("m{i}")).await?;
             tree_ms.push(c.tree_ms);
@@ -677,11 +685,13 @@ async fn measure(browser: &Browser, urls: &[&String], repeat: usize) -> Result<(
             format!(" ({} vs. {} Einträge)", a.len(), b.len())
         };
         println!(
-            "{url} | {} | {} | {}/{} | {}/{} | {} | {}{} | {}{}",
+            "{url} | {} | {} | {}/{} | {}/{} | {}/{} | {} | {}{} | {}{}",
             signatures[0].0,
             signatures[0].1.len(),
-            frames.0,
-            frames.1,
+            frames.local.0,
+            frames.local.1,
+            frames.remote.0,
+            frames.remote.1,
             tree_ms.iter().min().unwrap(),
             tree_ms.iter().max().unwrap(),
             graph_us.iter().max().unwrap(),
@@ -694,6 +704,9 @@ async fn measure(browser: &Browser, urls: &[&String], repeat: usize) -> Result<(
             if stable { "ja" } else { "nein" },
             unstable_detail
         );
+        for why in &frames.unreachable {
+            println!("  nicht erreichbar: {why}");
+        }
         session.page.close().await.ok();
     }
     Ok(())

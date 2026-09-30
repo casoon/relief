@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><title>Bestellung – iframe fremder Herkunft lädt nach</title></head>
+<body>
+<main>
+  <h1>Bestellung</h1>
+  <!-- Änderungssignal aus einem Frame in einem anderen Prozess
+       (spike/tasks/06-form-assertions.txt, Paket 85): Das iframe lädt von
+       der jeweils anderen Adresse des lokalen Servers (localhost ↔
+       127.0.0.1), liegt also in einem eigenen Renderer-Prozess, und fügt
+       nach dem Laden per Zeitgeber ein Feld ein. -->
+  <form aria-label="Bestellformular">
+    <p><label for="name">Name</label> <input id="name"></p>
+  </form>
+  <script>
+    const fremd = location.hostname === 'localhost' ? '127.0.0.1' : 'localhost';
+    const frame = document.createElement('iframe');
+    frame.title = 'Gutschein';
+    frame.width = 400;
+    frame.height = 80;
+    frame.src = `${location.protocol}//${fremd}:${location.port}/frame-nachladen-frame.html`;
+    document.currentScript.after(frame);
+  </script>
+</main>
+</body>
+</html>

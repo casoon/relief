@@ -67,7 +67,7 @@ crates/
         ├── capture.rs        # getFullAXTree je Frame, iframes eingehängt (auch aus anderen Prozessen), Fokus → AXSnapshot
         ├── frames.rs         # Frames in anderen Renderer-Prozessen: zweite Verbindung, flache Sitzung je Frame, Backend-IDs mit Frame-Nummer, Dokument mit eingehängten Frames, Fokus
         ├── facts.rs          # DOM.getDocument je Aufnahme → extra: Formularziel von Absenden-Buttons, HTML-type/-autocomplete
-        ├── live.rs           # DOM-Mutationen + Netzwerk → „Seite ruht“; „geändert seit letzter Aufnahme“
+        ├── live.rs           # DOM-Mutationen + Netzwerk (Seite und Frames anderer Prozesse) → „Seite ruht“; „geändert seit letzter Aufnahme“
         ├── act.rs            # ActionPlan → DOM/JS am Element (Backend-ID); Escape/Pfeiltasten/Tab als Taste; Scrollen
         ├── assertions.rs     # `assert:`-Zeilen: DOM-Fakten aus DOM.getDocument + DOMSnapshot, Tab-Folge beobachten, Fokus → relief_interaction::assertions
         ├── palette.rs        # Befehlsleiste: Binding, Bestätigung, Protokoll, Selbsttest
@@ -77,7 +77,7 @@ crates/
         └── main.rs           # Session (Aufnahme → Modell → Graph, Tree-ID je Dokument), Modi run / test / repl / measure / record / palette
 spike/
 ├── fixtures/                 # eigene Testseiten
-├── tasks/                    # Aufgabendateien (url:/do:/assert:/expect:)
+├── tasks/                    # Aufgabendateien (url:/do:/assert:/expect:/wait:)
 ├── recordings/               # AXSnapshot-Aufnahmen je Seite und Schritt (JSON)
 └── kalibrierung/             # von Hand beschriftete Stichprobe unbenannter Controls (Soll-Namen)
 ```
@@ -287,7 +287,11 @@ flowchart LR
   höchstens 3 s. Nicht ausstehend zählen `EventSource`, Beacons (`Ping`),
   Medien, WebSockets (kein `requestWillBeSent`) und Anfragen, die länger als
   1 s offen sind. Die Abos starten vor dem Laden und bleiben über
-  Navigationen, damit die Anfragen des Ladens mitzählen.
+  Navigationen, damit die Anfragen des Ladens mitzählen. Frames in einem
+  anderen Prozess melden ab dem Anhängen (erste Aufnahme) über ihre Sitzung
+  (`frames.rs`: dort Network-Agent an, Dokument angefordert, nach
+  `documentUpdated` neu angefordert); ihre Mutationen machen die Seite
+  geändert, ihre Anfragen zählen zur Ruhe.
   Ersetzt die Seite ihr Dokument (`DOM.documentUpdated`), wird es neu
   angefordert. AX-Deltas (`Accessibility.nodesUpdated`) sendet Chrome nicht.
 - **Aufnahme**: vor einem Befehl nur, wenn seit der letzten Aufnahme etwas
@@ -311,9 +315,11 @@ flowchart LR
   `activeElement`, wird im Frame weitergefragt. DOM-Fakten (`facts.rs`,
   `assertions.rs`) bekommen die Dokumente dieser Frames als
   `contentDocument` ihres `iframe` eingehängt (`Frames::document`), mit
-  denselben IDs; `DOMSnapshot` je Prozess. Mutationen in solchen Frames
-  meldet `live.rs` nicht (nur die Sitzung der Seite); nach eigenen Aktionen
-  wird ohnehin neu aufgenommen.
+  denselben IDs; `DOMSnapshot` je Prozess. iframes im Prozess eines
+  solchen Frames hängt `capture.rs` über `getFullAXTree { frameId }` in
+  dessen Sitzung ein (Präfix `r<Nummer>f<n>:`, Backend-IDs mit der Nummer
+  des Frames). `measure` zählt beide Wege getrennt und nennt je nicht
+  erreichbarem iframe Weg, Adresse und Fehler.
 - **Modalität**: Ist ein modaler Dialog offen (`modal`-Eigenschaft), sind in
   seinem Dokument nur seine Bedienelemente erreichbar
   (`Graph::reachable_controls`) — auch bei `aria-modal`, wo Chrome den Rest
