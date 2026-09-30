@@ -23,8 +23,9 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  # Chrome for Testing in der Version des Fork-Basisstands (fork/UPSTREAM).
-  CHROME_VERSION: 154.0.8037.58
+  # Chrome for Testing möglichst nah am Fork-Basisstand (fork/UPSTREAM: 154.0.8037.58);
+  # genau diese Version führt Chrome for Testing nicht, .57 ist die nächste.
+  CHROME_VERSION: 154.0.8037.57
 
 jobs:
   rust:

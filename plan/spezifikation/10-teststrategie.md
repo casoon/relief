@@ -145,8 +145,8 @@ Cloud-Umgebung). Actions per Commit-SHA gepinnt, Tag im Kommentar.
 
 - Job **rust**: fmt, clippy `-D warnings`, `cargo test --workspace`, Cache
   über `Swatinem/rust-cache`.
-- Job **browser**: Chrome for Testing in der Fork-Basisversion
-  (154.0.8037.58) über `browser-actions/setup-chrome` mit
+- Job **browser**: Chrome for Testing 154.0.8037.57 (die Fork-Basisversion
+  .58 führt Chrome for Testing nicht) über `browser-actions/setup-chrome` mit
   `install-dependencies`, dann `relief-cdp run spike/tasks/01`–`05` (68
   Erwartungen, nur `file://`). Weil `run` auch bei verfehlten Erwartungen mit
   0 endet und Erwartungen nicht ladbarer Seiten überspringt, vergleicht der
