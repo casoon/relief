@@ -14,6 +14,7 @@ use relief_model::{
 use serde::Serialize;
 
 use crate::page::Page;
+use crate::security::{is_sensitive_field, HTML_AUTOCOMPLETE, INPUT_TYPE};
 
 /// Ein logischer Bereich der Seite (Landmark oder Dialog).
 #[derive(Debug, Clone, Serialize)]
@@ -62,6 +63,10 @@ pub struct Control {
     /// Index in [`Graph::regions`].
     pub region: Option<usize>,
     pub value: Option<String>,
+    /// Sensibles Feld (Passwort, `autocomplete` für Zahlungs- und
+    /// Identitätsdaten, → [`crate::security::is_sensitive_field`]): Listen
+    /// und „wo bin ich“ nennen den Wert nicht (→ `respond::control_line`).
+    pub sensitive: bool,
     /// Auswahlmöglichkeiten bei Combobox/Listbox.
     pub options: Vec<String>,
     pub selected_option: Option<String>,
@@ -444,6 +449,10 @@ pub(crate) fn control(
         states: states(node, value.as_deref()),
         expandable: node.states.expanded.is_some(),
         value,
+        sensitive: is_sensitive_field(
+            node.extra.get(INPUT_TYPE).map(String::as_str),
+            node.extra.get(HTML_AUTOCOMPLETE).map(String::as_str),
+        ),
         options,
         selected_option,
         disabled: node.states.disabled,

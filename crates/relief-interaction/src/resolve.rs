@@ -582,6 +582,7 @@ mod tests {
             name: relief_model::Fact::known(Some(name.into())),
             region: None,
             value: None,
+            sensitive: false,
             options: vec![],
             selected_option: None,
             disabled: false,

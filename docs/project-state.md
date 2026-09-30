@@ -15,7 +15,7 @@ unverändert). Zwei Linien: Assistenz im Browser und Prüfen im echten Browser;
 Relief ersetzt den geplanten barrierlab-Reader. Es gibt
 einen CDP-Spike gegen ein normales Chrome: Rust-Workspace mit sechs Crates,
 siehe `docs/architecture.md`. Dazu das Fork-Grundgerüst: Chromium
-154.0.8037.58 mit `//relief/` und vier Patches (`fork/`), lokal gebaut in
+154.0.8037.58 mit `//relief/` und fünf Patches (`fork/`), lokal gebaut in
 `~/chromium/src/out/Relief`. Mit `--enable-relief` liest er den AXTree samt
 Positionen im Browser-Prozess, auch aus cross-site-iframes, führt ihn als
 `SemanticGraph` in der Rust-Runtime nach (über Navigation, Back-Forward-Cache
@@ -93,7 +93,10 @@ dem Absenden sagt die Antwort fehlerhafte Felder an.
 `spike/tasks/15-formular-assistent.txt` (beide Hosts). Nach dem Ausfüllen
 eines sensiblen Felds (Passwort, Zahlungs- oder Identitäts-`autocomplete`)
 nennt die Antwort weder neuen noch bisherigen Wert
-(`SetValue(verdeckt)`, „Wert geändert“), `spike/tasks/16-sensible-werte.txt`.
+(`SetValue(verdeckt)`, „Wert geändert“); Aktionsliste, „wo bin ich“,
+Mehrdeutigkeits- und Sprungmarkenlisten und der Inspector zeigen dort nur
+„= (verdeckt)“, „details zu …“ nennt den Wert auf Nachfrage,
+`spike/tasks/16-sensible-werte.txt`.
 
 In Aufgabendateien prüft `assert: <Zusicherung>` den aktuellen Stand eines
 Formulars und antwortet mit Befunden (Regel-IDs `form/…`) oder „Keine
@@ -111,8 +114,9 @@ Im Palettenmodus öffnet Strg+Umschalt+Leertaste die Befehlsleiste; riskante
 Aktionen werden mit „ja“ bestätigt, „nein“ verwirft die Rückfrage. Jede
 Eingabe landet mit Ergebnisart und
 Tastendrücken, ohne Seiteninhalte, in `relief-protokoll.jsonl` (`RELIEF_LOG`),
-der Wert eines Ausfüll- oder Auswahlbefehls als „(verdeckt)“, dazu die
-Zeilen des Security-Logs.
+der Wert eines Ausfüll- oder Auswahlbefehls als „(verdeckt)“, in
+unverstandenen Eingaben alles hinter „mit“/„=“ und jedes Wort mit drei
+Ziffern oder „@“ ebenso; dazu die Zeilen des Security-Logs.
 
 Resolver fehlender Namen kalibrieren (Stichprobe `spike/kalibrierung/`):
 
@@ -226,7 +230,7 @@ scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurüc
 | `spike/recordings` | AXTree-Aufnahmen als Fixtures für browserfreie Tests |
 | `spike/kalibrierung` | von Hand beschriftete Stichprobe unbenannter Controls mit Soll-Namen und Begründung |
 | `crates/relief-interaction/tests` | Snapshot- und Aufgabentests gegen die Aufnahmen; Erwartungen neu setzen mit `RELIEF_ERWARTUNGEN=neu` |
-| `fork/` | Fork-Inhalt für einen Chromium-Checkout: Patch-Serie (`patches/`, `series`, 4 Patches), Basisversion (`UPSTREAM`), `//relief/` (`relief/`: Tab-Helfer, eigener AXTree, Runtime-Sequenz, Aufgaben-Runner, Inspector (`inspector/`), `BUILD.gn`, GN-Ziele für barrierlab-Crates (`third_party/`), Browser-Tests in `testing/`); Format in `fork/README.md` |
+| `fork/` | Fork-Inhalt für einen Chromium-Checkout: Patch-Serie (`patches/`, `series`, 5 Patches), Basisversion (`UPSTREAM`), `//relief/` (`relief/`: Tab-Helfer, eigener AXTree, Runtime-Sequenz, Aufgaben-Runner, Inspector (`inspector/`), `BUILD.gn`, GN-Ziele für barrierlab-Crates (`third_party/`), Renderer-Agent für Formularangaben (`common/`, `renderer/`), Browser-Tests in `testing/`); Format in `fork/README.md` |
 | `scripts/fork-apply.sh`, `scripts/fork-export.sh` | Fork auf einen Checkout anwenden (inkl. Kopie der Crate-Quellen) bzw. Patches daraus neu erzeugen |
 | `scripts/cloud-setup.sh` | Setup-Skript für die Cloud-Umgebung auf claude.ai |
 | `.github/workflows/ci.yml` | CI: Rust-Prüfungen und Aufgaben 01–06 gegen Chrome |

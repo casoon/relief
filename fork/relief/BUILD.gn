@@ -131,6 +131,7 @@ source_set("relief") {
   deps = [
     ":inspector_resources",
     ":relief_bridge_rs",
+    "//relief/common:mojom",
     "//base",
     "//cc/paint",
     "//chrome/app:generated_resources",
@@ -145,6 +146,7 @@ source_set("relief") {
     "//components/tabs:public",
     "//components/vector_icons",
     "//content/public/browser",
+    "//mojo/public/cpp/bindings",
     "//third_party/abseil-cpp:absl",
     "//third_party/blink/public/common",
     "//net",

@@ -146,7 +146,7 @@ flowchart LR
 ```
 fork/
 ├── UPSTREAM                  # 154.0.8037.58
-├── patches/                  # series + 4 Patches: tabs/BUILD.gn (deps), tab_features.cc (eine Zeile + Include), Side-Panel-/Aktions-ID des Inspectors, Produktname „Relief“
+├── patches/                  # series + 5 Patches: tabs/BUILD.gn (deps), tab_features.cc (eine Zeile + Include), Side-Panel-/Aktions-ID des Inspectors, Produktname „Relief“, Formularangaben im Renderer
 └── relief/                   # → src/relief/ (scripts/fork-apply.sh)
     ├── BUILD.gn              # rust_static_library relief_model_rs, relief_bridge_rs (cxx_bindings); source_set relief; group relief_tests
     ├── relief_attach.h       # AttachToTab: einziger Header, den Chromium einbindet
