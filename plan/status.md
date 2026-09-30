@@ -69,15 +69,16 @@ der VoiceOver-Durchgang durch das Panel steht mit 47 aus.
 Formular-Zusicherungen im Aufgabenformat (`assert:`) umgesetzt, browserfrei
 ausgewertet mit `a11y-dom`, `accname` und `a11y-report` (Feature
 `assertions`, nicht im Fork); `statusmeldung` prüft die Änderung der
-Live-Region über `TreeDelta`, `06-form-assertions.txt` läuft in Prüfbefehlen
-und CI, beschrieben in
-[spezifikation/12](spezifikation/12-produktumfang.md#formular-zusicherungen-umgesetzt-2026-09-30-pakete-42-49).
+Live-Region über `TreeDelta`, `namen-wie-accname` rechnet mit Rendering
+(`display`, `visibility`) und über iframes im selben Prozess und Shadow DOM,
+`06-form-assertions.txt` läuft in Prüfbefehlen und CI, beschrieben in
+[spezifikation/12](spezifikation/12-produktumfang.md#formular-zusicherungen-umgesetzt-2026-09-30-pakete-42-49-55).
 Relief ersetzt in barrierlab den Reader-Host als Konsument
 (casoon/barrierlab#29, zum Merge offen); Kandidaten zum Ablegen in
 [spezifikation/12](spezifikation/12-produktumfang.md#kandidaten-zum-ablegen-stand-2026-09-30).
 
 **Sofort startbar:**
-- Cloud: 55 (DOM-Fakten mit Rendering), 48 (Sicherheits-Regressionsmatrix)
+- Cloud: 48 (Sicherheits-Regressionsmatrix), 64 (DOM-Fakten für fremde Frames)
 - Cloud + M4: 25 (Befehlsleiste), 21 (Befunde im Inspector), 40 (Overlay und Consent), 36 (Branding),
   44 (Lauf ohne Fenster, JUnit)
 - M4: 43 (VoiceOver im Test)
@@ -86,7 +87,7 @@ Relief ersetzt in barrierlab den Reader-Host als Konsument
 **Reihenfolge:**
 - Linie A: 25 → dann 26, 29, 38, 39 parallel (40 schon jetzt) → 41;
   47 läuft mit 20 und 25 als Abnahme mit.
-- Linie B: 43 und 44 parallel → 45; 55 jederzeit.
+- Linie B: 43 und 44 parallel → 45; 64 jederzeit.
 - Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
 - Vor jeder Modellintegration (28 im Fork, 34): 48.
 
@@ -112,5 +113,5 @@ Relief ersetzt in barrierlab den Reader-Host als Konsument
 | 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 | [45](45-playwright-anbindung.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 | [47](47-relief-ui-accessibility.md) |
 | 48 | Sicherheits-Regressionsmatrix für Modellgrenzen | Cloud | offen | 24 ✓, vor Modellintegration | [48](48-sicherheits-regressionen.md) |
-| 55 | DOM-Fakten mit Rendering, iframes und Shadow DOM (Namensvergleich) | Cloud | offen | 42 ✓, 49 ✓ | [55](55-dom-fakten-rendering.md) |
+| 64 | DOM-Fakten für iframes in anderem Prozess, ID-Bereich im Shadow DOM | Cloud | offen | 55 ✓ | [64](64-dom-fakten-fremde-frames.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |

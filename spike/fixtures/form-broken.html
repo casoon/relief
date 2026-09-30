@@ -2,7 +2,7 @@
 <html lang="de">
 <head><meta charset="utf-8"><title>Rückruf – kaputtes Formular</title>
 <style>
-  .hidden { display: none; }
+  label[for="plz"]::after { content: " (intern: Feld 7)"; }
   .modal { border: 1px solid; padding: 1em; }
 </style>
 </head>
@@ -16,8 +16,9 @@
     <p><label for="phone">Telefon</label> <input id="phone" type="tel" required>
        <!-- Fehlermeldung ohne Verknüpfung zum Feld -->
        <span class="error" id="phone-err"></span></p>
-    <!-- Beschriftung mit per CSS verborgenem Zusatz: Chromium „PLZ“, accname mehr -->
-    <p><label for="plz">PLZ <span class="hidden">(intern: Feld 7)</span></label> <input id="plz"></p>
+    <!-- Beschriftung mit CSS-Inhalt: Chromium „PLZ (intern: Feld 7)“, accname
+         auf dem DOM nur „PLZ“ -->
+    <p><label for="plz">PLZ</label> <input id="plz"></p>
     <!-- aus der Tab-Folge genommen -->
     <p><label for="note">Anliegen</label> <textarea id="note" tabindex="-1"></textarea></p>
     <!-- Feld ohne Beschriftung, nur Platzhalter-Optik davor -->
