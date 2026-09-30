@@ -111,6 +111,9 @@ pub fn list_actions(graph: &Graph) -> String {
     out.trim_end().to_string()
 }
 
+/// Eine Zeile je Bedienelement für Listen, Rückfragen und „wo bin ich“.
+/// Den Wert eines sensiblen Felds nennt sie nicht, nur dass es einen gibt
+/// („= (verdeckt)“); auf ausdrückliche Nachfrage nennt ihn [`inspect`].
 pub fn control_line(c: &Control) -> String {
     let mut line = format!("[{}] {}", c.role, c.display_name());
     match c.name.certainty {
@@ -125,6 +128,8 @@ pub fn control_line(c: &Control) -> String {
         if let Some(sel) = &c.selected_option {
             line.push_str(&format!("; gewählt: {sel}"));
         }
+    } else if c.sensitive && c.value.is_some() {
+        line.push_str(" = (verdeckt)");
     } else if let Some(v) = &c.value {
         line.push_str(&format!(" = „{v}“"));
     }
@@ -250,6 +255,8 @@ pub fn read_place(graph: &Graph, place: Place) -> String {
 }
 
 /// Was ein Bedienelement anbietet: Optionen, Wert, Grenzen, Zustände.
+/// Nennt auch den Wert eines sensiblen Felds: „details zu …“ ist Vorlesen
+/// auf ausdrücklichen Wunsch, wie im Screenreader (→ `plan/spezifikation/07`).
 pub fn inspect(c: &Control) -> String {
     let state = |key: &str| {
         c.states

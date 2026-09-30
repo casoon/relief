@@ -181,7 +181,14 @@ fn control_item(graph: &Graph, model: &SemanticGraph, c: &Control) -> Item {
         origin: origin(&c.name),
         region: c.region.map(|r| graph.regions[r].label()),
         level: None,
-        value: c.value.clone(),
+        // Wie in `control_line`: sensibel nur, dass es einen Wert gibt.
+        value: c.value.as_ref().map(|v| {
+            if c.sensitive {
+                "(verdeckt)".into()
+            } else {
+                v.clone()
+            }
+        }),
         states: c
             .states
             .iter()
