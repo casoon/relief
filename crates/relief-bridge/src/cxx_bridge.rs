@@ -27,6 +27,9 @@ use relief_model::{
     TreeDelta, TreeId, TreeUpdate,
 };
 
+use relief_interaction::{ScrollDirection, TaskLine};
+
+use crate::command::Reply;
 use crate::runtime::{ActionRequest, Rejection, Runtime};
 
 #[cxx::bridge(namespace = "relief::bridge")]
@@ -103,6 +106,7 @@ pub mod ffi {
         Collapse,
         ScrollToMakeVisible,
         ShowContextMenu,
+        SetSequentialFocusNavigationStartingPoint,
     }
 
     #[derive(Debug)]
@@ -288,6 +292,57 @@ pub mod ffi {
         name_certainty: Certainty,
     }
 
+    /// Befehle in Sprache (→ `command`).
+    #[derive(Debug)]
+    enum ReplyKind {
+        Answer,
+        Perform,
+        Escape,
+        Scroll,
+    }
+
+    #[derive(Debug)]
+    enum ScrollDirection {
+        Down,
+        Up,
+        Top,
+        Bottom,
+    }
+
+    /// Eine Aktion über `AXActionData`.
+    #[derive(Debug, Clone)]
+    struct AxStep {
+        tree: String,
+        node: i32,
+        action: Action,
+        has_value: bool,
+        value: String,
+    }
+
+    /// Antwort auf eine Eingabe: `text` bei `Answer`, `steps` bei `Perform`,
+    /// `scroll` bei `Scroll`.
+    #[derive(Debug, Clone)]
+    struct Reply {
+        kind: ReplyKind,
+        text: String,
+        steps: Vec<AxStep>,
+        scroll: ScrollDirection,
+    }
+
+    #[derive(Debug)]
+    enum TaskKind {
+        Url,
+        Do,
+        Expect,
+    }
+
+    /// Zeile einer Aufgabendatei (`spike/tasks/*.txt`).
+    #[derive(Debug, Clone)]
+    struct Task {
+        kind: TaskKind,
+        text: String,
+    }
+
     extern "Rust" {
         type Runtime;
 
@@ -302,6 +357,20 @@ pub mod ffi {
         fn find_node(runtime: &Runtime, name: &str, action: Action) -> Found;
         /// Knoten über alle Bäume.
         fn node_count(runtime: &Runtime) -> u64;
+
+        /// Eingabe in Sprache gegen den aktuellen Graphen (`Runtime::command`).
+        fn run_command(runtime: &mut Runtime, input: &str) -> Reply;
+        /// Antwort auf die ausgeführten Schritte bzw. Escape, gegen den
+        /// jetzigen Graphen (`Runtime::finish`).
+        fn finish_command(runtime: &mut Runtime) -> String;
+        /// Seitenbeschreibung („was ist hier“).
+        fn describe_page(runtime: &Runtime) -> String;
+        /// Antwort nach dem Scrollen: Position vorher, nachher, größte
+        /// Position (gleiche Einheit).
+        fn scrolled_text(direction: ScrollDirection, before: f64, after: f64, max: f64) -> String;
+        fn parse_task_file(text: &str) -> Vec<Task>;
+        /// Teilstring ohne Groß-/Kleinschreibung (auch Umlaute).
+        fn expectation_met(answer: &str, expected: &str) -> bool;
     }
 }
 
@@ -410,6 +479,85 @@ fn find_node(runtime: &Runtime, name: &str, action: ffi::Action) -> ffi::Found {
 
 fn node_count(runtime: &Runtime) -> u64 {
     runtime.graph().len() as u64
+}
+
+fn run_command(runtime: &mut Runtime, input: &str) -> ffi::Reply {
+    let mut out = ffi::Reply {
+        kind: ffi::ReplyKind::Answer,
+        text: String::new(),
+        steps: Vec::new(),
+        scroll: ffi::ScrollDirection::Down,
+    };
+    match runtime.command(input) {
+        Reply::Answer(text) => out.text = text,
+        Reply::Escape => out.kind = ffi::ReplyKind::Escape,
+        Reply::Scroll(direction) => {
+            out.kind = ffi::ReplyKind::Scroll;
+            out.scroll = match direction {
+                ScrollDirection::Down => ffi::ScrollDirection::Down,
+                ScrollDirection::Up => ffi::ScrollDirection::Up,
+                ScrollDirection::Top => ffi::ScrollDirection::Top,
+                ScrollDirection::Bottom => ffi::ScrollDirection::Bottom,
+            };
+        }
+        Reply::Perform(steps) => {
+            out.kind = ffi::ReplyKind::Perform;
+            out.steps = steps
+                .into_iter()
+                .map(|s| ffi::AxStep {
+                    tree: s.target.tree.0,
+                    node: s.target.node.0,
+                    action: action_to_ffi(s.action),
+                    has_value: s.value.is_some(),
+                    value: s.value.unwrap_or_default(),
+                })
+                .collect();
+        }
+    }
+    out
+}
+
+fn finish_command(runtime: &mut Runtime) -> String {
+    runtime.finish()
+}
+
+fn describe_page(runtime: &Runtime) -> String {
+    runtime.describe_page()
+}
+
+fn scrolled_text(direction: ffi::ScrollDirection, before: f64, after: f64, max: f64) -> String {
+    let direction = match direction {
+        ffi::ScrollDirection::Down => ScrollDirection::Down,
+        ffi::ScrollDirection::Up => ScrollDirection::Up,
+        ffi::ScrollDirection::Top => ScrollDirection::Top,
+        ffi::ScrollDirection::Bottom => ScrollDirection::Bottom,
+        _ => return "Scroll: ungültige Richtung.".into(),
+    };
+    relief_interaction::respond::scrolled(direction, before, after, max)
+}
+
+fn parse_task_file(text: &str) -> Vec<ffi::Task> {
+    relief_interaction::parse_tasks(text)
+        .into_iter()
+        .map(|line| match line {
+            TaskLine::Url(text) => ffi::Task {
+                kind: ffi::TaskKind::Url,
+                text,
+            },
+            TaskLine::Do(text) => ffi::Task {
+                kind: ffi::TaskKind::Do,
+                text,
+            },
+            TaskLine::Expect(text) => ffi::Task {
+                kind: ffi::TaskKind::Expect,
+                text,
+            },
+        })
+        .collect()
+}
+
+fn expectation_met(answer: &str, expected: &str) -> bool {
+    relief_interaction::expectation_met(answer, expected)
 }
 
 // ---------------------------------------------------------------------------
@@ -614,6 +762,9 @@ fn action_from_ffi(a: ffi::Action) -> Option<Action> {
         ffi::Action::Collapse => Action::Collapse,
         ffi::Action::ScrollToMakeVisible => Action::ScrollToMakeVisible,
         ffi::Action::ShowContextMenu => Action::ShowContextMenu,
+        ffi::Action::SetSequentialFocusNavigationStartingPoint => {
+            Action::SetSequentialFocusNavigationStartingPoint
+        }
         _ => return None,
     })
 }
@@ -810,6 +961,9 @@ fn action_to_ffi(a: Action) -> ffi::Action {
         Action::Collapse => ffi::Action::Collapse,
         Action::ScrollToMakeVisible => ffi::Action::ScrollToMakeVisible,
         Action::ShowContextMenu => ffi::Action::ShowContextMenu,
+        Action::SetSequentialFocusNavigationStartingPoint => {
+            ffi::Action::SetSequentialFocusNavigationStartingPoint
+        }
     }
 }
 

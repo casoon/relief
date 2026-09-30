@@ -237,6 +237,10 @@ pub enum Action {
     Collapse,
     ScrollToMakeVisible,
     ShowContextMenu,
+    /// Startpunkt der Tab-Reihenfolge setzen; Chromium nimmt dabei den Fokus
+    /// weg. Chromium meldet diese Aktion an keinem Knoten, sie gilt für jedes
+    /// Element (Hinbewegen zu nicht fokussierbaren Zielen).
+    SetSequentialFocusNavigationStartingPoint,
 }
 
 /// Relationen zu anderen Knoten desselben Baums.
