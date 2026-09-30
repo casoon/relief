@@ -157,7 +157,12 @@ Folgen:
 - Diff-Regeln und Ereignisspur sind Teil von `a11y-perception` und werden
   genutzt, nicht nachgebaut; der Abgleich mit echten Screenreadern ist 43;
   Regelprüfungen bleiben bei `a11y-rules`.
-- In `barrierlab/docs/consumers.md` ersetzt Relief den Reader-Host (→ 46).
+- In `barrierlab/docs/consumers.md` ersetzt Relief den Reader-Host,
+  ebenso in `architecture.md`, `project-state.md` und der Paketseite von
+  `a11y-perception` (casoon/barrierlab#29, 2026-09-30, zum Merge offen).
+  Die lokale Reader-Planung in barrierlab (`plan/reader/`, gitignored) ist
+  als „ersetzt durch Relief“ geschlossen; ihr Referenzrahmen bleibt dort
+  Nachschlagewerk.
 
 ## barrierlab einbinden
 
@@ -168,8 +173,9 @@ entgegen, holen sie nicht.
 
 Heute nutzt Relief `a11y-perception` im Host und in den Aufnahmen sowie
 `a11y-dom`, `accname` und `a11y-report` in `relief-interaction`
-(Formular-Zusicherungen; Workspace, `Cargo.toml`). Relief ist in
-`consumers.md` noch nicht eingetragen (→ 46).
+(Formular-Zusicherungen; Workspace, `Cargo.toml`). In `consumers.md` steht
+Relief mit diesen vier Crates, künftig zusätzlich `a11y-rules`
+(casoon/barrierlab#29).
 
 | Richtung | Was | Wann |
 |---|---|---|
@@ -183,3 +189,24 @@ Heute nutzt Relief `a11y-perception` im Host und in den Aufnahmen sowie
 
 Jedes Ablegen läuft als eigener PR in barrierlab mit Eintrag im Changelog des
 Pakets.
+
+### Kandidaten zum Ablegen [Stand 2026-09-30]
+
+Maßstab ist die barrierlab-Regel: abgelegt wird erst, wenn ein zweiter
+Konsument es **nachweislich gleich** braucht.
+
+| Kandidat | in Relief | zweiter Konsument | Folge |
+|---|---|---|---|
+| CDP-`getFullAXTree`-JSON → `a11y_perception::AXNode` | `relief-cdp/src/capture.rs` (`convert_node`) | auditmysite, `accessibility/extractor.rs`; Relief hat die Umwandlung von dort übernommen [belegt, Modulkopf] | echte Doppelung; offen, ob ein barrierlab-Paket CDP-förmiges JSON entgegennehmen darf („keine CDP-Typen in einer öffentlichen API“) — in barrierlab zu entscheiden |
+| DOM-Fakten aus `DOM.getDocument` → `a11y-dom` | `relief-cdp/src/assertions.rs` | auditmysite, `accessibility/dom_document.rs` (`build_document`, mit AX-Fakten und Stilen) | Doppelung im Zweck, nicht im Umfang [Annahme: nicht Zeile für Zeile verglichen]; dieselbe CDP-Frage wie oben |
+| Formular-Zusicherungen | `relief-interaction/src/assertions.rs` | keiner bekannt; auditmysites `form_error`-Journey (Live-Region nach Absenden) und `a11y-rules` `forms/label-missing` (statisch) überschneiden sich nur in Teilen [Annahme, nicht im Code verglichen] | bleibt in Relief; zudem über `SemanticGraph` statt `a11y-perception` formuliert |
+| Screenreader-Treiber-Interface, Phrasen-Protokoll | noch nicht gebaut (→ 43) | keiner bekannt (die Kalibrierung gegen echte Screenreader war Teil der geschlossenen Reader-Planung) | bleibt in Relief |
+| Interaction Graph für aufgabenbasierte Journeys | `relief-interaction/src/graph.rs` | keiner bekannt; auditmysite-Journeys arbeiten auf `a11y-perception` | bleibt in Relief |
+| Seitentyp, Gruppen, primäre Aktion | `relief-interaction/src/page.rs` | keiner bekannt | bleibt in Relief |
+| Privacy-Filter, Delta-Format, Konverter `AXTree` → `SemanticGraph` | `relief-ai-contract`, `relief-model` | keiner; Relief-eigenes Modell | bleibt in Relief |
+
+Die Liste steht hier und nicht in barrierlab [Entscheidung]: barrierlabs
+`docs/` beschreibt den Ist-Zustand, und `consumers.md` nennt, wer was
+benutzt; ein Kandidat ohne zweiten Konsumenten ist dort keine Aussage.
+barrierlabs `plan/` ist gitignored, offene Punkte laufen dort als Issues.
+Wird ein Kandidat reif, bekommt er ein Issue bzw. einen PR in barrierlab.
