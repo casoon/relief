@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "base/strings/string_number_conversions.h"
 #include "ui/accessibility/ax_enum_util.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_location_and_scroll_updates.h"
@@ -20,6 +21,7 @@ namespace relief {
 namespace {
 
 using ax::mojom::BoolAttribute;
+using ax::mojom::FloatAttribute;
 using ax::mojom::IntAttribute;
 using ax::mojom::IntListAttribute;
 using ax::mojom::State;
@@ -125,6 +127,26 @@ bridge::Node ToNode(const ui::AXNode& node,
   OptionalText(data, StringAttribute::kDescription, out.has_description,
                out.description);
   OptionalText(data, StringAttribute::kValue, out.has_value, out.value);
+  // Wertebereich wie im CDP-Konverter: Wert = aktueller Zahlenwert, Grenzen
+  // und ein abweichender Text (aria-valuetext, bei Chromium in kValue) als
+  // Zusatz.
+  if (data.HasFloatAttribute(FloatAttribute::kValueForRange)) {
+    const std::string number = base::NumberToString(
+        data.GetFloatAttribute(FloatAttribute::kValueForRange));
+    if (out.has_value && std::string(out.value) != number) {
+      out.extra.push_back(bridge::Attribute{"valuetext", out.value});
+    }
+    out.has_value = true;
+    out.value = number;
+    for (const auto& [attribute, key] :
+         {std::pair(FloatAttribute::kMinValueForRange, "valuemin"),
+          std::pair(FloatAttribute::kMaxValueForRange, "valuemax")}) {
+      if (data.HasFloatAttribute(attribute)) {
+        out.extra.push_back(bridge::Attribute{
+            key, base::NumberToString(data.GetFloatAttribute(attribute))});
+      }
+    }
+  }
   OptionalText(data, StringAttribute::kUrl, out.has_url, out.url);
   OptionalText(data, StringAttribute::kChildTreeId, out.has_child_tree,
                out.child_tree);
@@ -250,7 +272,12 @@ std::string_view ReliefRoleName(ax::mojom::Role role) {
     case Role::kContentDeletion:
       return "deletion";
     case Role::kContentInfo:
+    // Blink vergibt kFooter/kHeader nur außerhalb von Sectioning-Inhalt
+    // (sonst kSectionFooter/kSectionHeader): dann Landmark wie bei CDP.
+    case Role::kFooter:
       return "contentinfo";
+    case Role::kHeader:
+      return "banner";
     case Role::kContentInsertion:
       return "insertion";
     case Role::kGenericContainer:
@@ -393,6 +420,18 @@ std::optional<gfx::RectF> AXTreeMirror::NodePageBounds(ui::AXNodeID id,
                                                        float scale) const {
   const ui::AXNode* node = tree_.GetFromId(id);
   return node ? PageBounds(*node, scale) : std::nullopt;
+}
+
+std::optional<AXTreeMirror::Scroll> AXTreeMirror::RootScroll() const {
+  const ui::AXNode* scroller = tree_.GetFromId(tree_.data().root_scroller_id);
+  if (!scroller) {
+    return std::nullopt;
+  }
+  int x = 0;
+  int y = 0;
+  scroller->GetScrollInfo(&x, &y);
+  return Scroll{scroller->id(), y,
+                scroller->GetIntAttribute(ax::mojom::IntAttribute::kScrollYMax)};
 }
 
 bool AXTreeMirror::SetOffset(std::optional<gfx::Vector2dF> offset) {

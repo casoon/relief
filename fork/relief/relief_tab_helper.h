@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 
+#include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/threading/sequence_bound.h"
@@ -26,6 +27,8 @@ class ScopedAccessibilityMode;
 }  // namespace content
 
 namespace relief {
+
+class ReliefTaskRunner;
 
 // Relief je Tab, erzeugt von AttachToTab (relief_attach.h). Weg B (→
 // plan/spezifikation/01): fordert den AXMode per ScopedAccessibilityMode an,
@@ -62,6 +65,35 @@ class ReliefTabHelper
   // ui::AXActionHandlerObserver:
   void TreeRemoved(ui::AXTreeID tree_id) override;
 
+  // Für den Aufgaben-Runner (relief_task_runner.h). Antworten der Runtime
+  // kommen auf dem UI-Thread an, nach allen bis zum Aufruf gesendeten
+  // Deltas.
+  void RunCommand(const std::string& input,
+                  base::OnceCallback<void(bridge::Reply)> done);
+  void FinishCommand(base::OnceCallback<void(std::string)> done);
+  void DescribePage(base::OnceCallback<void(std::string)> done);
+  void CountNodes(base::OnceCallback<void(uint64_t)> done);
+  // Ein Schritt: Aktion als AXActionData an den Frame des Knotens (false,
+  // wenn der Knoten nicht mehr im eigenen Baum steht oder der Frame keinen
+  // Handler hat) oder eine Taste.
+  bool PerformStep(const bridge::Step& step);
+  // Taste als echtes Tastaturereignis an das fokussierte Widget:
+  // AXActionData kennt keine Tasten (Ersatzweg, → spezifikation/05).
+  void PressKey(bridge::Key key);
+  // Scroll-Position des Hauptdokuments in Blink-Pixeln und die Höhe einer
+  // Bildschirmseite (80 % des Viewports, wie im CDP-Host).
+  struct MainScroll {
+    int y = 0;
+    int y_max = 0;
+    int page = 0;
+  };
+  std::optional<MainScroll> GetMainScroll() const;
+  bool ScrollMainTo(int y);
+  // Letztes AX-Paket (Baum oder Positionen); Ruhe = keines seit einer Weile.
+  base::TimeTicks last_packet() const { return last_packet_; }
+  // Der Baum des aktuellen Hauptdokuments ist in der Runtime.
+  bool has_main_tree() const;
+
   // Für Browser-Tests (//relief/testing).
   void SetDeltaObserverForTesting(RuntimeHost::DeltaCallback callback);
   void SetResetIntervalForTesting(base::TimeDelta interval) {
@@ -75,8 +107,12 @@ class ReliefTabHelper
   friend class content::WebContentsUserData<ReliefTabHelper>;
   explicit ReliefTabHelper(content::WebContents* contents);
 
-  // Schickt den Plan als AXActionData; UI-Thread.
+  // Schickt den Plan als AXActionData; UI-Thread (--relief-activate).
   void Perform(bridge::ActionPlan plan);
+  bool Send(const std::string& tree,
+            int32_t node,
+            bridge::Action action,
+            std::optional<std::string> value);
   // Entfernt einen Baum hier und in der Runtime.
   void DropTree(const ui::AXTreeID& tree_id);
   // Lässt alle Frames neu serialisieren, höchstens einmal je
@@ -109,6 +145,9 @@ class ReliefTabHelper
   base::TimeTicks last_reset_;
   base::OneShotTimer reset_timer_;
   int resets_ = 0;
+  base::TimeTicks last_packet_;
+  // --relief-run, nur im ersten Tab.
+  std::unique_ptr<ReliefTaskRunner> task_runner_;
   base::ScopedObservation<ui::AXActionHandlerRegistry,
                           ui::AXActionHandlerObserver>
       registry_observation_{this};

@@ -28,9 +28,8 @@ use chromiumoxide::browser::{Browser, BrowserConfig};
 use chromiumoxide::Page;
 use futures::StreamExt;
 use relief_interaction::{
-    command, current_place, dismissal, parse, plan_navigation, plan_on_page, resolve,
-    resolve_inflected, resolve_place, respond, step_field, step_heading, ActionKind, ActionPlan,
-    Command, Control, Dismissal, Graph, Place, PlaceResolution, Resolution, ScrollDirection, Step,
+    command, expectation_met, parse_input, parse_tasks, respond, uses_focus, ActionPlan, Graph,
+    Outcome, Session as Dialog, TaskLine,
 };
 use relief_model::{perception, NodeRef, SemanticGraph, TreeId};
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -149,6 +148,8 @@ struct Session {
     last_stats: Option<String>,
     /// Ruhe nach dem Laden (für `measure`).
     opened: live::Settle,
+    /// Befehlszustand (Position) zwischen den Eingaben.
+    session: Dialog,
 }
 
 impl Session {
@@ -199,6 +200,7 @@ impl Session {
             verify: std::env::var_os("RELIEF_VERIFY").is_some(),
             last_stats: None,
             opened,
+            session: Dialog::new(),
         })
     }
 
@@ -268,124 +270,29 @@ impl Session {
 
     /// Eine Eingabe verarbeiten. `!` am Anfang bestätigt riskante Aktionen.
     async fn handle(&mut self, input: &str) -> Result<String> {
-        let (confirmed, input) = match input.strip_prefix('!') {
-            Some(rest) => (true, rest.trim()),
-            None => (false, input.trim()),
-        };
         // Die Seite kann sich seit der letzten Aufnahme geändert haben.
         self.update(false, None).await?;
-
-        let cmd = match parse(input) {
+        let (confirmed, cmd) = match parse_input(input) {
             Ok(c) => c,
             Err(msg) => return Ok(msg),
         };
-        let (target, kind) = match cmd {
-            Command::Help => return Ok(command::HELP.into()),
-            Command::Describe => return Ok(respond::describe(&self.graph)),
-            Command::ListActions => return Ok(respond::list_actions(&self.graph)),
-            Command::ListHeadings => return Ok(respond::list_headings(&self.graph)),
-            Command::Focus(q) => (self.pick(&q, |_| true), ActionKind::Focus),
-            Command::Activate(q) => (self.pick(&q, |_| true), ActionKind::Activate),
-            Command::SetValue(q, v) => (self.pick(&q, is_editable), ActionKind::SetValue(v)),
-            Command::Select(Some(q), v) => (
-                self.pick(&q, |c| !c.options.is_empty()),
-                ActionKind::Select(v),
-            ),
-            Command::Select(None, v) => (self.pick_by_option(&v), ActionKind::Select(v)),
-            Command::Increment(q) => (self.pick(&q, is_steppable), ActionKind::Increment),
-            Command::Decrement(q) => (self.pick(&q, is_steppable), ActionKind::Decrement),
-            Command::FieldStep(step) => {
-                let focus = self.focus().await;
-                let field = step_field(&self.graph, focus.as_ref(), step)
-                    .cloned()
-                    .ok_or_else(|| {
-                        format!(
-                            "Kein {} Formularfeld.",
-                            match step {
-                                Step::Next => "weiteres",
-                                Step::Previous => "vorheriges",
-                            }
-                        )
-                    });
-                (field, ActionKind::Focus)
-            }
-            Command::WhereAmI => {
-                let focus = self.focus().await;
-                return Ok(respond::where_am_i(&self.graph, focus.as_ref()));
-            }
-            Command::Scroll(direction) => return self.scroll(direction).await,
-            Command::SectionStep(step) => {
-                let focus = self.focus().await;
-                return match step_heading(&self.graph, focus.as_ref(), step) {
-                    Some(h) => self.navigate(Place::Heading(h)).await,
-                    None => Ok(format!(
-                        "Keine {} Überschrift.",
-                        match step {
-                            Step::Next => "weitere",
-                            Step::Previous => "vorherige",
-                        }
-                    )),
-                };
-            }
-            Command::GoToPlace(q) => {
-                return match self.pick_place(&q) {
-                    Ok(place) => self.navigate(place).await,
-                    Err(msg) => Ok(msg),
-                }
-            }
-            Command::Read(q) => {
-                let place = match q {
-                    Some(q) => self.pick_place(&q),
-                    None => {
-                        current_place(&self.graph, self.focus().await.as_ref()).ok_or_else(|| {
-                            "Kein Abschnitt am Fokus. „lies den Abschnitt <Name>“ nennt einen."
-                                .into()
-                        })
-                    }
-                };
-                return Ok(match place {
-                    Ok(place) => respond::read_place(&self.graph, place),
-                    Err(msg) => msg,
-                });
-            }
-            Command::Inspect(q) => {
-                let found = resolve_inflected(&self.graph, &q, |_| true);
-                return Ok(match self.pick_from(&q, found) {
-                    Ok(c) => respond::inspect(&c),
-                    Err(msg) => msg,
-                });
-            }
-            Command::Dismiss => {
-                let focus = self.focus().await;
-                match dismissal(&self.graph, &self.model, focus.as_ref()) {
-                    Dismissal::Button(c) => (Ok(c.clone()), ActionKind::Activate),
-                    Dismissal::NothingOpen => {
-                        return Ok("Kein Dialog und kein aufgeklapptes Menü offen.".into())
-                    }
-                    Dismissal::Escape { target, reaches } => {
-                        return self.escape(&target, reaches.as_deref()).await
-                    }
-                }
-            }
+        let focus = if uses_focus(&cmd) {
+            self.focus().await
+        } else {
+            None
         };
-        let control = match target {
-            Ok(c) => c,
-            Err(msg) => return Ok(msg),
-        };
-        let label = respond::control_line(&control);
-
-        let plan = match plan_on_page(&self.graph.page, &control, kind) {
-            Ok(p) => p,
-            Err(rejection) => return Ok(format!("Abgelehnt: {rejection} ({label})")),
-        };
-        if plan.requires_confirmation && !confirmed {
-            return Ok(format!(
-                "Bestätigung nötig ({:?}): {} — Ziel: {label}. Mit „!“ davor bestätigen.",
-                plan.risk,
-                plan.notes.join("; ")
-            ));
+        match self
+            .session
+            .handle(&self.graph, &self.model, confirmed, cmd, focus.as_ref())
+        {
+            Outcome::Answer(text) => Ok(text),
+            Outcome::Perform { plan, label } => self.perform(plan, label).await,
+            Outcome::Escape { target, reaches } => self.escape(&target, reaches.as_deref()).await,
+            Outcome::Scroll(direction) => {
+                let (before, after, max) = act::scroll(&self.page, direction).await?;
+                Ok(respond::scrolled(direction, before, after, max))
+            }
         }
-        self.perform(plan, label).await
     }
 
     /// Validierten Plan ausführen, Ruhe abwarten, neu aufnehmen und die
@@ -398,58 +305,22 @@ impl Session {
         }
         let settled = self.live.settle().await;
         self.update(true, Some(settled)).await?;
-        let target = respond::target_change(&before_graph, &self.graph, &plan.target)
-            .map(|t| format!("{t}. "))
-            .unwrap_or_default();
-        Ok(format!(
-            "{:?} auf {label}. {target}{}",
-            plan.kind,
-            respond::describe_diff(&before, &self.model)
+        Ok(self.session.performed(
+            &plan,
+            &label,
+            (&before, &before_graph),
+            (&self.model, &self.graph),
         ))
     }
 
-    /// Escape senden und Wirkung melden (Risiko niedrig: schließt nur).
-    /// Escape an das fokussierte Element. `reaches`: Der Fokus liegt nicht
-    /// in `target`, Escape erreicht stattdessen dieses Element.
+    /// Escape an das fokussierte Element senden und die Wirkung melden
+    /// (Risiko niedrig: schließt nur).
     async fn escape(&mut self, target: &str, reaches: Option<&str>) -> Result<String> {
         let before = self.model.clone();
         act::press_escape(&self.page).await?;
         let settled = self.live.settle().await;
         self.update(true, Some(settled)).await?;
-        let focus = match reaches {
-            None => String::new(),
-            Some(r) => format!(" Der Fokus liegt nicht darin, Escape ging an {r}."),
-        };
-        Ok(format!(
-            "Escape für {target} (kein Schließen-Button gefunden).{focus} {}",
-            respond::describe_diff(&before, &self.model)
-        ))
-    }
-
-    /// Zu einer Überschrift oder einem Bereich (LOW, ohne Rückfrage).
-    async fn navigate(&mut self, place: Place) -> Result<String> {
-        let (node, dom_node_id) = match place {
-            Place::Heading(h) => {
-                let h = &self.graph.headings[h];
-                (h.node.clone(), h.dom_node_id)
-            }
-            Place::Region(r) => {
-                let r = &self.graph.regions[r];
-                (r.node.clone(), r.dom_node_id)
-            }
-        };
-        let label = respond::place_label(&self.graph, place);
-        match plan_navigation(&node, dom_node_id) {
-            Ok(plan) => self.perform(plan, label).await,
-            Err(rejection) => Ok(format!("Abgelehnt: {rejection} ({label})")),
-        }
-    }
-
-    /// Scrollen hat kein Zielelement und verändert nichts (LOW): wie Escape
-    /// ohne `ActionPlan`, Ergebnis aus der Scrollposition.
-    async fn scroll(&mut self, direction: ScrollDirection) -> Result<String> {
-        let (before, after, max) = act::scroll(&self.page, direction).await?;
-        Ok(respond::scrolled(direction, before, after, max))
+        Ok(self.session.escaped(target, reaches, &before, &self.model))
     }
 
     /// Aktueller Fokus als Knoten des Modells. Eine Fokusänderung ist keine
@@ -467,92 +338,6 @@ impl Session {
                 .map(|n| NodeRef::new(t.id.clone(), n.id))
         })
     }
-
-    fn pick_place(&self, query: &str) -> Result<Place, String> {
-        match resolve_place(&self.graph, query) {
-            PlaceResolution::One(place) => Ok(place),
-            PlaceResolution::None => Err(format!(
-                "Keine Überschrift und kein Bereich „{query}“ gefunden."
-            )),
-            PlaceResolution::Many(places) => Err(format!(
-                "Mehrdeutig, „{query}“ passt auf:\n{}",
-                places
-                    .iter()
-                    .map(|p| format!("  - {}", respond::place_label(&self.graph, *p)))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            )),
-        }
-    }
-
-    fn pick(&self, query: &str, accept: impl Fn(&Control) -> bool) -> Result<Control, String> {
-        self.pick_from(query, resolve(&self.graph, query, accept))
-    }
-
-    fn pick_from(&self, query: &str, found: Resolution) -> Result<Control, String> {
-        match found {
-            Resolution::One(c) => Ok(c.clone()),
-            Resolution::None => Err(match self.graph.active_modal() {
-                Some(m)
-                    if self.graph.controls.iter().any(|c| {
-                        !self.graph.is_reachable(c.region, &c.node)
-                            && c.name
-                                .value
-                                .as_deref()
-                                .is_some_and(|n| n.to_lowercase().contains(&query.to_lowercase()))
-                    }) =>
-                {
-                    format!(
-                        "„{query}“ ist gesperrt, solange „{}“ offen ist. Erst den Dialog schließen.",
-                        self.graph.regions[m].name.as_deref().unwrap_or("der Dialog")
-                    )
-                }
-                _ => format!("Nichts gefunden für „{query}“."),
-            }),
-            Resolution::Many(cs) => Err(format!(
-                "Mehrdeutig, „{query}“ passt auf:\n{}",
-                cs.iter()
-                    .map(|c| format!(
-                        "  - {} in {}",
-                        respond::control_line(c),
-                        self.graph.region_label(c.region)
-                    ))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            )),
-        }
-    }
-
-    fn pick_by_option(&self, option: &str) -> Result<Control, String> {
-        // Wie `resolve`: bei offenem modalem Dialog nur dessen Inhalt.
-        let hits: Vec<&Control> = self
-            .graph
-            .reachable_controls()
-            .filter(|c| c.options.iter().any(|o| o.eq_ignore_ascii_case(option)))
-            .collect();
-        match hits.as_slice() {
-            [one] => Ok((*one).clone()),
-            [] => Err(format!("Kein Auswahlfeld mit Option „{option}“.")),
-            many => Err(format!(
-                "Mehrere Auswahlfelder haben „{option}“: {}",
-                many.iter()
-                    .map(|c| c.display_name())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )),
-        }
-    }
-}
-
-fn is_editable(c: &Control) -> bool {
-    matches!(
-        c.role.as_str(),
-        "textbox" | "searchbox" | "combobox" | "spinbutton"
-    )
-}
-
-fn is_steppable(c: &Control) -> bool {
-    matches!(c.role.as_str(), "slider" | "spinbutton")
 }
 
 /// Tree-ID des `n`-ten Dokuments einer Session.
@@ -604,58 +389,57 @@ async fn run_files(browser: &Browser, files: &[&String]) -> Result<()> {
         println!("\n=== {} ===", path.display());
         let mut session: Option<Session> = None;
         let mut last = String::new();
-        for line in text
-            .lines()
-            .map(str::trim)
-            .filter(|l| !l.is_empty() && !l.starts_with('#'))
-        {
-            if let Some(url) = line.strip_prefix("url:") {
-                let url = to_url(url.trim(), &base);
-                println!("\n## {url}");
-                match Session::open(browser, &url).await {
-                    Ok(s) => {
-                        println!("{}", respond::describe(&s.graph));
-                        session = Some(s);
-                    }
-                    Err(e) => {
-                        println!("!! Seite nicht ladbar: {e}");
-                        session = None;
+        for line in parse_tasks(&text) {
+            match line {
+                TaskLine::Url(url) => {
+                    let url = to_url(&url, &base);
+                    println!("\n## {url}");
+                    match Session::open(browser, &url).await {
+                        Ok(s) => {
+                            println!("{}", respond::describe(&s.graph));
+                            session = Some(s);
+                        }
+                        Err(e) => {
+                            println!("!! Seite nicht ladbar: {e}");
+                            session = None;
+                        }
                     }
                 }
-            } else if let Some(input) = line.strip_prefix("do:") {
-                let Some(s) = session.as_mut() else { continue };
-                let started = Instant::now();
-                last = s
-                    .handle(input.trim())
-                    .await
-                    .unwrap_or_else(|e| format!("Fehler: {e}"));
-                println!(
-                    "\n> {}\n{}\n({} ms{})",
-                    input.trim(),
-                    indent(&last),
-                    started.elapsed().as_millis(),
-                    s.last_stats
-                        .as_deref()
-                        .map(|l| format!("; {l}"))
-                        .unwrap_or_default()
-                );
-            } else if let Some(text) = line.strip_prefix("assert:") {
-                let Some(s) = session.as_mut() else { continue };
-                last = assertions::run(s, text.trim())
-                    .await
-                    .unwrap_or_else(|e| format!("Fehler: {e}"));
-                println!("\n? {}\n{}", text.trim(), indent(&last));
-            } else if let Some(expected) = line.strip_prefix("expect:") {
-                if session.is_none() {
-                    continue;
+                TaskLine::Do(input) => {
+                    let Some(s) = session.as_mut() else { continue };
+                    let started = Instant::now();
+                    last = s
+                        .handle(&input)
+                        .await
+                        .unwrap_or_else(|e| format!("Fehler: {e}"));
+                    println!(
+                        "\n> {input}\n{}\n({} ms{})",
+                        indent(&last),
+                        started.elapsed().as_millis(),
+                        s.last_stats
+                            .as_deref()
+                            .map(|l| format!("; {l}"))
+                            .unwrap_or_default()
+                    );
                 }
-                let expected = expected.trim();
-                if last.to_lowercase().contains(&expected.to_lowercase()) {
-                    passed += 1;
-                    println!("  ✓ erwartet „{expected}“");
-                } else {
-                    failed += 1;
-                    println!("  ✗ erwartet „{expected}“ — FEHLT");
+                TaskLine::Assert(text) => {
+                    let Some(s) = session.as_mut() else { continue };
+                    last = assertions::run(s, &text)
+                        .await
+                        .unwrap_or_else(|e| format!("Fehler: {e}"));
+                    println!("\n? {text}\n{}", indent(&last));
+                }
+                TaskLine::Expect(expected) => {
+                    if session.is_none() {
+                        continue;
+                    }
+                    if expectation_met(&last, &expected) {
+                        passed += 1;
+                        println!("  ✓ erwartet „{expected}“");
+                    } else {
+                        failed += 1;
+                        println!("  ✗ erwartet „{expected}“ — FEHLT");
+                    }
                 }
             }
         }

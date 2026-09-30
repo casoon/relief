@@ -629,7 +629,7 @@ bis 152 alle vier Wochen, seitdem alle **zwei** Wochen.
 - Die Simulation nutzt nachgebaute Einfügungen; mit den echten Patches aus 17
   einmal nachmessen (`scripts/fork-apply.sh --force` auf ein neueres Tag).
 
-## Umsetzung im Fork (Pakete 17, 33) [belegt]
+## Umsetzung im Fork (Pakete 17, 24, 33) [belegt]
 
 Code in `fork/relief/` (→ `src/relief/`), Patches in `fork/patches/`,
 gebaut und gemessen gegen 154.0.8037.58; Messwerte in 09.
@@ -653,19 +653,33 @@ TabFeatures::Init ──(Patch 1)──> relief::AttachToTab(tab)       nur mit 
   ──BindPostTask──> ReliefTabHelper::Perform(ActionPlan)
         Knoten im eigenen Baum noch da? → AXActionHandlerRegistry::GetActionHandler(tree)
         → PerformAction(AXActionData{kDoDefault, tree, node})
+
+--relief-run (Paket 24): ReliefTaskRunner im ersten Tab
+  url: LoadURL → Ruhe + Hauptbaum der neuen Seite → describe_page
+  do:  RunCommand ──> RuntimeHost::RunCommand → run_command (Rust, Session)
+       ← Reply{Answer | Perform(Schritte) | Escape | Scroll}
+       Schritte: PerformStep → AXActionData bzw. Taste (ForwardKeyboardEvent)
+       Ruhe (kein AX-Paket 300 ms) → FinishCommand → Antwort
+  expect: Teilstring der Antwort; Ende: Zusammenfassung, Prozess endet
 ```
 
 - **Dateien:** `relief_attach.h` (einziger Header, den Chromium-Code
   einbindet), `relief_tab_helper.{h,cc}`, `relief_switches.h`,
   `bridge/ax_tree_mirror.{h,cc}` (eigener Baum, `AXNodeData` → Grenze,
   Rollennamen nach ARIA, Positionen), `bridge/runtime_host.{h,cc}`
-  (Runtime-Sequenz, Protokoll), `BUILD.gn` (zwei `rust_static_library`, ein
-  `source_set`, Gruppe `relief_tests`), `testing/` (Browser-Tests, unten).
+  (Runtime-Sequenz, Protokoll, Befehle), `relief_task_runner.{h,cc}`
+  (`--relief-run`), `BUILD.gn` (drei `rust_static_library`:
+  `relief-model`, `relief-interaction`, `relief-bridge`; ein `source_set`,
+  Gruppe `relief_tests`), `testing/` (Browser-Tests, unten). Welche Aktion
+  auf welchem AX-Weg läuft und die Ersatzwege: 05, „Im Fork über
+  `AXActionData`“.
 - **Schalter:** `--enable-relief`, `--relief-log=<datei>` (Tab-getrennte
   Zeilen `packet`/`location`/`drop`/`tree`/`page`/`reset`/`skip`/`probe`/
   `activate`/`diff`/`error`, sonst `LOG(INFO)`),
   `--relief-activate=<Name>` (einmal je Tab: erster Knoten in
   Dokumentreihenfolge mit genau diesem Namen, der DoDefault meldet),
+  `--relief-run=<aufgaben,…>` (Aufgabendateien abarbeiten, Ausgabe auf
+  stdout, danach endet der Prozess; `scripts/fork-run-tasks.sh`),
   `--relief-screen-reader-mode`, `--relief-log-nodes=<Rolle,…>` (nur
   lesend: Knoten dieser Rollen mit Baum, ID, Namen und Position als Zeilen
   `node`, spätere Verschiebungen als `bounds`). Messläufe zusätzlich mit

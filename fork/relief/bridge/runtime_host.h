@@ -57,6 +57,13 @@ class RuntimeHost {
   void Apply(bridge::Delta delta, PacketTiming timing);
   // Zeile ins Protokoll (auch für Ereignisse vom UI-Thread).
   void Log(const std::string& line);
+
+  // Befehle in Sprache (→ crates/relief-bridge/src/command.rs), gegen den
+  // Graphen nach allen bis dahin angewandten Deltas.
+  bridge::Reply RunCommand(const std::string& input);
+  std::string FinishCommand();
+  std::string DescribePage();
+  uint64_t NodeCount();
   void SetDeltaObserverForTesting(DeltaCallback callback);
 
  private:

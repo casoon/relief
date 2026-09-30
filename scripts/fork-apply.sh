@@ -45,7 +45,7 @@ version() {
 
 # Rust-Crates aus crates/, die //relief/BUILD.gn baut (nur src/; das
 # GN-Target ersetzt dort Cargo.toml).
-RUST_CRATES=(relief-model relief-bridge)
+RUST_CRATES=(relief-model relief-interaction relief-bridge)
 
 copy_relief() {
   [[ -d "$FORK/relief" ]] || { echo "fork/relief/ fehlt, nichts zu kopieren."; return; }

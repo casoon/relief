@@ -10,7 +10,10 @@ use relief_model::{
 /// Zustand einer Seite (eines Tabs) auf der Rust-Seite der Grenze.
 #[derive(Debug, Clone, Default)]
 pub struct Runtime {
-    graph: SemanticGraph,
+    pub(crate) graph: SemanticGraph,
+    /// Befehle in Sprache (→ `command`).
+    pub(crate) session: relief_interaction::Session,
+    pub(crate) pending: Option<crate::command::Pending>,
 }
 
 /// Auskunft über einen Knoten, mit Herkunft des Namens.

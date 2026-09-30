@@ -62,6 +62,23 @@ void RuntimeHost::Log(const std::string& line) {
   }
 }
 
+bridge::Reply RuntimeHost::RunCommand(const std::string& input) {
+  Log("command\t" + input);
+  return bridge::run_command(*runtime_, input);
+}
+
+std::string RuntimeHost::FinishCommand() {
+  return std::string(bridge::finish_command(*runtime_));
+}
+
+std::string RuntimeHost::DescribePage() {
+  return std::string(bridge::describe_page(*runtime_));
+}
+
+uint64_t RuntimeHost::NodeCount() {
+  return bridge::node_count(*runtime_);
+}
+
 void RuntimeHost::SetDeltaObserverForTesting(DeltaCallback callback) {
   delta_observer_ = std::move(callback);
 }

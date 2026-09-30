@@ -89,8 +89,9 @@ Entscheidungen dabei:
 - **Überschrift vor Bereich**: Heißen ein Bereich und eine Überschrift darin
   gleich (`<section aria-labelledby>`), gilt die Überschrift. Unbenannte
   Bereiche über Rollenwörter („Fußzeile“, „Hauptinhalt“ …).
-- **Navigation auf nicht fokussierbare Ziele** setzt `tabindex="-1"` bis zum
-  Verlassen (Muster der Sprunglinks); damit beginnt auch Tab dort.
+- **Navigation auf nicht fokussierbare Ziele** setzt im CDP-Host
+  `tabindex="-1"` bis zum Verlassen (Muster der Sprunglinks); damit beginnt
+  auch Tab dort. Im Fork anders (→ „Im Fork über `AXActionData`“).
 - **Erhöhen/Verringern** über echte Pfeiltasten statt `stepUp()`: wirkt auf
   native Felder und auf ARIA-Widgets, die nur Tasten kennen — am nächsten an
   `Increment`/`Decrement` im Fork.
@@ -127,8 +128,65 @@ Offen:
 - `list_landmarks`, `list_links`, `list_forms` als eigene Abfragen.
 - „Gehe zu den technischen Daten“ (gebeugter Name, ohne „Überschrift“)
   landet bei `focus` auf Bedienelementen und findet keine Überschrift.
-- Scrollen im Fork über `ScrollToMakeVisible`/`Scroll*` und damit doch als
-  `ActionPlan` (→ 24); `aria-valuetext` im Fork prüfen.
+- `aria-valuetext` im Fork: der Mirror übernimmt einen von der Zahl
+  abweichenden `kValue` als `valuetext`; im Lauf auf `intents.html` erscheint
+  beim Schieberegler keiner — ob Chromium ihn dort liefert, ist ungeprüft.
+
+## Im Fork über `AXActionData` (Paket 24) [belegt]
+
+Der Befehlsablauf ist browserfrei und für beide Hosts derselbe
+(`relief_interaction::session`): Eingabe → `Session::handle` → Antwort oder
+geprüfter `ActionPlan`; nach der Ausführung und der Ruhe liefert
+`Session::performed` bzw. `escaped` die Antwort aus den Ständen vorher und
+nachher. Im Fork übersetzt `relief-bridge` (`command.rs`, `ax_steps`) den
+Plan in Schritte, die der Tab-Helfer als `AXActionData` an den Frame des
+Knotens schickt; `--relief-run=<aufgaben>` arbeitet Aufgabendateien damit ab
+(`scripts/fork-run-tasks.sh`).
+
+| `ActionKind` | Weg im Fork |
+|---|---|
+| `Activate` | `kDoDefault` (Blink: simulierter Klick, `AccessKeyAction`) |
+| `Focus` | `kFocus` |
+| `SetValue(v)` | `kFocus`, `kSetValue` (Blink setzt den Wert mit `input`/`change`) |
+| `Select(o)` | `kDoDefault` auf der Option `o` unter dem Auswahlfeld (Blink: `HTMLOptionElement::AccessKeyAction` wählt aus) |
+| `NavigateTo` | `kScrollToMakeVisible`, `kSetSequentialFocusNavigationStartingPoint` |
+| `Increment`/`Decrement` | `kFocus`, dann **echte Pfeiltaste** (Ersatzweg) |
+| Escape (Schließen ohne Button) | **echte Taste** an das fokussierte Widget (Ersatzweg) |
+| Scrollen | `kSetScrollOffset` am Root-Scroller; Position aus dem eigenen Baum |
+
+Was `AXActionData` nicht abdeckt, und der Ersatzweg:
+
+- **Tasten** (Escape): `AXActionData` kennt keine Tastaturereignisse.
+  Ersatz: `RenderWidgetHost::ForwardKeyboardEvent` an das Widget des
+  fokussierten Frames — dieselbe Eingabe wie von der Tastatur.
+- **`Increment`/`Decrement` an ARIA-Widgets:** Blink erreicht sie nur mit
+  dem experimentellen Feature
+  `SynthesizedKeyboardEventsForAccessibilityActions` (Pfeiltaste am
+  Element); ohne es bricht `AlterSliderOrSpinButtonValue` ohne `step` ab. Mit
+  dem Feature schickt Blink einem Knoten ohne vertikale Ausrichtung „Pfeil
+  rechts“, und `<input type=number>` übergeht das (gemessen: Menge bleibt
+  1). Ersatz: fokussieren über AX, dann Pfeil hoch/runter als echte Taste,
+  wie im CDP-Host; wirkt auf native Felder und Tasten-Widgets.
+- **Fokus auf nicht fokussierbare Ziele** (Überschrift, Bereich): `kFocus`
+  scheitert (`CanSetFocusAttribute`). Ersatz ohne DOM-Eingriff: Startpunkt
+  der Tab-Reihenfolge dort setzen (Blink nimmt dabei den Fokus weg) und die
+  **Position** in der Sitzung merken, bis der Fokus sich bewegt; „wo bin
+  ich“, nächster Abschnitt/nächstes Feld und „lies den Abschnitt“ gehen von
+  ihr aus, die Antwort nennt sie als Fokus. Ein Screenreader-Cursor macht
+  dasselbe. Escape geht weiter an den echten Fokus.
+
+Messung (M4, Chromium 154.0.8037.58 mit `--enable-relief`):
+`scripts/fork-run-tasks.sh spike/tasks/0[1-5]*.txt` → „68 erfüllt, 0 nicht
+erfüllt“, zweimal hintereinander; derselbe Stand über CDP ebenfalls 68/0.
+Aktionen warten auf Ruhe = 300 ms ohne AX-Paket (Baum oder Positionen),
+mindestens 150 ms, höchstens 3 s; typische Antwortzeit 300–600 ms. Die
+Wiederholung hängt an `--disable-backgrounding-occluded-windows`: ein
+verdecktes Fenster rendert nicht, dann serialisiert Blink keinen Baum.
+
+Dafür am Mirror nachgezogen: `kHeader`/`kFooter` (Blink vergibt sie nur
+außerhalb von Sectioning-Inhalt) als `banner`/`contentinfo`, Wertebereiche
+(`valuenow` als Wert, `valuemin`/`valuemax`, abweichender Text als
+`valuetext`) wie im CDP-Konverter.
 
 ## Intent-Format [Annahme]
 

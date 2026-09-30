@@ -31,6 +31,29 @@ rust_static_library("relief_model_rs") {
   deps = [ "//third_party/rust/serde/v1:lib" ]
 }
 
+# Interaction Graph, Befehle in Sprache und Aktionsvalidierung, browserfrei
+# (dieselbe Logik wie im CDP-Host).
+rust_static_library("relief_interaction_rs") {
+  visibility = [ ":*" ]
+  crate_name = "relief_interaction"
+  crate_root = "crates/relief-interaction/src/lib.rs"
+  edition = "2021"
+  sources = [
+    "crates/relief-interaction/src/command.rs",
+    "crates/relief-interaction/src/graph.rs",
+    "crates/relief-interaction/src/lib.rs",
+    "crates/relief-interaction/src/page.rs",
+    "crates/relief-interaction/src/resolve.rs",
+    "crates/relief-interaction/src/respond.rs",
+    "crates/relief-interaction/src/session.rs",
+    "crates/relief-interaction/src/validate.rs",
+  ]
+  deps = [
+    ":relief_model_rs",
+    "//third_party/rust/serde/v1:lib",
+  ]
+}
+
 # Runtime hinter der Grenze und cxx-Bridge (Variante A, in-process).
 rust_static_library("relief_bridge_rs") {
   visibility = [ ":*" ]
@@ -38,6 +61,7 @@ rust_static_library("relief_bridge_rs") {
   crate_root = "crates/relief-bridge/src/lib.rs"
   edition = "2021"
   sources = [
+    "crates/relief-bridge/src/command.rs",
     "crates/relief-bridge/src/cxx_bridge.rs",
     "crates/relief-bridge/src/lib.rs",
     "crates/relief-bridge/src/runtime.rs",
@@ -47,11 +71,15 @@ rust_static_library("relief_bridge_rs") {
   # Der von cxx erzeugte Code braucht `unsafe`; der eigene Code verbietet es
   # per `#![deny(unsafe_code)]` außerhalb des Bridge-Moduls.
   allow_unsafe = true
-  deps = [ ":relief_model_rs" ]
+  deps = [
+    ":relief_interaction_rs",
+    ":relief_model_rs",
+  ]
 }
 
 # Tab-Helfer: eigener AXTree je Frame (Weg B), Deltas an die Rust-Runtime
-# auf eigener Sequenz, Rückweg über AXActionData. Nur mit --enable-relief.
+# auf eigener Sequenz, Rückweg über AXActionData; Aufgaben-Runner
+# (--relief-run). Nur mit --enable-relief.
 source_set("relief") {
   sources = [
     "bridge/ax_tree_mirror.cc",
@@ -62,15 +90,21 @@ source_set("relief") {
     "relief_switches.h",
     "relief_tab_helper.cc",
     "relief_tab_helper.h",
+    "relief_task_runner.cc",
+    "relief_task_runner.h",
   ]
   deps = [
     ":relief_bridge_rs",
     "//base",
+    "//components/input",
     "//components/tabs:public",
     "//content/public/browser",
     "//third_party/abseil-cpp:absl",
     "//third_party/blink/public/common",
+    "//net",
     "//ui/accessibility",
+    "//ui/events:dom_keycode_converter",
+    "//ui/events:events_base",
     "//ui/gfx/geometry",
     "//url",
   ]
