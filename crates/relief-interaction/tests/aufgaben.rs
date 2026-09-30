@@ -395,7 +395,7 @@ fn befund_checkbox_zustand_ueber_graph() {
         "Fokus jetzt auf checkbox „Datenschutzhinweise gelesen“."
     );
     assert_eq!(
-        respond::target_change(&g, &graph(&nachher), &p.target).as_deref(),
+        respond::target_change(&g, &graph(&nachher), &p.target, false).as_deref(),
         Some("Ziel jetzt: checked=true")
     );
 }
@@ -531,7 +531,7 @@ fn apg_disclosure_aufklappen() {
     assert!(diff(&vorher, &nachher)
         .contains("„Is there free parking on holidays?“: expanded false → true."));
     assert_eq!(
-        respond::target_change(&g, &graph(&nachher), &p.target).as_deref(),
+        respond::target_change(&g, &graph(&nachher), &p.target, false).as_deref(),
         Some("Ziel jetzt: expanded=true")
     );
     // Disclosure ohne `hasPopup`: kein Popup, das „schließen“ meint.

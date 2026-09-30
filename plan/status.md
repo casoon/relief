@@ -112,7 +112,10 @@ Tests, Bestätigungstoken, Grenzen je Aufgabe, Security-Log), beschrieben in
 der Bestätigungs-Bypass ist auch im Fork getestet. Hosts schreiben das
 Security-Log, ein Anbieter lässt sich nur über `Budget` aufrufen (`Permit`),
 die Rückfrage nennt und bindet im CDP-Host das Formularziel und verdeckt
-sensible Werte (Paket 58, im Fork belegt).
+sensible Werte (Paket 58, im Fork belegt). Auch die Antwort nach einer
+Aktion verdeckt sie, Protokolle den Wert jedes Ausfüll- und Auswahlbefehls
+(Paket 76, im Fork belegt), beschrieben in
+[spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#sensible-werte-außerhalb-der-rückfrage-umgesetzt-paket-76-im-fork-belegt).
 
 Befunde aus `a11y-rules` im Inspector (Stufe `Semantics` auf dem AXTree,
 übrige Regeln als nicht geprüft), beschrieben in
@@ -123,7 +126,7 @@ beschrieben in
 [spezifikation/01](spezifikation/01-chromium-integration.md#name-und-branding-paket-36-belegt).
 
 **Sofort startbar:**
-- Cloud: 76 (Werte außerhalb der Rückfrage), 85 (Frames anderer Prozesse, Nachtrag)
+- Cloud: 85 (Frames anderer Prozesse, Nachtrag), 100 (sensible Werte in Auskünften)
 - Cloud + M4: 26 (Sprache), 29 (Semantic View), 111 (Branding-Reste), 45 (Playwright), 110 (Consent: Zweck-Titel)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
@@ -151,8 +154,8 @@ beschrieben in
 | 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 ✓ | [45](45-playwright-anbindung.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 ✓ | [47](47-relief-ui-accessibility.md) |
 | 75 | Formularziel und HTML-`autocomplete` im Fork | Cloud + M4 | offen, Weg (b) entschieden | 58 ✓ | [75](75-formularziel-im-fork.md) |
-| 76 | Sensible Werte außerhalb der Rückfrage (Antwort, Protokolle) | Cloud + M4 | offen | 58 ✓ | [76](76-werte-ausserhalb-der-rueckfrage.md) |
 | 85 | CDP-Host: Frames anderer Prozesse, Nachtrag (Änderungssignal, Verschachtelung, Zählung) | Cloud | offen | 70 ✓ | [85](85-cdp-host-frames-nachtrag.md) |
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
+| 100 | Sensible Werte in Auskünften und unverstandenen Eingaben | Cloud + M4 | offen | 76 ✓ | [100](100-sensible-werte-in-auskuenften.md) |
 | 110 | Consent: Zweck-Titel und Rückfrage je Zweck | Cloud + M4 | offen | 91 ✓ | [110](110-consent-zweck-titel.md) |

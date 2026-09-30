@@ -207,7 +207,9 @@ flowchart LR
   Inspector“.
 - **Security-Log**: nach jeder Eingabe (`RuntimeHost::RunCommand`) holt der
   Host das Log der Sitzung ab (`take_security_log`) und schreibt je Eintrag
-  `security\t<JSON>` ins Protokoll (`--relief-log`, sonst `LOG(INFO)`).
+  `security\t<JSON>` ins Protokoll (`--relief-log`, sonst `LOG(INFO)`). Die
+  Eingabe selbst steht davor als `command\t…` mit verdecktem Wert
+  (`bridge::redact_input`), ebenso im Log der Befehlsleiste des Panels.
 - **Feldangaben**: der Mirror legt HTML-`type` eines `<input>` (`kInputType`)
   als `extra["inputType"]` ab; HTML-`autocomplete` und das Formularziel
   serialisiert Blink nicht in `AXNodeData`.
@@ -261,7 +263,8 @@ flowchart LR
   Security-Log (`Session::take_security_log`: Entscheidung, Plan-ID,
   Aktionsart, Risiko, Grund; keine Werte, keine Namen). Der Host holt es
   nach jeder Eingabe ab und schreibt es mit `RELIEF_LOG` als JSON-Zeilen
-  (`palette`: in ihr Protokoll); ungeholt hält es die letzten 256 Einträge.
+  (`palette`: in ihr Protokoll, die Eingabe dort mit verdecktem Wert,
+  `redact_input`); ungeholt hält es die letzten 256 Einträge.
 - **Formularziel und Feldangaben** (`facts.rs`): nach jeder Aufnahme ein
   `DOM.getDocument` (Tiefe -1, `pierce`); Absenden-Buttons bekommen
   `extra["formAction"]` (`formaction`, sonst `action` des Formulars über

@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><title>Anmelden – Testseite</title></head>
+<body>
+<main>
+  <h1>Anmelden</h1>
+  <form aria-label="Anmeldung" action="/anmelden" method="post">
+    <p><label for="nick">Anzeigename</label> <input id="nick"></p>
+    <p><label for="user">Benutzername</label> <input id="user" autocomplete="username"></p>
+    <p><label for="pw">Passwort</label> <input id="pw" type="password" autocomplete="current-password"></p>
+    <p><label for="card">Kartennummer</label> <input id="card" autocomplete="cc-number"></p>
+    <button type="submit">Anmelden</button>
+  </form>
+</main>
+</body>
+</html>

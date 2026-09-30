@@ -69,6 +69,21 @@ pub fn parse_input(input: &str) -> Result<(bool, Command), String> {
     Ok((confirmed, parse(input)?))
 }
 
+/// Eingabe für ein Protokoll: der Wert eines Befehls, der einen Wert setzt
+/// oder wählt, ist verdeckt, unabhängig vom Ziel (das steht beim
+/// Protokollieren noch nicht fest). Alles andere bleibt, wie es eingegeben
+/// wurde, auch Unverstandenes (→ `plan/spezifikation/07`, „Security-Log“).
+pub fn redact_input(input: &str) -> String {
+    let value = match parse_input(input) {
+        Ok((_, Command::SetValue(_, value) | Command::Select(_, value))) => value,
+        _ => return input.to_string(),
+    };
+    if value.is_empty() {
+        return input.to_string();
+    }
+    input.replace(&value, "(verdeckt)")
+}
+
 /// Braucht der Befehl den aktuellen Fokus? Hosts, die ihn erst erfragen
 /// müssen (CDP), tun das nur dann.
 pub fn uses_focus(cmd: &Command) -> bool {
@@ -522,7 +537,7 @@ impl Session {
         confirmed: bool,
         offered: Option<Confirmation>,
     ) -> Outcome {
-        let label = respond::control_line(&control);
+        let label = target_line(model, &control);
 
         let action = action_name(&kind);
         let kind_for_confirm = kind.clone();
@@ -617,7 +632,9 @@ impl Session {
         } else {
             self.position(focus_after.as_ref())
         };
-        let target = respond::target_change(before.1, after.1, &plan.target)
+        // Sensible Felder wie in der Rückfrage: weder Wert noch Wertwechsel.
+        let sensitive = is_sensitive_target(before.0, &plan.target);
+        let target = respond::target_change(before.1, after.1, &plan.target, sensitive)
             .map(|t| format!("{t}. "))
             .unwrap_or_default();
         // Nach dem Absenden eines Formulars: Fehler ansagen und hinführen.
@@ -627,13 +644,14 @@ impl Session {
             .map(|e| format!(" {e}"))
             .unwrap_or_default();
         format!(
-            "{:?} auf {label}. {target}{}{errors}",
-            plan.kind,
+            "{} auf {label}. {target}{}{errors}",
+            kind_text(&plan.kind, sensitive),
             respond::describe_diff_at(
                 before.0,
                 after.0,
                 focus_before.as_ref(),
-                position_after.as_ref()
+                position_after.as_ref(),
+                sensitive.then_some(&plan.target),
             )
         )
     }
@@ -656,9 +674,44 @@ impl Session {
                 before,
                 after,
                 self.position(focused(before).as_ref()).as_ref(),
-                self.position(focused(after).as_ref()).as_ref()
+                self.position(focused(after).as_ref()).as_ref(),
+                None,
             )
         )
+    }
+}
+
+/// Ist das Ziel ein sensibles Feld (Passwort, `autocomplete` für Zahlungs-
+/// und Identitätsdaten, → [`is_sensitive_field`])?
+fn is_sensitive_target(model: &SemanticGraph, target: &NodeRef) -> bool {
+    model.node(target).is_some_and(|n| {
+        is_sensitive_field(
+            n.extra.get(INPUT_TYPE).map(String::as_str),
+            n.extra.get(HTML_AUTOCOMPLETE).map(String::as_str),
+        )
+    })
+}
+
+/// Ziel für Rückfrage und Antwort; bei einem sensiblen Feld ohne seinen
+/// bisherigen Wert.
+fn target_line(model: &SemanticGraph, control: &Control) -> String {
+    if is_sensitive_target(model, &control.node) {
+        let hidden = Control {
+            value: None,
+            ..control.clone()
+        };
+        respond::control_line(&hidden)
+    } else {
+        respond::control_line(control)
+    }
+}
+
+/// Aktion für Rückfrage und Antwort; bei einem sensiblen Feld ohne Wert.
+fn kind_text(kind: &ActionKind, sensitive: bool) -> String {
+    match kind {
+        ActionKind::SetValue(_) if sensitive => "SetValue(verdeckt)".to_string(),
+        ActionKind::Select(_) if sensitive => "Select(verdeckt)".to_string(),
+        other => format!("{other:?}"),
     }
 }
 
@@ -676,26 +729,9 @@ fn confirmation_prompt(
     refused: Option<Reason>,
 ) -> String {
     let node = model.node(&plan.target);
-    let sensitive = node.is_some_and(|n| {
-        is_sensitive_field(
-            n.extra.get(INPUT_TYPE).map(String::as_str),
-            n.extra.get(HTML_AUTOCOMPLETE).map(String::as_str),
-        )
-    });
-    let (kind, label) = if sensitive {
-        let kind = match &plan.kind {
-            ActionKind::SetValue(_) => "SetValue(verdeckt)".to_string(),
-            ActionKind::Select(_) => "Select(verdeckt)".to_string(),
-            other => format!("{other:?}"),
-        };
-        let hidden = Control {
-            value: None,
-            ..control.clone()
-        };
-        (kind, respond::control_line(&hidden))
-    } else {
-        (format!("{:?}", plan.kind), respond::control_line(control))
-    };
+    let sensitive = is_sensitive_target(model, &plan.target);
+    let kind = kind_text(&plan.kind, sensitive);
+    let label = target_line(model, control);
     let what = if node.is_some_and(|n| n.url.is_some()) {
         "Adresse"
     } else {
@@ -1193,6 +1229,86 @@ mod tests {
             let refused = run(&mut s, &model, true, other).unwrap();
             assert!(refused.contains("anderer Wert"), "{refused}");
         }
+    }
+
+    #[test]
+    fn sensible_werte_stehen_nicht_in_der_antwort() {
+        let answer = |model: &SemanticGraph| {
+            let mut s = Session::new();
+            let graph = Graph::build(model);
+            let fill = Command::SetValue("Menge".into(), "geheim123".into());
+            let Outcome::Perform { plan, label } = s.handle(&graph, model, false, fill, None)
+            else {
+                panic!("Plan erwartet")
+            };
+            // Wert und, wie Chromium ihn zeigt, Text im Feld.
+            let text_id = relief_model::NodeId(999);
+            let mut filled = with_node(model, 20, |n| {
+                n.value = relief_model::Fact::known(Some("geheim123".into()));
+                n.children.push(text_id);
+            });
+            let tree = filled.trees.get_mut(&crate::graph::at(20).tree).unwrap();
+            let mut text = tree.nodes[&relief_model::NodeId(20)].clone();
+            text.id = text_id;
+            text.role = relief_model::Role::StaticText;
+            text.name = relief_model::Fact::known(Some("geheim123".into()));
+            text.value = relief_model::Fact::known(None);
+            text.parent = Some(relief_model::NodeId(20));
+            text.children.clear();
+            text.extra.clear();
+            tree.nodes.insert(text_id, text);
+            s.performed(
+                &plan,
+                &label,
+                (model, &graph),
+                (&filled, &Graph::build(&filled)),
+            )
+        };
+
+        let base = crate::graph::sample_tree();
+        let plain = answer(&base);
+        assert!(
+            plain.starts_with("SetValue(\"geheim123\") auf [spinbutton] Menge = „1“"),
+            "{plain}"
+        );
+        assert!(plain.contains("Wert 1 → geheim123"), "{plain}");
+        assert!(plain.contains("Neuer Text: „geheim123“"), "{plain}");
+
+        for (key, value) in [
+            (crate::security::INPUT_TYPE, "password"),
+            (crate::security::HTML_AUTOCOMPLETE, "cc-number"),
+        ] {
+            let model = with_node(&base, 20, |n| {
+                n.extra.insert(key.into(), value.into());
+            });
+            let text = answer(&model);
+            assert!(
+                text.starts_with("SetValue(verdeckt) auf [spinbutton] Menge "),
+                "{text}"
+            );
+            assert!(!text.contains("„1“"), "bisheriger Wert in: {text}");
+            assert!(text.contains("Ziel jetzt: Wert geändert"), "{text}");
+            assert!(!text.contains("geheim123"), "{text}");
+        }
+    }
+
+    #[test]
+    fn protokoll_verdeckt_werte() {
+        assert_eq!(
+            redact_input("fülle Passwort mit „geheim123“"),
+            "fülle Passwort mit „(verdeckt)“"
+        );
+        assert_eq!(
+            redact_input("!set Passwort = geheim123"),
+            "!set Passwort = (verdeckt)"
+        );
+        assert_eq!(
+            redact_input("wähle 43 bei Größe"),
+            "wähle (verdeckt) bei Größe"
+        );
+        assert_eq!(redact_input("klicke Anmelden"), "klicke Anmelden");
+        assert_eq!(redact_input("set Suche ="), "set Suche =");
+        assert_eq!(redact_input("unverständlich"), "unverständlich");
     }
 
     // Overlay- und Consent-Dialoge (→ `crate::overlay`): Consent-iframe im
