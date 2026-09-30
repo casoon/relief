@@ -14,9 +14,11 @@
 //! | [`resolve`] | Zielbeschreibung → Bedienelement, Mehrdeutigkeit wird gemeldet |
 //! | [`validate`] | Bedienelement + Aktion → [`validate::ActionPlan`] mit Risikoklasse |
 //! | [`respond`] | Antworttexte für Abfragen und Aktionsergebnisse |
+//! | [`assertions`] | Formular-Zusicherungen → Befunde (`a11y-report`) |
 
 #![forbid(unsafe_code)]
 
+pub mod assertions;
 pub mod command;
 pub mod graph;
 pub mod page;

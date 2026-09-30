@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><title>Rückruf – kaputtes Formular</title>
+<style>
+  .hidden { display: none; }
+  .modal { border: 1px solid; padding: 1em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Rückruf anfordern</h1>
+  <!-- Kaputtes Gegenstück zu form-clean.html: je Zusicherung ein Fehler
+       (spike/tasks/06-form-assertions.txt). -->
+  <form id="f" novalidate aria-label="Rückrufformular">
+    <p><label for="name">Name</label> <input id="name" autocomplete="name"></p>
+    <p><label for="phone">Telefon</label> <input id="phone" type="tel" required>
+       <!-- Fehlermeldung ohne Verknüpfung zum Feld -->
+       <span class="error" id="phone-err"></span></p>
+    <!-- Beschriftung mit per CSS verborgenem Zusatz: Chromium „PLZ“, accname mehr -->
+    <p><label for="plz">PLZ <span class="hidden">(intern: Feld 7)</span></label> <input id="plz"></p>
+    <!-- aus der Tab-Folge genommen -->
+    <p><label for="note">Anliegen</label> <textarea id="note" tabindex="-1"></textarea></p>
+    <!-- Feld ohne Beschriftung, nur Platzhalter-Optik davor -->
+    <p><span>Rückrufzeit</span> <input id="time"></p>
+    <button type="submit">Rückruf anfordern</button>
+  </form>
+  <!-- Ergebnis ohne Live-Region -->
+  <p id="done"></p>
+</main>
+<!-- Dialog ohne Namen, ohne Text, ohne Fokus, ohne Abbrechen -->
+<div class="modal" role="dialog" id="confirm" hidden>
+  <span aria-hidden="true">⚠</span>
+  <button type="button" id="ok">OK</button>
+</div>
+<script>
+  const phone = document.getElementById('phone');
+  const dialog = document.getElementById('confirm');
+  document.getElementById('f').onsubmit = (e) => {
+    e.preventDefault();
+    if (!phone.value) {
+      phone.setAttribute('aria-invalid', 'true');
+      document.getElementById('phone-err').textContent = 'Bitte Telefonnummer angeben.';
+      return;
+    }
+    phone.removeAttribute('aria-invalid');
+    document.getElementById('phone-err').textContent = '';
+    dialog.hidden = false;
+  };
+  document.getElementById('ok').onclick = () => {
+    dialog.hidden = true;
+    document.getElementById('done').textContent =
+      'Danke, Rückruf angefordert. Wir melden uns unter ' + phone.value + '.';
+  };
+</script>
+</body>
+</html>
