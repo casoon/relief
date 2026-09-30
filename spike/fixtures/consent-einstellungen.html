@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Zeitung mit zweiter Ebene</title></head>
+<body>
+<main>
+  <h1>Zeitung</h1>
+  <a href="#artikel">Zum Artikel</a>
+  <p role="status" id="s"></p>
+</main>
+<!-- Erste Ebene wie sueddeutsche.de: Zustimmen, Abo ohne Signalwort
+     („Jetzt testen“ unter einer Abo-Überschrift), Einstellungen. Ablehnen
+     gibt es erst in den Einstellungen (zweite Ebene). -->
+<div role="dialog" aria-modal="true" aria-label="Sie haben die Wahl" id="d1">
+  <h2>Weiter mit Werbung</h2>
+  <p>Wir und unsere Partner verarbeiten Daten; Details in den Datenschutzhinweisen.</p>
+  <button id="accept">Ich bin einverstanden</button>
+  <button id="settings">Einstellungen</button>
+  <h2>Weiter mit Plus-Abo</h2>
+  <p>In den ersten vier Wochen für 0,99 €.</p>
+  <button id="trial">Jetzt testen</button>
+</div>
+<div role="dialog" aria-modal="true" aria-label="Privatsphäre-Einstellungen" id="d2" hidden>
+  <p>Wählen Sie, welche Cookies wir verwenden dürfen.</p>
+  <button id="reject">Alle ablehnen</button>
+  <button id="save">Auswahl speichern</button>
+</div>
+<script>
+  const d1 = document.getElementById('d1'), d2 = document.getElementById('d2');
+  const say = (text) => { document.getElementById('s').textContent = text; };
+  document.getElementById('accept').onclick = () => { d1.hidden = true; say('Zustimmung gespeichert.'); };
+  document.getElementById('trial').onclick = () => say('Abo-Seite geöffnet.');
+  document.getElementById('settings').onclick = () => { d1.hidden = true; d2.hidden = false; };
+  document.getElementById('reject').onclick = () => { d2.hidden = true; say('Ablehnung gespeichert.'); };
+</script>
+</body></html>

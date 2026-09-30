@@ -37,6 +37,12 @@ Frames im Prozess der Seite, auch ohne eigene Aktion und verschachtelt.
 3. `measure` getrennt nach Weg zählen und die nicht erreichbaren Frames auf
    bild.de und spiegel.de erklären.
 
+- **Sporadischer Ausfall:** nach dem Zusammenführen mit main ergab
+  `relief-cdp test` über 01–09 einmal 154/155, in acht weiteren Läufen 155/155;
+  welche Erwartung ausfiel, ist nicht festgehalten (Ausgabe verworfen).
+  Beim nächsten Auftreten Ausgabe sichern; Verdacht: Ruhe-Erkennung ohne
+  Signale aus Frame-Sitzungen (Punkt oben).
+
 ## Fertig, wenn
 
 - Eine Testseite (`url: server:…`), deren fremdes iframe nach dem Laden

@@ -322,10 +322,14 @@ flowchart LR
   Antwort, wohin Escape ging. Ein Button, dessen Name nach Zustimmung oder
   Abo klingt („Akzeptieren und schließen“), gilt nie als Schließen-Button.
 - **Overlays** (`overlay`): erreichbare Dialoge und nach Einwilligung
-  benannte Bereiche, auch mit den Buttons in einem iframe darin; Art und
-  Buttons nach Wörtern eingeordnet (Inferenz mit Evidence). „cookies
-  ablehnen“ wird ein gewöhnlicher `ActionPlan` (`Activate`) auf den einen
-  Button, der ablehnt; Links und Buttons mit Abo-Wörtern lehnen nicht ab.
+  benannte Bereiche (diese nur mit einem Zustimmen- oder Ablehnen-Button),
+  auch mit den Buttons in einem iframe darin; ohne sie die Seite selbst als
+  Cookie-Hinweis (`region: None`, Zustimmen-Button unter einer
+  Einwilligungs-Überschrift). Art und Buttons nach Wörtern eingeordnet,
+  Buttons ohne Signalwort unter einer Abo-Überschrift als Abo (Inferenz mit
+  Evidence). „cookies ablehnen“ und „cookie-einstellungen öffnen“ werden ein
+  gewöhnlicher `ActionPlan` (`Activate`) auf den einen Button dieser Art;
+  Links und Buttons mit Abo-Wörtern lehnen nicht ab.
   „was ist hinter dem Dialog“ liest gesperrte Überschriften und
   Bedienelemente, merkt aber keine Auswahl.
 - **Befehlsleiste** (`palette`): `palette.js` kommt per

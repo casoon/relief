@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Magazin</title></head>
+<body>
+<!-- Wie golem.de: Einwilligungsseite ohne dialog. Zustimmen oder Abo
+     („pur“), kein kostenloses Ablehnen. -->
+<header><a href="#start">Magazin – Startseite</a></header>
+<h1>Willkommen beim Magazin!</h1>
+<h2>Cookies zustimmen</h2>
+<p>Besuchen Sie das Magazin wie gewohnt mit Werbung und Tracking, indem Sie
+  der Nutzung aller Cookies zustimmen. Details im <a href="#pc">Privacy Center</a>.</p>
+<button id="accept">Zustimmen und weiter</button>
+<p>Widerruf jederzeit über die <a href="#ds">Datenschutzerklärung</a>.</p>
+<h2>… oder Magazin pur bestellen</h2>
+<p>Mit Magazin pur ab 3 Euro pro Monat ohne Werbecookies.</p>
+<a href="#pur" id="pay">Zu Magazin pur</a>
+<a href="#impressum">Impressum</a>
+<p role="status" id="s"></p>
+<script>
+  document.getElementById('accept').onclick = () => {
+    document.getElementById('s').textContent = 'Zustimmung gespeichert.';
+  };
+</script>
+</body></html>

@@ -95,8 +95,11 @@ Overlay- und Consent-Dialoge erkannt, angesagt (Art und Buttons als
 Vermutung mit Evidence) und auf Befehl abgelehnt, nie zugestimmt; kein
 Ablehnen ohne Bezahlung wird angesagt, nicht umgangen; auf spiegel.de,
 bild.de, welt.de, faz.net, t-online.de, heise.de erkannt, Ablehnen auf
-google.de, zdf.de, ikea.com ausgeführt, beschrieben in
-[spezifikation/05](spezifikation/05-intents-und-aktionen.md#overlay--und-consent-dialoge-paket-40-belegt).
+google.de, zdf.de, ikea.com ausgeführt; Einwilligungsseite ohne Dialog
+(golem.de) als Cookie-Hinweis, Korpus ohne Fehltreffer, Abo ohne Signalwort
+(sueddeutsche.de „Jetzt testen“), Einstellungen nur auf „cookie-einstellungen
+öffnen“, beschrieben in
+[spezifikation/05](spezifikation/05-intents-und-aktionen.md#overlay--und-consent-dialoge-pakete-40-80-belegt).
 
 Sicherheits-Regressionsmatrix umgesetzt (Missbrauchsfälle als
 Tests, Bestätigungstoken, Grenzen je Aufgabe, Security-Log), beschrieben in
@@ -108,12 +111,12 @@ sensible Werte (Paket 58, im Fork belegt).
 
 **Sofort startbar:**
 - Cloud: 76 (Werte außerhalb der Rückfrage), 85 (Frames anderer Prozesse, Nachtrag)
-- Cloud + M4: 26 (Sprache), 29 (Semantic View), 39 (Formular-Assistent), 21 (Befunde im Inspector), 36 (Branding), 45 (Playwright), 80 (Consent-Nachtrag)
+- Cloud + M4: 26 (Sprache), 29 (Semantic View), 39 (Formular-Assistent), 21 (Befunde im Inspector), 36 (Branding), 45 (Playwright), 91 (Consent: zweite Ebene)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
-- Linie A: 26, 29, 39 parallel → 41 (40 erledigt, Nachtrag 80);
+- Linie A: 26, 29, 39 parallel → 41 (40 und 80 erledigt, Nachtrag 91);
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 (44 erledigt), 43 zurückgestellt; 85 jederzeit (70 erledigt).
 - Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
@@ -138,6 +141,6 @@ sensible Werte (Paket 58, im Fork belegt).
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 ✓ | [47](47-relief-ui-accessibility.md) |
 | 75 | Formularziel und HTML-`autocomplete` im Fork | Cloud + M4 | offen, Weg (b) entschieden | 58 ✓ | [75](75-formularziel-im-fork.md) |
 | 76 | Sensible Werte außerhalb der Rückfrage (Antwort, Protokolle) | Cloud + M4 | offen | 58 ✓ | [76](76-werte-ausserhalb-der-rueckfrage.md) |
-| 80 | Consent: Einwilligungsseiten ohne Dialog, Abo ohne Signalwort, zweite Ebene | Cloud + M4 | offen | 40 ✓ | [80](80-consent-nachtrag.md) |
 | 85 | CDP-Host: Frames anderer Prozesse, Nachtrag (Änderungssignal, Verschachtelung, Zählung) | Cloud | offen | 70 ✓ | [85](85-cdp-host-frames-nachtrag.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
+| 91 | Consent: zweite Ebene auf echten Seiten | Cloud + M4 | offen | 80 ✓ | [91](91-consent-zweite-ebene.md) |

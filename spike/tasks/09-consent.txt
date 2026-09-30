@@ -41,3 +41,33 @@ expect: gesperrt
 do: Cookies ablehnen
 expect: Activate auf [button] Nur notwendige
 expect: Nur notwendige Cookies.
+
+# Einwilligungsseite ohne Dialog (wie golem.de, Paket 80): Cookie-Hinweis,
+# kein Ablehnen ohne Bezahlung, nichts geklickt.
+url: ../fixtures/consent-seite.html
+do: Was ist hier?
+expect: Seite ohne Dialog vermutlich Cookie-Hinweis
+expect: Überschrift „Cookies zustimmen“ enthält „cookie“
+expect: Zustimmen „Zustimmen und weiter“, Abo „Zu Magazin pur“
+expect: Kein Ablehnen ohne Bezahlung
+do: Cookies ablehnen
+expect: Nicht abgelehnt
+
+# Abo ohne Signalwort und Ablehnen erst in den Einstellungen (wie
+# sueddeutsche.de, Paket 80). Relief öffnet die Einstellungen nur auf
+# ausdrücklichen Befehl, nie beim Ablehnen.
+url: ../fixtures/consent-einstellungen.html
+do: Welcher Dialog ist offen?
+expect: vermutlich Cookie-Dialog
+expect: Zustimmen „Ich bin einverstanden“, Einstellungen „Einstellungen“, Abo „Jetzt testen“
+expect: Kein Ablehnen ohne Bezahlung
+expect: „Cookie-Einstellungen öffnen“ öffnet sie
+do: Cookies ablehnen
+expect: Nicht abgelehnt
+do: Cookie-Einstellungen öffnen
+expect: Activate auf [button] Einstellungen
+do: Welcher Dialog ist offen?
+expect: Ablehnen „Alle ablehnen“
+do: Cookies ablehnen
+expect: Activate auf [button] Alle ablehnen
+expect: Ablehnung gespeichert.
