@@ -284,7 +284,10 @@ letzten neun (07) lauten der Reihe nach `reject/no_prompt`,
 `ask_confirmation` (Plan 1, 2), `reject/no_prompt`, `ask_confirmation` (3,
 4), `perform_confirmed` (4), `reject/no_prompt`, `ask_confirmation` (5).
 Belegt browserfrei für die Fork-Runtime: `crates/relief-bridge/tests/
-befehle.rs`. Im Fork gebaut und gelaufen ist es noch nicht (→ 58).
+befehle.rs`. Im Fork belegt (M4, 2026-09-30): `RELIEF_LOG=… scripts/
+fork-run-tasks.sh` mit 01–05, 07 → 79/79, die `security`-Zeilen zu 07 in
+derselben Folge wie im CDP-Host, keine mit „kaufen“, „erika“ oder
+„file:“; `relief_browsertests` 15/15.
 
 Grenzen: Die Protokolle, in denen die Zeilen stehen, enthalten daneben die
 Eingabe selbst (Fork: Zeile `command`, Befehlsleiste: `eingabe`), also auch

@@ -126,8 +126,7 @@ sensible Werte (Paket 58; Fork-Teil geschrieben, nicht gebaut).
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
 | 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 ✓ | [45](45-playwright-anbindung.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 ✓ | [47](47-relief-ui-accessibility.md) |
-| 58 | Sicherheitsgrenzen im Fork bauen und prüfen (CDP-Host und Rust erledigt) | M4 | Fork-Teil zu bauen | 48 ✓ | [58](58-sicherheitsgrenzen-im-host.md) |
 | 70 | CDP-Host mit Site Isolation: Frames in anderem Prozess (Aufnahme, DOM-Fakten, Aktionen) | Cloud | offen | 64 ✓ | [70](70-cdp-host-site-isolation.md) |
-| 75 | Formularziel und HTML-`autocomplete` im Fork | Cloud + M4 | Entscheidung nötig | 58 | [75](75-formularziel-im-fork.md) |
-| 76 | Sensible Werte außerhalb der Rückfrage (Antwort, Protokolle) | Cloud + M4 | offen | 58 | [76](76-werte-ausserhalb-der-rueckfrage.md) |
+| 75 | Formularziel und HTML-`autocomplete` im Fork | Cloud + M4 | Entscheidung nötig | 58 ✓ | [75](75-formularziel-im-fork.md) |
+| 76 | Sensible Werte außerhalb der Rückfrage (Antwort, Protokolle) | Cloud + M4 | offen | 58 ✓ | [76](76-werte-ausserhalb-der-rueckfrage.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
