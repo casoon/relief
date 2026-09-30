@@ -288,10 +288,11 @@ flowchart LR
   Medien, WebSockets (kein `requestWillBeSent`) und Anfragen, die länger als
   1 s offen sind. Die Abos starten vor dem Laden und bleiben über
   Navigationen, damit die Anfragen des Ladens mitzählen. Frames in einem
-  anderen Prozess melden ab dem Anhängen (erste Aufnahme) über ihre Sitzung
-  (`frames.rs`: dort Network-Agent an, Dokument angefordert, nach
-  `documentUpdated` neu angefordert); ihre Mutationen machen die Seite
-  geändert, ihre Anfragen zählen zur Ruhe.
+  anderen Prozess melden ab ihrem Entstehen über ihre Sitzung (`frames.rs`:
+  dort Network-Agent an, Dokument angefordert, nach `documentUpdated` neu
+  angefordert); ihre Mutationen machen die Seite geändert, ihre Anfragen
+  zählen zur Ruhe. Die Anfrage für das Dokument eines solchen Frames beginnt
+  in der Sitzung der Seite und endet in der des Frames.
   Ersetzt die Seite ihr Dokument (`DOM.documentUpdated`), wird es neu
   angefordert. AX-Deltas (`Accessibility.nodesUpdated`) sendet Chrome nicht.
 - **Aufnahme**: vor einem Befehl nur, wenn seit der letzten Aufnahme etwas
@@ -302,8 +303,12 @@ flowchart LR
   Knoten-IDs mit Präfix `f<n>:`, Frame-Wurzel unter dem `iframe`-Knoten
   eingehängt. Frames in einem anderen Prozess sind eigene CDP-Ziele (Ziel-ID
   = Frame-ID); `frames.rs` hängt sich über eine zweite Verbindung zum Browser
-  flach an (`Target.attachToTarget`, `flatten`), weil chromiumoxide Befehle
-  nur an die Sitzung der Seite schickt. Ein `iframe`-Knoten ohne Kinder,
+  flach an, weil chromiumoxide Befehle nur an die Sitzung der Seite schickt:
+  vor dem Laden an die Seite, dort `Target.setAutoAttach` (`flatten`, nur
+  `iframe`-Ziele, angehalten bis zum Start); je neuem Frame Network- und
+  DOM-Agent an, dasselbe Anhängen für seine Frames, dann
+  `Runtime.runIfWaitingForDebugger`. Die Nummer eines Frames bleibt über
+  ein neues Ziel nach einer Navigation gleich. Ein `iframe`-Knoten ohne Kinder,
   dessen Element (`DOM.describeNode`) eine `frameId` trägt, bekommt den Baum
   aus der Sitzung des Frames (Präfix `r<Nummer>:`), auch verschachtelt.
   Backend-IDs vergibt jeder Prozess selbst; im Modell steht deshalb

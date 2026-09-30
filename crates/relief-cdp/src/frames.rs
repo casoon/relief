@@ -5,7 +5,7 @@
 //! `DOM.getDocument` (`pierce`) liefert am `iframe` nur die `frameId`, kein
 //! Dokument. Ein solcher Frame ist ein eigenes CDP-Ziel mit derselben ID wie
 //! der Frame; der Host hängt sich über eine zweite Verbindung zum Browser
-//! flach an (`Target.attachToTarget`, `flatten`) und schickt Befehle mit der
+//! flach an (`Target.setAutoAttach`, `flatten`, siehe unten) und schickt Befehle mit der
 //! Sitzungs-ID des Ziels. chromiumoxide kann Befehle nur an die Sitzung der
 //! Seite schicken, deshalb die eigene Verbindung (`chromiumoxide::Connection`,
 //! keine neue Abhängigkeit).
@@ -22,20 +22,35 @@
 //! (der DOM-Agent meldet Mutationen nur für übertragene Knoten). Die
 //! Ereignisse aller Frame-Sitzungen gehen an `live.rs`; ersetzt ein Frame
 //! sein Dokument, fordert die Verbindung es selbst neu an.
+//!
+//! **Anhängen beim Entstehen (Paket 105):** Die Anfrage für das Dokument
+//! eines solchen Frames beginnt in der Sitzung der Seite
+//! (`requestWillBeSent`), endet aber nur in der Sitzung des Frames
+//! (`loadingFinished`). Hinge der Host erst bei der ersten Aufnahme an,
+//! bliebe sie bis [`crate::live::LONG_REQUEST`] offen. Die zweite
+//! Verbindung hängt sich deshalb vor dem Laden an die Seite und schaltet
+//! dort `Target.setAutoAttach` ein (nur `iframe`-Ziele, angehalten bis zum
+//! Start); je neuem Frame schaltet sie Network- und DOM-Agenten ein,
+//! dasselbe Anhängen für Frames in diesem Frame, und lässt ihn dann
+//! laufen. Die Nummer bleibt die des ersten Anhängens, auch wenn ein Frame
+//! nach einer Navigation ein neues Ziel bekommt.
 
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Result};
 use chromiumoxide::cdp::browser_protocol::dom::{
     BackendNodeId, DescribeNodeParams, EventDocumentUpdated, GetDocumentParams, Node,
 };
 use chromiumoxide::cdp::browser_protocol::network::EnableParams;
-use chromiumoxide::cdp::browser_protocol::target::{AttachToTargetParams, SessionId, TargetId};
-use chromiumoxide::cdp::js_protocol::runtime::EvaluateParams;
-use chromiumoxide::types::{CallId, CdpJsonEventMessage, Command, Message, Method, MethodId};
+use chromiumoxide::cdp::browser_protocol::target::{
+    AttachToTargetParams, EventAttachedToTarget, FilterEntry, SessionId, SetAutoAttachParams,
+    TargetFilter, TargetId,
+};
+use chromiumoxide::cdp::js_protocol::runtime::{EvaluateParams, RunIfWaitingForDebuggerParams};
+use chromiumoxide::types::{CallId, CdpJsonEventMessage, Command, Message, MethodId};
 use chromiumoxide::{Connection, Page};
 use futures::StreamExt;
 use serde_json::Value;
@@ -90,23 +105,30 @@ impl Doc<'_> {
 
 type Reply = oneshot::Sender<Result<Value>>;
 
+/// Angehängte Frames nach Frame-ID (= Ziel-ID).
+type Attached = Arc<Mutex<HashMap<String, Frame>>>;
+
 /// Zweite Verbindung zum Browser mit den angehängten Frames einer Seite.
 pub struct Frames {
     tx: mpsc::UnboundedSender<(MethodId, Option<SessionId>, Value, Reply)>,
     task: tokio::task::JoinHandle<()>,
-    /// Angehängte Frames nach Frame-ID (= Ziel-ID).
-    attached: Mutex<HashMap<String, Frame>>,
+    attached: Attached,
 }
 
 impl Frames {
-    /// Verbindet sich mit dem Browser (`webSocketDebuggerUrl`). Dazu die
-    /// Ereignisse der angehängten Frames für `live.rs`.
+    /// Verbindet sich mit dem Browser (`webSocketDebuggerUrl`) und hängt
+    /// ab jetzt jeden Frame der Seite `page` in einem anderen Prozess beim
+    /// Entstehen an. Dazu die Ereignisse der angehängten Frames für
+    /// `live.rs`.
     pub async fn connect(
         ws_url: &str,
+        page: &TargetId,
     ) -> Result<(Self, mpsc::UnboundedReceiver<CdpJsonEventMessage>)> {
         let mut conn = Connection::<CdpJsonEventMessage>::connect(ws_url).await?;
         let (tx, mut rx) = mpsc::unbounded_channel::<(MethodId, Option<SessionId>, Value, Reply)>();
         let (events, frame_events) = mpsc::unbounded_channel();
+        let attached = Attached::default();
+        let registry = attached.clone();
         let task = tokio::spawn(async move {
             let mut waiting: HashMap<CallId, Reply> = HashMap::new();
             loop {
@@ -128,16 +150,32 @@ impl Frames {
                             reply.send(result).ok();
                         }
                         Some(Ok(Message::Event(event))) => {
+                            // Die Antworten der folgenden Befehle warten auf
+                            // niemanden; die Reihenfolge je Sitzung hält der
+                            // Browser ein. Auch das Anhängen an die Seite
+                            // selbst meldet `attachedToTarget`; nur Frames
+                            // zählen.
+                            if event.method == EventAttachedToTarget::IDENTIFIER {
+                                if let Some(e) = serde_json::from_value::<EventAttachedToTarget>(event.params.clone())
+                                    .ok()
+                                    .filter(|e| e.target_info.r#type == "iframe")
+                                {
+                                    register(&registry, &e);
+                                    // Änderungssignal (Anfragen, Mutationen),
+                                    // Frames in diesem Frame, dann laufen lassen.
+                                    submit(&mut conn, &e.session_id, EnableParams::default());
+                                    submit(&mut conn, &e.session_id, full_document());
+                                    submit(&mut conn, &e.session_id, auto_attach());
+                                    submit(&mut conn, &e.session_id, RunIfWaitingForDebuggerParams::default());
+                                }
+                            }
                             // Wie `live.rs` für die Seite: Nach einem
                             // ersetzten Dokument meldet der DOM-Agent erst
-                            // wieder, wenn es angefordert ist. Die Antwort
-                            // wartet auf niemanden.
+                            // wieder, wenn es angefordert ist.
                             if event.method == EventDocumentUpdated::IDENTIFIER {
-                                let cmd = GetDocumentParams::builder().depth(-1).pierce(true).build();
-                                let params = serde_json::to_value(&cmd)
-                                    .expect("GetDocumentParams ist serialisierbar");
-                                let session = event.session_id.clone().map(SessionId::from);
-                                conn.submit_command(cmd.identifier(), session, params).ok();
+                                if let Some(session) = event.session_id.clone() {
+                                    submit(&mut conn, &SessionId::from(session), full_document());
+                                }
                             }
                             events.send(event).ok();
                         }
@@ -147,11 +185,14 @@ impl Frames {
                 }
             }
         });
-        let frames = Frames {
-            tx,
-            task,
-            attached: Mutex::new(HashMap::new()),
-        };
+        let frames = Frames { tx, task, attached };
+        let params = AttachToTargetParams::builder()
+            .target_id(page.clone())
+            .flatten(true)
+            .build()
+            .map_err(|e| anyhow!(e))?;
+        let session = frames.execute(None, params).await?.session_id;
+        frames.execute(Some(&session), auto_attach()).await?;
         Ok((frames, frame_events))
     }
 
@@ -172,34 +213,11 @@ impl Frames {
         Ok(C::response_from_value(answer.await??)?)
     }
 
-    /// Frame `frame_id` in einem anderen Prozess anhängen; schon angehängte
-    /// kommen aus dem Speicher. Fehler, wenn es kein eigenes Ziel ist (Frame
-    /// im Prozess der Seite).
-    pub async fn attach(&self, frame_id: &str) -> Result<Frame> {
-        if let Some(frame) = self.known(frame_id) {
-            return Ok(frame);
-        }
-        let params = AttachToTargetParams::builder()
-            .target_id(TargetId::from(frame_id.to_string()))
-            .flatten(true)
-            .build()
-            .map_err(|e| anyhow!(e))?;
-        let session = self.execute(None, params).await?.session_id;
-        // Änderungssignal: Anfragen und Mutationen des Frames an `live.rs`.
-        self.execute(Some(&session), EnableParams::default())
-            .await?;
-        self.execute(
-            Some(&session),
-            GetDocumentParams::builder().depth(-1).pierce(true).build(),
-        )
-        .await?;
-        let mut attached = self.attached.lock().expect("Frames");
-        let frame = Frame {
-            index: attached.len() as i64 + 1,
-            session,
-        };
-        attached.insert(frame_id.to_string(), frame.clone());
-        Ok(frame)
+    /// Angehängter Frame `frame_id` in einem anderen Prozess. Fehler, wenn es
+    /// keiner ist (Frame im Prozess der Seite).
+    pub fn attached(&self, frame_id: &str) -> Result<Frame> {
+        self.known(frame_id)
+            .ok_or_else(|| anyhow!("kein angehängter Frame in einem anderen Prozess"))
     }
 
     /// Schon angehängter Frame mit dieser Frame-ID.
@@ -270,12 +288,9 @@ impl Frames {
     }
 
     async fn frame_document(&self, frame_id: &str) -> Result<(Frame, Node)> {
-        let frame = self.attach(frame_id).await?;
+        let frame = self.attached(frame_id)?;
         let mut document = self
-            .execute(
-                Some(&frame.session),
-                GetDocumentParams::builder().depth(-1).pierce(true).build(),
-            )
+            .execute(Some(&frame.session), full_document())
             .await?
             .root;
         renumber(&mut document, frame.index);
@@ -296,6 +311,53 @@ impl Frames {
             }
         }
     }
+}
+
+/// Neu angehängten Frame eintragen. Ein Frame, der schon eine Nummer hat
+/// (neues Ziel nach einer Navigation), behält sie.
+fn register(attached: &Attached, e: &EventAttachedToTarget) {
+    let mut attached = attached.lock().expect("Frames");
+    let frame_id = e.target_info.target_id.as_ref().to_string();
+    let index = match attached.get(&frame_id) {
+        Some(frame) => frame.index,
+        None => attached.len() as i64 + 1,
+    };
+    attached.insert(
+        frame_id,
+        Frame {
+            index,
+            session: e.session_id.clone(),
+        },
+    );
+}
+
+/// Frames beim Entstehen anhängen, angehalten bis
+/// `Runtime.runIfWaitingForDebugger`; nur `iframe`-Ziele, keine Worker.
+fn auto_attach() -> SetAutoAttachParams {
+    let only_iframes = TargetFilter::new(vec![
+        FilterEntry::builder().r#type("iframe").build(),
+        FilterEntry::builder().exclude(true).build(),
+    ]);
+    SetAutoAttachParams::builder()
+        .auto_attach(true)
+        .wait_for_debugger_on_start(true)
+        .flatten(true)
+        .filter(only_iframes)
+        .build()
+        .expect("SetAutoAttachParams vollständig")
+}
+
+/// Ganzes Dokument (der DOM-Agent meldet Mutationen nur für übertragene
+/// Knoten).
+fn full_document() -> GetDocumentParams {
+    GetDocumentParams::builder().depth(-1).pierce(true).build()
+}
+
+/// Befehl ohne Warten auf die Antwort (aus der Schleife der Verbindung).
+fn submit<C: Command>(conn: &mut Connection<CdpJsonEventMessage>, session: &SessionId, cmd: C) {
+    let params = serde_json::to_value(&cmd).expect("Befehl ist serialisierbar");
+    conn.submit_command(cmd.identifier(), Some(session.clone()), params)
+        .ok();
 }
 
 impl Drop for Frames {

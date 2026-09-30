@@ -248,7 +248,7 @@ async fn attach_remote_frames(
                 frame_id.as_ref()
             ));
         };
-        let frame = match frames.attach(frame_id.as_ref()).await {
+        let frame = match frames.attached(frame_id.as_ref()) {
             Ok(frame) => frame,
             Err(e) => {
                 unreachable(format!("anhängen: {e}"));

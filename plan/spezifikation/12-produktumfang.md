@@ -267,11 +267,36 @@ Paket 49).
   none">`, `about:blank`): Chrome führt ein Element mit `display: none`
   nicht im AXTree, also gibt es keinen Knoten zum Einhängen und nichts zu
   bedienen. Lokal: `frame-nachladen.html` 1/0 und 1/0, `form-fremd.html`
-  0/0 und 1/0, `with-iframe.html` 1/0 und 0/0. Nach dem Laden wartet die
-  Ruhe mit einem Frame in einem anderen Prozess gut 1 s (→ 105). Der
+  0/0 und 1/0, `with-iframe.html` 1/0 und 0/0. Ruhe nach dem Laden: nächster
+  Punkt. Der
   sporadische Ausfall aus der Zusammenführung mit main ist `tabfolge` in
   `form-fremd.html` (einmal unter Last gesichert, → 106), nicht die
   Ruhe-Erkennung.
+- **Frames anderer Prozesse beim Entstehen anhängen [belegt, Paket 105]:**
+  Die Anfrage für das Dokument eines iframes in einem anderen Prozess
+  beginnt in der Sitzung der Seite (`requestWillBeSent`), `loadingFinished`
+  kommt nur in der Sitzung des Frames (Protokoll je Signal, 2026-09-30).
+  Hing der Host erst bei der ersten Aufnahme an, blieb sie offen, bis sie
+  nach 1 s als Dauerverbindung zählte. Heute hängt sich die zweite
+  Verbindung vor dem Laden an die Seite und schaltet dort
+  `Target.setAutoAttach` ein (`flatten`, `waitForDebuggerOnStart`, Filter nur
+  `iframe`); je neuem Frame Network- und DOM-Agent an, dasselbe Anhängen
+  für Frames darin, dann `Runtime.runIfWaitingForDebugger`
+  (`relief-cdp/src/frames.rs`). Ruhe nach dem Laden über `measure` am
+  lokalen Server, je 5 Läufe (erste Seite jedes Browsers zum Aufwärmen, sie
+  wartet wegen des Favicons ~500 ms): vorher `form-fremd.html` 1062–1063 ms,
+  `frame-nachladen.html` 1061–1064 ms, `with-iframe.html` 151–152 ms;
+  nachher 150–152 ms, 151–152 ms, 151–152 ms. Aufgaben 01–09, 15, 16 im
+  Modus `test`: 187 erfüllt, 0 nicht erfüllt (zwei Läufe); 10 und 12: 47
+  erfüllt, 0 nicht erfüllt.
+- **Anhängen nur über `setAutoAttach` [Entscheidung, Paket 105]:** Das
+  Anhängen bei der Aufnahme (`Target.attachToTarget`) entfällt;
+  `Frames::attached` schlägt nur nach. Zwei Wege hätten sich um dieselbe
+  Frame-ID gestritten (doppelte Sitzung, doppelte Nummer). Ein Frame, der
+  nach einer Navigation ein neues Ziel bekommt, behält seine Nummer, damit
+  IDs im Modell stabil bleiben. Ziele außer `iframe` (Worker, Fenced
+  Frames) hängt der Host nicht an; sie waren vorher auch nicht erfasst
+  [Annahme: Fenced Frames kommen in den Aufgaben nicht vor].
 - **`wait: <ms>` in Aufgabendateien [Entscheidung, Paket 85]:** Ein Befehl
   folgt im Aufgabenlauf ohne Pause auf das Laden; eine Änderung „ohne
   eigene Aktion“ lässt sich nur mit einer Pause prüfen. Die Zeile wartet im
