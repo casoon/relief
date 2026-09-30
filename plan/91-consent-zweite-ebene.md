@@ -1,4 +1,4 @@
-# 91 · Consent: zweite Ebene auf echten Seiten, Nachweis im Fork
+# 91 · Consent: zweite Ebene auf echten Seiten
 
 **Umgebung:** Cloud + M4 · **Phase:** Linie A · **Abhängig von:** 80 ✓
 
@@ -27,16 +27,13 @@ sagt „Kein Ablehnen“; geklickt wird nichts. heise.de hat zwei
 2. **Doppelte Buttons** (heise.de: zwei „Einstellungen“ mit verschiedenen
    DOM-Knoten) prüfen: gleicher Name, gleiche Wirkung → eine Rückfrage
    weniger, oder bewusst nachfragen.
-3. **Fork (M4):** `scripts/fork-run-tasks.sh` mit `09-consent.txt`
-   (inklusive `consent-seite.html` und `consent-einstellungen.html`) nach
-   dem nächsten Build ohne Ausfall; golem.de im eigenen Build als
-   Cookie-Hinweis.
+3. (erledigt 2026-09-30, → 05) Fork: `09-consent.txt` ohne Ausfall, golem.de
+   im eigenen Build als Cookie-Hinweis.
 
 ## Fertig, wenn
 
 - Die zweite Ebene auf spiegel.de wird ohne Zweck-Liste als Einzelbuttons
   angesagt, und `12-consent-real.txt` läuft ohne verfehlte Erwartung.
-- `09-consent.txt` im Fork ohne Ausfall.
 
 ## Nicht Teil
 

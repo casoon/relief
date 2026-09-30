@@ -389,6 +389,10 @@ vermutlich Cookie-Dialog mit Zustimmen, Einstellungen, Abo; „cookies
 ablehnen“ → „Nicht abgelehnt“, nichts geklickt; „was ist hinter dem Dialog“
 → „enthält der Baum nichts“: Blink nimmt den Inhalt hinter `aria-modal`
 heraus (anders als CDP, das ihn liefert).
+Mit Paket 80 (M4, 2026-09-30): `09-consent.txt` samt Einwilligungsseite und
+zweiter Ebene im Fork ohne Ausfall (mit 01–05, 07, 14: 118/118); golem.de
+im eigenen Build „Seite ohne Dialog vermutlich Cookie-Hinweis“, Abo „Zu
+Golem pur“, kein Ablehnen ohne Bezahlung.
 
 ## Intent-Format [Annahme]
 
