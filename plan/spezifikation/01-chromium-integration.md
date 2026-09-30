@@ -389,8 +389,9 @@ Grundlage für 17 (Umsetzung) und den Rebase-Aufwand (Abschnitt
 | 6 | `chrome/app/theme/chromium/BRANDING`, `chrome/app/chromium_strings.grd` (`IDS_PRODUCT_NAME`, `IDS_SHORT_PRODUCT_NAME`, nicht übersetzt), `chrome/app/app-Info.plist` — **umgesetzt [36], ein Patch** | Produktname „Relief“, Bundle-ID `de.casoon.relief`, `CrProductDirName` = `Relief` | Chromiums vorgesehener Weg für Produktnamen; `.app`-Name, Helfer, Framework und Profilverzeichnis leiten sich daraus ab |
 | 7 | `chrome/renderer/chrome_content_renderer_client.cc` (`RenderFrameCreated`), `chrome/renderer/BUILD.gn` — **umgesetzt [75], ein Patch** | Include und `relief::FormFactsAgent::Create(render_frame);`; `"//relief/renderer"` in `deps` | Renderer-Beobachter je Frame entstehen nur hier; der Agent beantwortet `relief.mojom.FormFacts` (Formularziel, `autocomplete`), → spezifikation/07 |
 | 8 | `chrome/browser/devtools/chrome_devtools_manager_delegate.cc` (`HandleCommand`, `ClientDetached`), `chrome/browser/devtools/BUILD.gn` — **umgesetzt [45], ein Patch** | `relief::HandleDevToolsCommand` vor der Chrome-Sitzung, `relief::OnDevToolsClientDetached`; `"//relief"` in `deps` | Eigene CDP-Methoden nimmt nur der DevTools-Delegate des Embedders an; Domäne `Relief.*` → spezifikation/12 |
+| 9 | `chrome/app/theme/chromium/mac/` (`app.icns`, `Assets.car`, PNGs des Asset-Katalogs, `AppIcon.icon` entfernt) — **umgesetzt [111], ein Patch (binär, 1,2 MB)** | Platzhaltersymbol aus `fork/branding/make_icon.py` | Der Build kopiert vorkompilierte Symbole aus dem Branding-Verzeichnis (`chrome/BUILD.gn`); ohne Entfernen von `AppIcon.icon` gewinnt auf neuem macOS das Chromium-Symbol |
 
-Stand: sechs Patches (`fork/patches/series`).
+Stand: sieben Patches (`fork/patches/series`).
 
 Nicht nötig [belegt]:
 
@@ -927,8 +928,27 @@ Chrome/Chromium. Weg: Patch 6 in der Tabelle oben; der Neubau nach der
 - **Entscheidung:** Bundle-ID unter der Domain des Projekts
   (`de.casoon.relief`); Unternehmensangaben in BRANDING bleiben bei den
   Chromium-Autoren (Copyright des Codes).
-- **Offen (→ 111):** übersetzte Texte mit wörtlichem „Chromium“ („Über
-  Chromium“, „Hilfe für Chromium aufrufen“) und das Symbol.
+- **Übersetzte Texte [Paket 111]:** „Chromium“ steht in vielen
+  übersetzten Meldungen wörtlich („Über Chromium“). Eine Änderung in
+  `.grd` ändert die Nachrichten-ID, die Übersetzungen (`.xtb`) griffen
+  nicht mehr. Deshalb ersetzt `//relief` (`branding_strings.cc`) beim
+  ersten Tab für eine feste Liste sichtbarer Meldungen (Über-Seite,
+  Menüs, Standardbrowser, Neustart, Aktualisierung) das Wort zur Laufzeit
+  (`ResourceBundle::OverrideLocaleStringResource`), unabhängig von
+  `--enable-relief`; in `IDS_VERSION_UI_LICENSE` nur das erste (Chromium
+  als Projekt bleibt), Copyright bleibt bei den Chromium-Autoren. Belegt
+  per CDP auf `chrome://settings/help`: Deutsch „Über Relief“, „Relief
+  wird durch das Open-Source-Projekt Chromium … ermöglicht“, Englisch
+  „About Relief“, „Relief is made possible by the Chromium open source
+  project …“ (`-AppleLanguages (en)`; `--lang` wirkt unter macOS nicht).
+  Nicht in der Liste stehende Meldungen (etwa Sync, Windows-Installer)
+  nennen weiter Chromium.
+- **Symbol [Paket 111]:** Platzhalter („R“ auf abgerundetem Quadrat) aus
+  `fork/branding/make_icon.py` (PIL, `iconutil`, `actool`), Patch 9;
+  `Relief.app/Contents/Resources/app.icns` und `Assets.car` gleich den
+  erzeugten. Das Dock selbst ist nicht per Bildschirmfoto belegt (keine
+  Aufnahme außerhalb des eigenen Fensters). Das endgültige Symbol ist eine
+  Gestaltungsfrage.
 - `scripts/chromium-setup.sh` baut weiter unverändertes Chromium
   (`Chromium.app`); erst `fork-apply.sh` bringt den Namen.
 
@@ -939,6 +959,7 @@ Chrome/Chromium. Weg: Patch 6 in der Tabelle oben; der Neubau nach der
 ├── BUILD.gn       # rust_static_library relief_model_rs, relief_interaction_rs, relief_bridge_rs; action inspector_resources; source_set relief
 ├── relief_*.h/cc  # Einstieg je Tab, Schalter, Aufgaben-Runner
 ├── bridge/        # C++-Adapter AXTree ↔ Relief-Modell, Runtime-Sequenz, AXActionData-Rückweg
+├── branding_strings.* # Produktname in übersetzten Texten (Paket 111)
 ├── inspector/     # Semantic Inspector: Side-Panel-Eintrag, WebUI, Ressourcen
 ├── common/        # Mojo-Schnittstellen Browser ↔ Renderer (form_facts.mojom)
 ├── renderer/      # Renderer-Seite: FormFactsAgent je Frame
