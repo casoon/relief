@@ -9,9 +9,11 @@
 //! ```
 //!
 //! Aufgabendatei: `url: …`, `do: …` (mit `!` davor bestätigt), `expect: …`
-//! (Teilstring der letzten Antwort), `#` Kommentar.
+//! (Teilstring der letzten Antwort), `assert: …` (Formular-Zusicherung, Befunde
+//! als Antwort → `assertions.rs`), `#` Kommentar.
 
 mod act;
+mod assertions;
 mod capture;
 mod live;
 mod palette;
@@ -637,6 +639,12 @@ async fn run_files(browser: &Browser, files: &[&String]) -> Result<()> {
                         .map(|l| format!("; {l}"))
                         .unwrap_or_default()
                 );
+            } else if let Some(text) = line.strip_prefix("assert:") {
+                let Some(s) = session.as_mut() else { continue };
+                last = assertions::run(s, text.trim())
+                    .await
+                    .unwrap_or_else(|e| format!("Fehler: {e}"));
+                println!("\n? {}\n{}", text.trim(), indent(&last));
             } else if let Some(expected) = line.strip_prefix("expect:") {
                 if session.is_none() {
                     continue;

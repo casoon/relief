@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><title>Rückruf – richtiges Formular</title></head>
+<body>
+<main>
+  <h1>Rückruf anfordern</h1>
+  <!-- Richtiges Formular für die Formular-Zusicherungen (spike/tasks/06-form-assertions.txt):
+       jede Zusicherung liefert hier keinen Befund. -->
+  <form id="f" novalidate aria-label="Rückrufformular">
+    <p><label for="name">Name</label> <input id="name" autocomplete="name"></p>
+    <p><label for="phone">Telefon</label> <input id="phone" type="tel" required aria-describedby="phone-err">
+       <span id="phone-err"></span></p>
+    <p><label for="plz">PLZ</label> <input id="plz" inputmode="numeric"></p>
+    <p><label for="note">Anliegen</label> <textarea id="note"></textarea></p>
+    <button type="submit">Rückruf anfordern</button>
+  </form>
+  <p role="status" id="done"></p>
+</main>
+<dialog id="confirm" aria-labelledby="confirm-title">
+  <h2 id="confirm-title">Rückruf anfordern?</h2>
+  <p id="confirm-text"></p>
+  <button type="button" id="cancel">Abbrechen</button>
+  <button type="button" id="ok">Rückruf bestätigen</button>
+</dialog>
+<script>
+  const phone = document.getElementById('phone');
+  const dialog = document.getElementById('confirm');
+  document.getElementById('f').onsubmit = (e) => {
+    e.preventDefault();
+    if (!phone.value) {
+      phone.setAttribute('aria-invalid', 'true');
+      document.getElementById('phone-err').textContent = 'Bitte Telefonnummer angeben.';
+      phone.focus();
+      return;
+    }
+    phone.removeAttribute('aria-invalid');
+    document.getElementById('phone-err').textContent = '';
+    document.getElementById('confirm-text').textContent =
+      'Wir rufen Sie unter ' + phone.value + ' zurück.';
+    // showModal() setzt den Fokus in den Dialog (erster Button).
+    dialog.showModal();
+  };
+  document.getElementById('cancel').onclick = () => dialog.close();
+  document.getElementById('ok').onclick = () => {
+    dialog.close();
+    document.getElementById('done').textContent =
+      'Danke, Rückruf angefordert. Wir melden uns unter ' + phone.value + '.';
+  };
+</script>
+</body>
+</html>
