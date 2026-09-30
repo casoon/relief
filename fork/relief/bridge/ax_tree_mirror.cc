@@ -148,6 +148,12 @@ bridge::Node ToNode(const ui::AXNode& node,
     }
   }
   OptionalText(data, StringAttribute::kUrl, out.has_url, out.url);
+  // HTML-Tag für die Befunde aus a11y-rules (Paket 21,
+  // relief_interaction::rules::HTML_TAG).
+  if (data.HasStringAttribute(StringAttribute::kHtmlTag)) {
+    out.extra.push_back(bridge::Attribute{
+        "htmlTag", data.GetStringAttribute(StringAttribute::kHtmlTag)});
+  }
   // HTML-`type` eines <input> (Blink: AXObject::Serialize...Attributes,
   // kInputType), Schlüssel `relief_interaction::security::INPUT_TYPE`: Die
   // Rückfrage verdeckt dann Werte von Passwortfeldern. HTML-`autocomplete`

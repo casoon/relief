@@ -700,6 +700,19 @@ IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, Inspektor) {
   EXPECT_NE(options.find("[button] In den Warenkorb"), std::string::npos);
   // Ohne Namen: Herkunft wird genannt, nicht verschwiegen.
   EXPECT_NE(options.find("[Name "), std::string::npos) << options;
+  // Befunde aus a11y-rules (Paket 21): der Button ohne Namen trägt einen,
+  // nicht gelaufene Regeln stehen als solche da.
+  EXPECT_NE(options.find("[1 Befund]"), std::string::npos) << options;
+  const std::string checks =
+      content::EvalJs(inspector,
+                      "document.getElementById('checks-summary').textContent")
+          .ExtractString();
+  EXPECT_NE(checks.find("Regeln nicht geprüft"), std::string::npos) << checks;
+  EXPECT_NE(content::EvalJs(inspector,
+                            "document.getElementById('checks-not-run')"
+                            ".children.length")
+                .ExtractInt(),
+            0);
 
   // Live: ein neues Bedienelement erscheint ohne Zutun.
   ASSERT_TRUE(content::ExecJs(web_contents(), R"(

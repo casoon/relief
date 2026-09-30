@@ -50,7 +50,7 @@ mv "$FORK/patches/series.new" "$FORK/patches/series"
 
 if [[ -d "$SRC/relief" ]]; then
   mkdir -p "$FORK/relief"
-  rsync -a --delete --exclude /crates/ "$SRC/relief/" "$FORK/relief/"
+  rsync -a --delete --exclude /crates/ --exclude '/third_party/*/src/' "$SRC/relief/" "$FORK/relief/"
 fi
 
 # shellcheck disable=SC1090,SC1091

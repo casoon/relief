@@ -1,0 +1,57 @@
+# barrierlab-Crates für Befunde im Inspector (Paket 21). MIT-Lizenz wie
+# barrierlab. Die Quellen legt scripts/fork-apply.sh aus der lokalen
+# Cargo-Registry nach <crate>/src/ (Version aus Cargo.lock); die Dateilisten
+# unten gelten für 0.13.3 und sind bei einem Versionswechsel nachzuziehen.
+
+import("//build/rust/rust_static_library.gni")
+
+rust_static_library("a11y_dom") {
+  visibility = [ "//relief/*" ]
+  crate_name = "a11y_dom"
+  crate_root = "a11y-dom/src/lib.rs"
+  edition = "2024"
+  sources = [
+    "a11y-dom/src/arena.rs",
+    "a11y-dom/src/lib.rs",
+    "a11y-dom/src/tiers.rs",
+    "a11y-dom/src/tree.rs",
+  ]
+}
+
+rust_static_library("a11y_report") {
+  visibility = [ "//relief/*" ]
+  crate_name = "a11y_report"
+  crate_root = "a11y-report/src/lib.rs"
+  edition = "2024"
+  sources = [
+    "a11y-report/src/extra.rs",
+    "a11y-report/src/finding.rs",
+    "a11y-report/src/lib.rs",
+    "a11y-report/src/outcome.rs",
+    "a11y-report/src/report.rs",
+  ]
+  deps = [ "//third_party/rust/serde/v1:lib" ]
+}
+
+rust_static_library("a11y_rules") {
+  visibility = [ "//relief/*" ]
+  crate_name = "a11y_rules"
+  crate_root = "a11y-rules/src/lib.rs"
+  edition = "2024"
+  features = [ "de" ]
+  sources = [
+    "a11y-rules/src/checkliste.rs",
+    "a11y-rules/src/heuristik.rs",
+    "a11y-rules/src/lib.rs",
+    "a11y-rules/src/locale.rs",
+    "a11y-rules/src/registry.rs",
+    "a11y-rules/src/rendering.rs",
+    "a11y-rules/src/semantics.rs",
+    "a11y-rules/src/sicht.rs",
+    "a11y-rules/src/structure.rs",
+  ]
+  deps = [
+    ":a11y_dom",
+    ":a11y_report",
+  ]
+}

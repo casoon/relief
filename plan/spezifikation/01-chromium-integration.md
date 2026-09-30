@@ -870,6 +870,42 @@ ReliefTabHelper: nach jeder Delta OnGraphChanged → Handler bündelt 250 ms
   VoiceOver dabei die Position hält, ist ungeprüft. Kürzel-Konflikte unter
   Windows/Linux (Strg+Umschalt+I = Entwicklertools) → 31/47.
 
+## Befunde im Inspector (Paket 21) [belegt]
+
+Der Inspector zeigt Befunde aus `a11y-rules`/`a11y-report` (barrierlab)
+ohne eigenes Befundmodell: `Outcome` (Fehler, prüfen, nicht geprüft),
+Severity und Regel-ID stehen am Knoten (Liste „[N Befunde]“, Details
+„Befund“), seitenweite Befunde und die nicht gelaufenen Regeln im Abschnitt
+„Prüfung“.
+
+- **Welche Regeln laufen** (`crates/relief-interaction/src/rules.rs`,
+  Feature `rules`): Der Fork hat nur den AXTree. `AxDocument` stellt ihn als
+  `a11y_dom::Document` + `Semantics` dar (Dokumentreihenfolge über alle
+  Bäume, iframes unter ihrem Host; Tag aus `kHtmlTag`, das Blink im
+  Relief-Modus mitschickt und `ax_tree_mirror.cc` als `extra["htmlTag"]`
+  überträgt; Text aus `StaticText`; als Attribut nur `href` an `a`).
+  Darauf laufen die Regeln der Stufe `Semantics` (Stand a11y-rules 0.13.3:
+  `links/name-missing`, `buttons/name-missing`, `svg/name-missing`,
+  `links/ambiguous-name`, `links/generic-name`). Die Stufen `Structure`
+  (Markup: `lang`, `title`, `alt`, Labels, ARIA-Attribute, IDs, tabindex …)
+  und `Rendering` (Kontrast) stehen als `NotRun::CapabilityMissing` mit Grund
+  „Nur der Accessibility-Tree liegt vor …“ im Bericht — nicht geprüft ist
+  nicht bestanden.
+- **Anbindung:** `inspector_json` hängt je Eintrag `findings` an (Ort über
+  `AxDocument::node_ref`), dazu `checks` (Zahl gelaufener Regeln,
+  Befunde ohne Eintrag in der Liste, nicht gelaufene Regeln mit Grund).
+- **Bau im Fork:** Die drei barrierlab-Crates stehen nicht in
+  `//third_party/rust`. Entscheidung: nicht ins Repository kopieren
+  (barrierlab bleibt die Quelle), sondern `scripts/fork-apply.sh` holt die
+  in `Cargo.lock` festgelegte Version aus der lokalen Cargo-Registry
+  (`cargo fetch`, Pfad aus `cargo metadata`) nach
+  `//relief/third_party/<crate>/src`; `//relief/third_party/BUILD.gn` baut
+  sie (Edition 2024, `a11y_rules` mit Feature `de`). Die Dateilisten dort
+  gelten für 0.13.3 und sind bei einem Versionswechsel nachzuziehen.
+- **Test:** `relief_browsertests --gtest_filter=*Inspektor*` — der Button
+  ohne Namen trägt „[1 Befund]“, der Abschnitt „Prüfung“ nennt die nicht
+  geprüften Regeln.
+
 ## Verzeichnisstruktur im Fork [Stand 20 · Rest Annahme]
 
 ```
@@ -878,6 +914,7 @@ ReliefTabHelper: nach jeder Delta OnGraphChanged → Handler bündelt 250 ms
 ├── relief_*.h/cc  # Einstieg je Tab, Schalter, Aufgaben-Runner
 ├── bridge/        # C++-Adapter AXTree ↔ Relief-Modell, Runtime-Sequenz, AXActionData-Rückweg
 ├── inspector/     # Semantic Inspector: Side-Panel-Eintrag, WebUI, Ressourcen
+├── third_party/   # BUILD.gn für a11y-dom, a11y-report, a11y-rules; Quellen legt scripts/fork-apply.sh ab
 ├── crates/        # Kopie der Crates relief-model, relief-interaction, relief-bridge (scripts/fork-apply.sh)
 ├── speech/        # STT/TTS-Adapter (Annahme)
 ├── ai/            # Modell-Adapter (lokal/Cloud), nur hinter der Privacy Boundary (Annahme)

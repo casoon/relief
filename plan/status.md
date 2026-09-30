@@ -112,9 +112,13 @@ Security-Log, ein Anbieter lässt sich nur über `Budget` aufrufen (`Permit`),
 die Rückfrage nennt und bindet im CDP-Host das Formularziel und verdeckt
 sensible Werte (Paket 58, im Fork belegt).
 
+Befunde aus `a11y-rules` im Inspector (Stufe `Semantics` auf dem AXTree,
+übrige Regeln als nicht geprüft), beschrieben in
+[spezifikation/01](spezifikation/01-chromium-integration.md#befunde-im-inspector-paket-21-belegt).
+
 **Sofort startbar:**
 - Cloud: 76 (Werte außerhalb der Rückfrage), 85 (Frames anderer Prozesse, Nachtrag)
-- Cloud + M4: 26 (Sprache), 29 (Semantic View), 21 (Befunde im Inspector), 36 (Branding), 45 (Playwright), 91 (Consent: zweite Ebene)
+- Cloud + M4: 26 (Sprache), 29 (Semantic View), 36 (Branding), 45 (Playwright), 91 (Consent: zweite Ebene)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
@@ -128,7 +132,6 @@ sensible Werte (Paket 58, im Fork belegt).
 | Nr | Thema | Umgebung | Status | Abhängig von | Datei |
 |---|---|---|---|---|---|
 | 10 | Cloud-Setup: Nachweis in einer Cloud-Session (CI unter Linux grün) | Cloud | blockiert: Cloud-Sessions HTTP 403 | Zugang | [10](10-cloud-umgebung-und-ci.md) |
-| 21 | Befunde aus a11y-rules im Inspector | Cloud + M4 | offen | 20 ✓ | [21](21-befunde-im-inspector.md) |
 | 26 | Sprachschicht | Cloud + M4 | offen | 25 ✓ | [26](26-sprache.md) |
 | 28 | Resolver: Messlauf und Schwellen | lokal / Cloud (API-Key) | wartet auf API-Key | 27 ✓, 12 ✓ | [28](28-resolver-fehlende-namen.md) |
 | 29 | Semantic View | Cloud + M4 | offen | 25 ✓ | [29](29-semantic-view.md) |
