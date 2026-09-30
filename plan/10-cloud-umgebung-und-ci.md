@@ -21,9 +21,9 @@ Actions laufen ohne Kosten.
 
 1. CI auf einem PR neu anstoßen (`gh run rerun` oder Push), bis beide Jobs
    grün sind. Erwartete Stolperstellen im Browser-Job: Chrome-Sandbox unter
-   Ubuntu 24.04 (AppArmor, `kernel.apparmor_restrict_unprivileged_userns`,
-   der Job gibt den Wert aus). Abhilfe dann bevorzugt im Workflow
-   (`sysctl … =0`), `--no-sandbox` nur begründet.
+   Ubuntu 24.04 (AppArmor, `kernel.apparmor_restrict_unprivileged_userns`
+   = 1, bestätigt im ersten Lauf: FATAL in der Zygote). Der Workflow setzt
+   den Wert auf 0; `--no-sandbox` nur begründet.
 2. Unter Linux gefundene Fehler des Hosts beheben.
 3. `scripts/cloud-setup.sh` in einer Cloud-Umgebung eintragen, eine Session
    starten und dort `relief-cdp run spike/tasks/01`–`05` laufen lassen.
