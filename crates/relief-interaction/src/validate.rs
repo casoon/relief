@@ -322,6 +322,7 @@ mod tests {
             },
             region: None,
             value: None,
+            sensitive: false,
             options: vec![],
             selected_option: None,
             disabled: false,

@@ -118,6 +118,11 @@ sensible Werte (Paket 58, im Fork belegt). Auch die Antwort nach einer
 Aktion verdeckt sie, Protokolle den Wert jedes Ausfüll- und Auswahlbefehls
 (Paket 76, im Fork belegt), beschrieben in
 [spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#sensible-werte-außerhalb-der-rückfrage-umgesetzt-paket-76-im-fork-belegt).
+Listen, „wo bin ich“ und Inspector zeigen bei sensiblen Feldern nur
+„= (verdeckt)“, „details zu …“ nennt den Wert; unverstandene Eingaben
+stehen ohne wertartige Teile im Protokoll (Paket 100, Fork-Teil offen:
+120), beschrieben in
+[spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#auskünfte-und-unverstandene-eingaben-umgesetzt-paket-100-im-fork-belegt).
 
 Befunde aus `a11y-rules` im Inspector (Stufe `Semantics` auf dem AXTree,
 übrige Regeln als nicht geprüft), beschrieben in
@@ -133,7 +138,7 @@ nur bei einer Rückfrage), beschrieben in
 [spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#bestätigungstoken-umgesetzt).
 
 **Sofort startbar:**
-- Cloud: 100 (sensible Werte in Auskünften), 105 (Frames anderer Prozesse beim Laden), 106 (`tabfolge` sporadisch)
+- Cloud: 105 (Frames anderer Prozesse beim Laden), 106 (`tabfolge` sporadisch)
 - Cloud + M4: 26 (Sprache), 29 (Semantic View), 111 (Branding-Reste), 112 (`autocomplete` im Fork), 45 (Playwright), 110 (Consent: Zweck-Titel)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
@@ -163,7 +168,6 @@ nur bei einer Rückfrage), beschrieben in
 | 112 | HTML-`autocomplete` im Fork außerhalb einer Rückfrage | Cloud + M4 | offen | 75 ✓ | [112](112-autocomplete-im-fork.md) |
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
-| 100 | Sensible Werte in Auskünften und unverstandenen Eingaben | Cloud + M4 | offen | 76 ✓ | [100](100-sensible-werte-in-auskuenften.md) |
 | 105 | CDP-Host: Frames anderer Prozesse schon beim Laden anhängen (Ruhe nach dem Laden) | Cloud | offen | 85 ✓ | [105](105-cdp-host-frames-beim-laden.md) |
 | 106 | CDP-Host: `tabfolge` in einen fremden Frame sporadisch verfehlt | Cloud | offen | 85 ✓ | [106](106-tabfolge-fremder-frame-sporadisch.md) |
 | 110 | Consent: Zweck-Titel und Rückfrage je Zweck | Cloud + M4 | offen | 91 ✓ | [110](110-consent-zweck-titel.md) |

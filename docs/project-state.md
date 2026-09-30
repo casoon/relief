@@ -89,7 +89,10 @@ dem Absenden sagt die Antwort fehlerhafte Felder an.
 `spike/tasks/15-formular-assistent.txt` (beide Hosts). Nach dem Ausfüllen
 eines sensiblen Felds (Passwort, Zahlungs- oder Identitäts-`autocomplete`)
 nennt die Antwort weder neuen noch bisherigen Wert
-(`SetValue(verdeckt)`, „Wert geändert“), `spike/tasks/16-sensible-werte.txt`.
+(`SetValue(verdeckt)`, „Wert geändert“); Aktionsliste, „wo bin ich“,
+Mehrdeutigkeits- und Sprungmarkenlisten und der Inspector zeigen dort nur
+„= (verdeckt)“, „details zu …“ nennt den Wert auf Nachfrage,
+`spike/tasks/16-sensible-werte.txt`.
 
 In Aufgabendateien prüft `assert: <Zusicherung>` den aktuellen Stand eines
 Formulars und antwortet mit Befunden (Regel-IDs `form/…`) oder „Keine
@@ -107,8 +110,9 @@ Im Palettenmodus öffnet Strg+Umschalt+Leertaste die Befehlsleiste; riskante
 Aktionen werden mit „ja“ bestätigt, „nein“ verwirft die Rückfrage. Jede
 Eingabe landet mit Ergebnisart und
 Tastendrücken, ohne Seiteninhalte, in `relief-protokoll.jsonl` (`RELIEF_LOG`),
-der Wert eines Ausfüll- oder Auswahlbefehls als „(verdeckt)“, dazu die
-Zeilen des Security-Logs.
+der Wert eines Ausfüll- oder Auswahlbefehls als „(verdeckt)“, in
+unverstandenen Eingaben alles hinter „mit“/„=“ und jedes Wort mit drei
+Ziffern oder „@“ ebenso; dazu die Zeilen des Security-Logs.
 
 Resolver fehlender Namen kalibrieren (Stichprobe `spike/kalibrierung/`):
 

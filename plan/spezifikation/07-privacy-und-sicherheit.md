@@ -329,8 +329,9 @@ gleich (`SetValue("…")`, „Wert alt → neu“).
 
 **Protokolle**: `relief_interaction::redact_input` ersetzt den Wert eines
 Ausfüll- oder Auswahlbefehls (`SetValue`, `Select`) durch „(verdeckt)“,
-jede Fundstelle in der Eingabe; alles andere bleibt wörtlich, auch
-Unverstandenes. Genutzt von der CDP-Befehlsleiste (`eingabe` in
+jede Fundstelle in der Eingabe; andere Befehle bleiben wörtlich,
+Unverstandenes bis auf wertartige Teile (→ „Auskünfte und unverstandene
+Eingaben“). Genutzt von der CDP-Befehlsleiste (`eingabe` in
 `RELIEF_LOG`), im Fork von `RuntimeHost::RunCommand` (Zeile `command`)
 und vom Log der Befehlsleiste im Relief-Panel (die WebUI bekommt die
 Eingabe mit der Antwort vom Host, `bridge::redact_input`).
@@ -366,9 +367,66 @@ Protokollzeile enthält einen der Werte. Panel: „fülle Passwort mit
 geheim123“ erscheint im Log als „fülle Passwort mit (verdeckt):
 SetValue(verdeckt) auf [textbox] Passwort …“.
 
-Offen: Auskünfte (`wo bin ich`, `details zu`,
-Aktionsliste, Inspector) nennen den Wert eines Felds mit Zahlungs- oder
-Identitäts-`autocomplete` weiter; unverstandene Eingaben stehen wörtlich im
-Protokoll → Paket 100. Die Aufgaben-Runner (`relief-cdp run`/`test`,
-`--relief-run`) geben die Eingaben der Aufgabendatei aus; das sind
-Testausgaben, keine Protokolle.
+Die Aufgaben-Runner (`relief-cdp run`/`test`, `--relief-run`) geben die
+Eingaben der Aufgabendatei aus; das sind Testausgaben, keine Protokolle.
+
+### Auskünfte und unverstandene Eingaben [umgesetzt, Paket 100; im Fork belegt]
+
+**Auskünfte**: `Control::sensitive` (gesetzt in `graph::control`, dieselbe
+Regel `is_sensitive_field` wie Rückfrage und Antwort). `respond::control_line`
+nennt bei einem sensiblen Feld mit Wert nur „= (verdeckt)“; das gilt für
+die Aktionsliste, „wo bin ich“, Mehrdeutigkeitslisten, die Liste der
+Sprungmarken und im Inspector die Kurzzeile. Der Inspector zeigt auch unter
+„Wert“ nur „(verdeckt)“ (`relief-bridge` `inspector::control_item`).
+„details zu …“ (`respond::inspect`) nennt den Wert.
+
+Entscheidung: Eine ausdrückliche Auskunft über ein Feld ist Vorlesen auf
+Wunsch, wie ein Screenreader den Inhalt des fokussierten Felds vorliest;
+wer „details zu Kartennummer“ sagt, will den Wert hören. Listen, „wo bin
+ich“ und der Inspector sind Übersichten, die niemand eines Werts wegen
+aufruft und die nebenbei auf dem Bildschirm oder in der Sprachausgabe
+stehen; dort genügt, dass es einen Wert gibt. Die Antwort auf „details zu …“
+geht in kein Protokoll (die Protokolle enthalten Eingaben, keine Antworten;
+`relief-cdp record` speichert Antworten neben vollständigen Aufnahmen, das
+sind Testdaten).
+
+**Unverstandene Eingaben** (`session::redact_unparsed`, aus
+`redact_input`): Die Formulierung bleibt, verdeckt ist alles hinter dem
+ersten Werttrenner eines Ausfüllbefehls („ mit “, „ with “, „=“, ohne
+Groß-/Kleinschreibung) und jedes Wort mit mindestens drei Ziffern oder
+einem „@“. „füle Kartennummer mit 4111 1111 …“ wird zu „füle Kartennummer
+mit (verdeckt)“, eine versehentlich eingegebene Kartennummer oder
+E-Mail-Adresse zu „(verdeckt)“; „2“ (Auswahl), „marke as“, „ja“ bleiben.
+
+Entscheidung: Die Formulierung darf ins Protokoll, Werte nicht. Für die
+Nutzerstudie (→ 11) ist gerade das Unverstandene die Auskunft, welche
+Formulierungen der Parser noch nicht kennt; nur Länge und Art zu
+protokollieren nähme ihr das. Ein vertippter Ausfüllbefehl trägt seinen
+Wert fast immer hinter dem Trenner, Karten-, Konto- und Telefonnummern,
+Daten und E-Mail-Adressen fallen unter die Wortregel. [Annahme] Ein Wert
+ohne Trenner, Ziffern und „@“ (etwa ein Passwort aus Buchstaben, allein
+eingegeben, oder ein Name) bleibt lesbar; das ist die Grenze der Regel,
+nicht übersehen. Wer auch das ausschließen will, protokolliert
+Unverstandenes nur als Länge; das bleibt der Weg, falls die Studie es
+verlangt.
+
+Belegt: `session.rs` `auskuenfte_nennen_sensible_werte_nur_auf_nachfrage`
+(`cc-number`: Aktionsliste und „wo bin ich“ ohne Wert, „details zu“ mit;
+nicht sensibel unverändert), `protokoll_verdeckt_werte_in_unverstandenem`;
+`crates/relief-bridge/tests/inspector.rs` `sensibler_wert_ist_verdeckt`
+(`cc-number`: weder Kurzzeile noch „Wert“ noch sonst im JSON);
+`spike/tasks/16-sensible-werte.txt` im CDP-Host: „was kann ich tun“ zeigt
+Anzeigename mit Wert, Benutzername, Passwort und Kartennummer als
+„= (verdeckt)“, „wo bin ich“ ebenso, „details zu Kartennummer“ nennt
+„Wert: 5555555555554444“.
+
+Im Fork gilt die Regel außerhalb einer Rückfrage nur für Passwortfelder,
+weil `autocomplete` dort nur bei einer Rückfrage angefragt wird (→ 112).
+Im Fork (M4) belegt: `relief_browsertests` grün; Fork-Aufgaben 01–05, 07,
+15: 94 erfüllt, 0 nicht erfüllt; `16-sensible-werte.txt` mit
+`--relief-log`: 5 erfüllt, die 6 verfehlten sind Benutzername und
+Kartennummer (Antwort, Liste, „wo bin ich“, → 112), keine Protokollzeile
+mit einem der Werte. Inspector auf `login.html` nach „fülle Passwort mit
+geheim123“: Kurzzeile „[textbox] Passwort = (verdeckt)“, Details „Wert:
+(verdeckt)“; unverstanden „füle Passwort mit sommer123“ steht im
+Protokoll als `command	füle Passwort mit (verdeckt)`.

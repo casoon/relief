@@ -88,3 +88,42 @@ fn zeigen_loest_nichts_aus() {
         Reply::Answer("Eintrag ist nicht mehr auf der Seite.".into())
     );
 }
+
+/// Paket 100: Der Inspector zeigt bei einem sensiblen Feld nur, dass es einen
+/// Wert gibt, weder in der Kurzzeile noch unter „Wert“.
+#[test]
+fn sensibler_wert_ist_verdeckt() {
+    let pair = common::pairs()
+        .into_iter()
+        .find(|p| p.name.contains("01-shop-clean"))
+        .expect("Aufnahme 01-shop-clean");
+    let mut graph = pair.before;
+    let suche = graph
+        .document_order()
+        .into_iter()
+        .find(|at| graph.node(at).unwrap().role == relief_model::Role::SearchBox)
+        .unwrap();
+    let feld = graph
+        .trees
+        .get_mut(&suche.tree)
+        .unwrap()
+        .nodes
+        .get_mut(&suche.node)
+        .unwrap();
+    feld.value = relief_model::Fact::known(Some("4111111111111111".into()));
+    feld.extra.insert(
+        relief_interaction::security::HTML_AUTOCOMPLETE.into(),
+        "cc-number".into(),
+    );
+    let mut rt = Runtime::new();
+    rt.apply(&TreeDelta::between(&SemanticGraph::default(), &graph))
+        .unwrap();
+
+    let json = inspector_json(&rt);
+    assert!(!json.contains("4111111111111111"), "{json}");
+    let view: Value = serde_json::from_str(&json).unwrap();
+    let feld = eintrag(&view, "controls", "[searchbox]");
+    assert_eq!(feld["value"], "(verdeckt)");
+    let label = feld["label"].as_str().unwrap();
+    assert!(label.ends_with("= (verdeckt)"), "{label}");
+}

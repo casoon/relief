@@ -71,17 +71,60 @@ pub fn parse_input(input: &str) -> Result<(bool, Command), String> {
 
 /// Eingabe für ein Protokoll: der Wert eines Befehls, der einen Wert setzt
 /// oder wählt, ist verdeckt, unabhängig vom Ziel (das steht beim
-/// Protokollieren noch nicht fest). Alles andere bleibt, wie es eingegeben
-/// wurde, auch Unverstandenes (→ `plan/spezifikation/07`, „Security-Log“).
+/// Protokollieren noch nicht fest). Andere Befehle bleiben, wie sie
+/// eingegeben wurden; in unverstandenen Eingaben ist verdeckt, was wie ein
+/// Wert aussieht ([`redact_unparsed`], → `plan/spezifikation/07`,
+/// „Sensible Werte außerhalb der Rückfrage“).
 pub fn redact_input(input: &str) -> String {
-    let value = match parse_input(input) {
-        Ok((_, Command::SetValue(_, value) | Command::Select(_, value))) => value,
-        _ => return input.to_string(),
-    };
-    if value.is_empty() {
-        return input.to_string();
+    match parse_input(input) {
+        Ok((_, Command::SetValue(_, value) | Command::Select(_, value))) if !value.is_empty() => {
+            input.replace(&value, "(verdeckt)")
+        }
+        Ok(_) => input.to_string(),
+        Err(_) => redact_unparsed(input),
     }
-    input.replace(&value, "(verdeckt)")
+}
+
+/// Unverstandene Eingabe: Die Formulierung bleibt, verdeckt ist alles hinter
+/// dem ersten Werttrenner eines Ausfüllbefehls („ mit “, „ with “, „=“; etwa
+/// ein vertipptes „füle … mit …“) und jedes Wort mit mindestens drei Ziffern
+/// oder einem „@“ (Karten-, Konto- und Telefonnummern, Daten,
+/// E-Mail-Adressen). Kurze Zahlen bleiben: Sie wählen aus einer Liste.
+fn redact_unparsed(input: &str) -> String {
+    const SEPARATORS: &[&str] = &[" mit ", " with ", "="];
+    // Die Trenner sind ASCII und beginnen mit einem ASCII-Zeichen, der Fund
+    // liegt also auf einer Zeichengrenze.
+    let bytes = input.as_bytes();
+    let separator = SEPARATORS
+        .iter()
+        .filter_map(|sep| {
+            bytes
+                .windows(sep.len())
+                .position(|w| w.eq_ignore_ascii_case(sep.as_bytes()))
+                .map(|i| (i, sep.len()))
+        })
+        .min();
+    let words = |text: &str| {
+        text.split(' ')
+            .map(|word| {
+                let digits = word.chars().filter(char::is_ascii_digit).count();
+                if digits >= 3 || word.contains('@') {
+                    "(verdeckt)"
+                } else {
+                    word
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    match separator {
+        Some((i, len)) if !input[i + len..].trim().is_empty() => {
+            let value = input[i + len..].trim_start();
+            let end = input.len() - value.len();
+            format!("{}{}(verdeckt)", words(&input[..i]), &input[i..end])
+        }
+        _ => words(input),
+    }
 }
 
 /// Braucht der Befehl den aktuellen Fokus? Hosts, die ihn erst erfragen
@@ -1332,6 +1375,52 @@ mod tests {
         }
     }
 
+    /// Paket 100: Aktionsliste, Mehrdeutigkeit und „wo bin ich“ nennen den
+    /// Wert eines Felds mit `autocomplete="cc-number"` nicht, „details zu …“
+    /// als ausdrückliche Nachfrage schon.
+    #[test]
+    fn auskuenfte_nennen_sensible_werte_nur_auf_nachfrage() {
+        let karte = "4111111111111111";
+        let model = with_node(&crate::graph::sample_tree(), 20, |n| {
+            n.value = relief_model::Fact::known(Some(karte.into()));
+            n.extra.insert(
+                crate::security::HTML_AUTOCOMPLETE.into(),
+                "cc-number".into(),
+            );
+        });
+        let graph = Graph::build(&model);
+        let mut s = Session::new();
+
+        let list = run(&mut s, &model, false, Command::ListActions).unwrap();
+        assert!(list.contains("[spinbutton] Menge = (verdeckt)"), "{list}");
+        let menge = crate::graph::at(20);
+        let Outcome::Answer(here) =
+            s.handle(&graph, &model, false, Command::WhereAmI, Some(&menge))
+        else {
+            panic!("Antwort erwartet")
+        };
+        assert!(
+            here.starts_with("Fokus auf [spinbutton] Menge = (verdeckt)"),
+            "{here}"
+        );
+        for text in [&list, &here] {
+            assert!(!text.contains(karte), "{text}");
+        }
+
+        let details = run(&mut s, &model, false, Command::Inspect("Menge".into())).unwrap();
+        assert!(details.contains(&format!("Wert: {karte}")), "{details}");
+
+        // Nicht sensibel bleibt die Zeile, wie sie war.
+        let plain = run(
+            &mut Session::new(),
+            &crate::graph::sample_tree(),
+            false,
+            Command::ListActions,
+        )
+        .unwrap();
+        assert!(plain.contains("[spinbutton] Menge = „1“"), "{plain}");
+    }
+
     #[test]
     fn protokoll_verdeckt_werte() {
         assert_eq!(
@@ -1349,6 +1438,32 @@ mod tests {
         assert_eq!(redact_input("klicke Anmelden"), "klicke Anmelden");
         assert_eq!(redact_input("set Suche ="), "set Suche =");
         assert_eq!(redact_input("unverständlich"), "unverständlich");
+    }
+
+    /// Paket 100: Unverstandenes behält die Formulierung, aber keine Werte.
+    #[test]
+    fn protokoll_verdeckt_werte_in_unverstandenem() {
+        for (input, logged) in [
+            // Vertippter Ausfüllbefehl: Ziel bleibt, Wert nicht.
+            (
+                "füle Kartennummer mit 4111 1111 1111 1111",
+                "füle Kartennummer mit (verdeckt)",
+            ),
+            ("setz Passwort = sommerwind", "setz Passwort = (verdeckt)"),
+            ("fill Card WITH geheim", "fill Card WITH (verdeckt)"),
+            // Nur der Wert, versehentlich in die Befehlsleiste.
+            ("4111111111111111", "(verdeckt)"),
+            ("Geburtstag 01.02.1990", "Geburtstag (verdeckt)"),
+            ("schreib erika@example.org rein", "schreib (verdeckt) rein"),
+            // Formulierung ohne Wert, kurze Zahl (Auswahl), Marke, „ja“.
+            ("wie lange noch", "wie lange noch"),
+            ("2", "2"),
+            ("marke as", "marke as"),
+            ("ja", "ja"),
+            ("füle mit", "füle mit"),
+        ] {
+            assert_eq!(redact_input(input), logged, "{input}");
+        }
     }
 
     // Overlay- und Consent-Dialoge (→ `crate::overlay`): Consent-iframe im
