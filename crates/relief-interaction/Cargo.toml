@@ -18,10 +18,14 @@ serde = { workspace = true }
 a11y-dom = { workspace = true, optional = true }
 a11y-report = { workspace = true, optional = true }
 accname = { workspace = true, optional = true }
+# Befunde im Inspector: Regeln der Stufe Semantics auf dem AXTree (Paket 21);
+# im Fork aus den gleichen Quellen gebaut (→ fork/relief/BUILD.gn).
+a11y-rules = { workspace = true, optional = true }
 
 [features]
-default = ["assertions"]
+default = ["assertions", "rules"]
 assertions = ["dep:a11y-dom", "dep:a11y-report", "dep:accname"]
+rules = ["dep:a11y-dom", "dep:a11y-report", "dep:a11y-rules"]
 
 [dev-dependencies]
 # Tests lesen die CDP-Aufnahmen und bringen sie über den Konverter ins Modell.

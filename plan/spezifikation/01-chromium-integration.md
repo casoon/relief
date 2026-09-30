@@ -386,8 +386,9 @@ Grundlage für 17 (Umsetzung) und den Rebase-Aufwand (Abschnitt
 | 3 | `chrome/browser/DEPS` (ein `chrome/browser/ui/tabs/DEPS` gibt es nicht [belegt]) | `"+relief"` in `include_rules` | checkdeps (Presubmit) verbietet sonst das Include; für den Build nicht nötig → **entfällt**, solange Relief den Chromium-Presubmit nicht fährt [Entscheidung] |
 | 4 | `chrome/browser/ui/side_panel/side_panel_entry_id.h` und `chrome/browser/ui/actions/chrome_action_id.h` — **umgesetzt [20], ein Patch** | `V(kRelief, kActionSidePanelShowRelief, "Relief")` nach `kTestTabScopedEntry`; `E(kActionSidePanelShowRelief)` nach `kActionSidePanelShowReadAnything` | Side-Panel-IDs und Aktions-IDs sind zentrale Makro-Enums. Eine Aktions-ID ist Pflicht [belegt]: Kopfzeile (`SidePanelHelper::GetActionItem`) und Toolbar-Zustand (`SidePanelToolbarPinningController::UpdateActiveState`) prüfen sie per `CHECK`; `std::nullopt` geht nur für Sonderfälle (`kWebView`, `kExtension`). Das Aktions-Element selbst meldet `//relief` zur Laufzeit an `BrowserActions` an |
 | 5 | ~~`chrome/browser/ui/webui/chrome_web_ui_configs.cc`~~ — **entfällt [20]** | — | die WebUI registriert `//relief` zur Laufzeit über `content::WebUIConfigMap::AddWebUIConfig`; Ressourcen ohne grit (Header aus `inspector/embed_resources.py`), also auch kein Eintrag in `tools/gritsettings/resource_ids.spec`; `WebUIContentsWrapperT` wird umgangen, weil es den WebUI-Namen gegen eine Histogramm-Liste prüft (`tools/metrics`) |
+| 6 | `chrome/app/theme/chromium/BRANDING`, `chrome/app/chromium_strings.grd` (`IDS_PRODUCT_NAME`, `IDS_SHORT_PRODUCT_NAME`, nicht übersetzt), `chrome/app/app-Info.plist` — **umgesetzt [36], ein Patch** | Produktname „Relief“, Bundle-ID `de.casoon.relief`, `CrProductDirName` = `Relief` | Chromiums vorgesehener Weg für Produktnamen; `.app`-Name, Helfer, Framework und Profilverzeichnis leiten sich daraus ab |
 
-Stand: drei Patches (`fork/patches/series`).
+Stand: vier Patches (`fork/patches/series`).
 
 Nicht nötig [belegt]:
 
@@ -870,6 +871,65 @@ ReliefTabHelper: nach jeder Delta OnGraphChanged → Handler bündelt 250 ms
   VoiceOver dabei die Position hält, ist ungeprüft. Kürzel-Konflikte unter
   Windows/Linux (Strg+Umschalt+I = Entwicklertools) → 31/47.
 
+## Befunde im Inspector (Paket 21) [belegt]
+
+Der Inspector zeigt Befunde aus `a11y-rules`/`a11y-report` (barrierlab)
+ohne eigenes Befundmodell: `Outcome` (Fehler, prüfen, nicht geprüft),
+Severity und Regel-ID stehen am Knoten (Liste „[N Befunde]“, Details
+„Befund“), seitenweite Befunde und die nicht gelaufenen Regeln im Abschnitt
+„Prüfung“.
+
+- **Welche Regeln laufen** (`crates/relief-interaction/src/rules.rs`,
+  Feature `rules`): Der Fork hat nur den AXTree. `AxDocument` stellt ihn als
+  `a11y_dom::Document` + `Semantics` dar (Dokumentreihenfolge über alle
+  Bäume, iframes unter ihrem Host; Tag aus `kHtmlTag`, das Blink im
+  Relief-Modus mitschickt und `ax_tree_mirror.cc` als `extra["htmlTag"]`
+  überträgt; Text aus `StaticText`; als Attribut nur `href` an `a`).
+  Darauf laufen die Regeln der Stufe `Semantics` (Stand a11y-rules 0.13.3:
+  `links/name-missing`, `buttons/name-missing`, `svg/name-missing`,
+  `links/ambiguous-name`, `links/generic-name`). Die Stufen `Structure`
+  (Markup: `lang`, `title`, `alt`, Labels, ARIA-Attribute, IDs, tabindex …)
+  und `Rendering` (Kontrast) stehen als `NotRun::CapabilityMissing` mit Grund
+  „Nur der Accessibility-Tree liegt vor …“ im Bericht — nicht geprüft ist
+  nicht bestanden.
+- **Anbindung:** `inspector_json` hängt je Eintrag `findings` an (Ort über
+  `AxDocument::node_ref`), dazu `checks` (Zahl gelaufener Regeln,
+  Befunde ohne Eintrag in der Liste, nicht gelaufene Regeln mit Grund).
+- **Bau im Fork:** Die drei barrierlab-Crates stehen nicht in
+  `//third_party/rust`. Entscheidung: nicht ins Repository kopieren
+  (barrierlab bleibt die Quelle), sondern `scripts/fork-apply.sh` holt die
+  in `Cargo.lock` festgelegte Version aus der lokalen Cargo-Registry
+  (`cargo fetch`, Pfad aus `cargo metadata`) nach
+  `//relief/third_party/<crate>/src`; `//relief/third_party/BUILD.gn` baut
+  sie (Edition 2024, `a11y_rules` mit Feature `de`). Die Dateilisten dort
+  gelten für 0.13.3 und sind bei einem Versionswechsel nachzuziehen.
+- **Test:** `relief_browsertests --gtest_filter=*Inspektor*` — der Button
+  ohne Namen trägt „[1 Befund]“, der Abschnitt „Prüfung“ nennt die nicht
+  geprüften Regeln.
+
+## Name und Branding (Paket 36) [belegt]
+
+Der Build heißt `out/Relief/Relief.app` (Binärdatei `Contents/MacOS/Relief`,
+`Relief Framework.framework`, `Relief Helper*.app`), Bundle-ID
+`de.casoon.relief`; Menüleiste und Dock zeigen `CFBundleName` = „Relief“.
+Das Profil liegt unter `~/Library/Application Support/Relief`
+(`CrProductDirName` im Info.plist, ausgewertet in
+`chrome/common/chrome_paths_mac.mm:31`), Relief läuft also neben
+Chrome/Chromium. Weg: Patch 6 in der Tabelle oben; der Neubau nach der
+Änderung dauerte 2,5 min.
+
+- **Belegt:** Info.plist (`CFBundleName`, `CFBundleIdentifier`,
+  `CrProductDirName` = Relief/de.casoon.relief/Relief), Profilverzeichnis
+  beim ersten Start angelegt, Über-Seite zeigt „Relief“ als Produkt,
+  `relief_browsertests` und Fork-Aufgaben 01–05 laufen mit dem neuen Pfad.
+- **Entscheidung:** Bundle-ID unter der Domain des Projekts
+  (`de.casoon.relief`); Unternehmensangaben in BRANDING bleiben bei den
+  Chromium-Autoren (Copyright des Codes).
+- **Offen (→ 111):** übersetzte Texte mit wörtlichem „Chromium“ („Über
+  Chromium“, „Hilfe für Chromium aufrufen“) und das Symbol.
+- `scripts/chromium-setup.sh` baut weiter unverändertes Chromium
+  (`Chromium.app`); erst `fork-apply.sh` bringt den Namen.
+
 ## Verzeichnisstruktur im Fork [Stand 20 · Rest Annahme]
 
 ```
@@ -878,6 +938,7 @@ ReliefTabHelper: nach jeder Delta OnGraphChanged → Handler bündelt 250 ms
 ├── relief_*.h/cc  # Einstieg je Tab, Schalter, Aufgaben-Runner
 ├── bridge/        # C++-Adapter AXTree ↔ Relief-Modell, Runtime-Sequenz, AXActionData-Rückweg
 ├── inspector/     # Semantic Inspector: Side-Panel-Eintrag, WebUI, Ressourcen
+├── third_party/   # BUILD.gn für a11y-dom, a11y-report, a11y-rules; Quellen legt scripts/fork-apply.sh ab
 ├── crates/        # Kopie der Crates relief-model, relief-interaction, relief-bridge (scripts/fork-apply.sh)
 ├── speech/        # STT/TTS-Adapter (Annahme)
 ├── ai/            # Modell-Adapter (lokal/Cloud), nur hinter der Privacy Boundary (Annahme)

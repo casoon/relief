@@ -9,7 +9,7 @@
 //! Risiko LOW).
 
 use relief_interaction::{
-    plan_navigation, plan_on_page, respond, ActionKind, Control, Graph, Place,
+    plan_navigation, plan_on_page, respond, rules, ActionKind, Control, Graph, Place,
 };
 use relief_model::{Action, Certainty, Fact, NodeId, NodeRef, SemanticGraph, Source, TreeId};
 use serde::Serialize;
@@ -30,6 +30,27 @@ struct View {
     regions: Vec<Item>,
     headings: Vec<Item>,
     controls: Vec<Item>,
+    /// Prüfung mit `a11y-rules` (Paket 21).
+    checks: Checks,
+}
+
+#[derive(Serialize)]
+struct Checks {
+    /// Regelkennungen, die gelaufen sind.
+    ran: usize,
+    /// Befunde, die keinem Eintrag der Listen gehören (z. B. Text).
+    page: Vec<FindingView>,
+    /// Nicht gelaufene Regeln mit Grund (nicht geprüft ist nicht bestanden).
+    not_run: Vec<[String; 2]>,
+}
+
+#[derive(Serialize, Clone)]
+struct FindingView {
+    rule: String,
+    /// `fail`, `review`, `untested`.
+    outcome: &'static str,
+    severity: &'static str,
+    message: String,
 }
 
 #[derive(Serialize)]
@@ -54,6 +75,7 @@ struct Item {
     relations: Vec<[String; 2]>,
     /// Gesperrt, solange ein modaler Dialog offen ist.
     reachable: bool,
+    findings: Vec<FindingView>,
 }
 
 fn key(at: &NodeRef) -> String {
@@ -168,6 +190,7 @@ fn control_item(graph: &Graph, model: &SemanticGraph, c: &Control) -> Item {
         actions,
         relations,
         reachable: graph.is_reachable(c.region, &c.node),
+        findings: Vec::new(),
     }
 }
 
@@ -175,6 +198,28 @@ fn control_item(graph: &Graph, model: &SemanticGraph, c: &Control) -> Item {
 pub fn inspector_json(runtime: &Runtime) -> String {
     let model = runtime.graph();
     let graph = Graph::build(model);
+    // Befunde je Knoten (Schlüssel wie die Einträge).
+    let doc = rules::AxDocument::new(model);
+    let report = rules::check(&doc);
+    let mut by_key: std::collections::HashMap<String, Vec<FindingView>> =
+        std::collections::HashMap::new();
+    for f in report
+        .findings
+        .iter()
+        .filter(|f| f.outcome.is_visible_by_default())
+    {
+        let view = FindingView {
+            rule: f.rule_id.clone(),
+            outcome: f.outcome.as_str(),
+            severity: f.severity.as_str(),
+            message: f.message.clone(),
+        };
+        let at = f.location.node.as_deref().and_then(|n| doc.node_ref(n));
+        by_key
+            .entry(at.map(key).unwrap_or_default())
+            .or_default()
+            .push(view);
+    }
     let main = model.root.as_ref().and_then(|t| model.trees.get(t));
     let focus = runtime
         .session
@@ -205,6 +250,7 @@ pub fn inspector_json(runtime: &Runtime) -> String {
                 actions,
                 relations,
                 reachable: graph.is_reachable(Some(i), &r.node),
+                findings: Vec::new(),
             }
         })
         .collect();
@@ -228,6 +274,7 @@ pub fn inspector_json(runtime: &Runtime) -> String {
                 actions,
                 relations,
                 reachable: graph.is_reachable(h.region, &h.node),
+                findings: Vec::new(),
             }
         })
         .collect();
@@ -237,6 +284,23 @@ pub fn inspector_json(runtime: &Runtime) -> String {
         .map(|c| control_item(&graph, model, c))
         .collect();
 
+    let mut take = |k: &str| by_key.remove(k).unwrap_or_default();
+    let mut regions: Vec<Item> = regions;
+    let mut headings: Vec<Item> = headings;
+    let mut controls: Vec<Item> = controls;
+    for item in regions.iter_mut().chain(&mut headings).chain(&mut controls) {
+        item.findings = take(&item.key);
+    }
+    let checks = Checks {
+        ran: report.rule_runs.iter().filter(|r| r.did_run()).count(),
+        page: by_key.into_values().flatten().collect(),
+        not_run: report
+            .rule_runs
+            .iter()
+            .filter(|r| !r.did_run())
+            .map(|r| [r.rule_id.clone(), r.reason.clone().unwrap_or_default()])
+            .collect(),
+    };
     let view = View {
         version: model.version.0,
         title: main.and_then(|t| t.data.title.clone()),
@@ -246,6 +310,7 @@ pub fn inspector_json(runtime: &Runtime) -> String {
         regions,
         headings,
         controls,
+        checks,
     };
     serde_json::to_string(&view).unwrap_or_else(|_| "{}".into())
 }

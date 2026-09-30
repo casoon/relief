@@ -364,7 +364,7 @@ Relief mit diesen vier Crates, künftig zusätzlich `a11y-rules`
 
 | Richtung | Was | Wann |
 |---|---|---|
-| nutzen | `a11y-rules`, `a11y-report` für Befunde im Inspector | 21 |
+| nutzen | `a11y-rules`, `a11y-report` für Befunde im Inspector (Stufe `Semantics` auf dem AXTree, übrige als nicht gelaufen, → 01) | 21 ✓ |
 | nutzen | `a11y-dom` und `accname` für DOM-basierte Namensprüfungen; der AX-Graph allein genügt dafür nicht | 42 ✓ |
 | nutzen | Diff-Regeln aus `a11y-perception` statt eigener Diff-Logik (Zusicherungen nutzen `TreeDelta`, → oben) | 25 |
 | ablegen | Screenreader-Treiber-Interface samt Adaptern und Phrasen-Protokoll, sobald ein zweiter Konsument ihn braucht | 43 |
