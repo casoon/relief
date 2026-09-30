@@ -23,14 +23,15 @@ crates/
 │   │   └── cxx_bridge.rs     # Variante A: #[cxx::bridge] mit flachen Strukturen, Umwandlung ↔ Modell
 │   ├── mojom/                # Variante B: Entwurf relief_runtime.mojom (nicht gebaut)
 │   └── benches/bridge.rs     # criterion: Grenze, JSON, Anwenden, Neuaufbau auf spike/recordings
-├── relief-interaction/       # browserfrei, nur relief-model (ohne `perception`) + serde
+├── relief-interaction/       # browserfrei, relief-model (ohne `perception`) + serde; a11y-dom, accname, a11y-report (barrierlab)
 │   ├── src/
 │   │   ├── graph.rs          # SemanticGraph → Graph (Bereiche, Überschriften, Bedienelemente, Fließtext; Ziele als NodeRef + DOM-ID); Fokus der Seite
 │   │   ├── page.rs           # Seitentyp, funktionale Gruppen (Produkt, Formular), primäre Aktion — erschlossen mit Evidence, nie Known
 │   │   ├── command.rs        # Text → Command (feste Formulierungen, kein LLM)
 │   │   ├── resolve.rs        # Zielbeschreibung → Bedienelement oder Abschnitt/Bereich; Schritte vom Fokus; was sich schließen lässt
 │   │   ├── validate.rs       # Bedienelement + Aktion → ActionPlan mit Risikoklasse; Seitentyp Anmeldung/Kasse erhöht (plan_on_page)
-│   │   └── respond.rs        # Antworttexte (auch wo bin ich, Vorlesen, Scrollergebnis), Wirkung einer Aktion aus zwei Modellständen
+│   │   ├── respond.rs        # Antworttexte (auch wo bin ich, Vorlesen, Scrollergebnis), Wirkung einer Aktion aus zwei Modellständen
+│   │   └── assertions.rs     # Formular-Zusicherungen: Modell + DOM-Fakten (a11y-dom) + Tab-Folge → Befunde (a11y-report); accname für den Namensvergleich
 │   └── tests/                # browserfrei gegen spike/recordings (über den Konverter als Modell)
 │       ├── recordings.rs     # Graph-Zusammenfassung je Aufnahme ↔ erwartungen/, Graph-Stabilität
 │       ├── aufgaben.rs       # Aufgaben aus spike/tasks nachgespielt, Spike-Befunde
@@ -56,22 +57,26 @@ crates/
     └── src/
         ├── capture.rs        # getFullAXTree je Frame, iframes eingehängt, Fokus → AXSnapshot
         ├── live.rs           # DOM-Mutationen + Netzwerk → „Seite ruht“; „geändert seit letzter Aufnahme“
-        ├── act.rs            # ActionPlan → DOM/JS am Element (Backend-ID); Escape/Pfeiltasten als Taste; Scrollen
+        ├── act.rs            # ActionPlan → DOM/JS am Element (Backend-ID); Escape/Pfeiltasten/Tab als Taste; Scrollen
+        ├── assertions.rs     # `assert:`-Zeilen: DOM-Fakten aus DOM.getDocument, Tab-Folge beobachten, Fokus → relief_interaction::assertions
         ├── palette.rs        # Befehlsleiste: Binding, Bestätigung, Protokoll, Selbsttest
         ├── record.rs         # Aufgaben abspielen, AXSnapshots vorher/nachher speichern
         ├── palette.js        # in jedes Dokument eingefügte Leiste (modaler <dialog>, Status-Popover)
         └── main.rs           # Session (Aufnahme → Modell → Graph, Tree-ID je Dokument), Modi run / repl / measure / record / palette
 spike/
 ├── fixtures/                 # eigene Testseiten
-├── tasks/                    # Aufgabendateien (url:/do:/expect:)
+├── tasks/                    # Aufgabendateien (url:/do:/assert:/expect:)
 ├── recordings/               # AXSnapshot-Aufnahmen je Seite und Schritt (JSON)
 └── kalibrierung/             # von Hand beschriftete Stichprobe unbenannter Controls (Soll-Namen)
 ```
 
 `relief-interaction` kennt keinen Browser und kein CDP und liest nur das
-Modell (`SemanticGraph`); es ist der Teil, der unverändert hinter dem
-Fork-Adapter laufen soll (eingebunden ist er dort noch nicht).
-`a11y-perception` kommt aus barrierlab (crates.io).
+Modell (`SemanticGraph`) und für Formular-Zusicherungen DOM-Fakten, die ein
+Host übergibt; es ist der Teil, der unverändert hinter dem
+Fork-Adapter laufen soll (eingebunden ist er dort noch nicht; dann müssen
+`a11y-dom`, `accname` und `a11y-report` mit in den Fork).
+`a11y-perception`, `a11y-dom`, `accname` und `a11y-report` kommen aus
+barrierlab (crates.io).
 
 `relief-model` ist das Modell, das der Fork-Adapter füllt: ein Baum je
 Tree-ID, Knoten über (Tree-ID, Node-ID), inkrementelle Änderungen als
@@ -247,11 +252,42 @@ flowchart LR
   kein Zielelement und läuft wie Escape ohne `ActionPlan`; die Antwort kommt
   aus der Scrollposition.
 
+## Formular-Zusicherungen (Linie B)
+
+```mermaid
+flowchart LR
+  L["assert: …"] --> P["Assertion::parse"]
+  P --> U["Session::update (wie vor do:)"]
+  P -->|"namen-wie-accname"| D["DOM.getDocument → DomFacts (a11y-dom-Arena, DOM-ID → Knoten)"]
+  P -->|"tabfolge"| T["Tab-Tasten ab Dokumentanfang, Fokus je Schritt → NodeRef"]
+  U --> C["assertions::check(Modell, DOM-Fakten, Fokus, Tab-Folge)"]
+  D --> C
+  T --> C
+  C --> F["Vec<a11y_report::Finding>"] --> R["render → Antwort, expect: prüft sie"]
+```
+
+- **Aufteilung**: `relief-cdp/src/assertions.rs` erhebt, `relief-interaction`
+  wertet aus. DOM-Fakten nur für `namen-wie-accname`: Hauptdokument, Tag,
+  Text und die Attribute aus `dom_attribute_needed`; ohne `script`, `style`,
+  `template`, `noscript`, ohne iframes und Shadow DOM, ohne Rendering.
+  `accname::name` rechnet darauf; eine Abweichung zu Chromiums Namen ist ein
+  `review`-Befund mit beiden Werten.
+- **Fokus** wird wie bei fokusbezogenen Befehlen live abgefragt
+  (`Session::focus`), nicht der Aufnahme entnommen.
+- **Tab-Folge**: ein per Skript fokussiertes `<span tabindex=-1>` am Anfang
+  von `body` ist der Startpunkt (danach entfernt); nach jedem Tab die
+  Backend-ID von `document.activeElement`, Ende bei `body`, Wiederholung
+  oder 60 Schritten. Tab läuft wie Escape und Scrollen ohne `ActionPlan`.
+- **Befunde**: `a11y_report::Finding` mit Regel-ID (`form/…`), `Outcome`
+  (`fail` belegt, `review` heuristisch, `untested` ohne Daten),
+  Schweregrad, WCAG-Kriterien, Verortung über die DOM-ID, Rolle und Name.
+  Tabelle der Zusicherungen in `plan/spezifikation/12`.
+
 ## Grenzen des Hosts
 
 - Aktionen laufen über DOM/JavaScript (`click()`, nativer `value`-Setter,
-  `select.value`, `focus()`, `scrollTo`) bzw. echte Escape- und
-  Pfeiltasten, nicht über `AXActionData`.
+  `select.value`, `focus()`, `scrollTo`) bzw. echte Escape-, Pfeil- und
+  (für `tabfolge`) Tab-Tasten, nicht über `AXActionData`.
 - `aria-valuetext` kommt über CDP leer an (`valuetext: ""`); der Textwert
   eines ARIA-Schiebereglers ist nur über den Diff (neuer Text) sichtbar.
 - Vollsnapshot bei jeder Änderung; keine inkrementellen AX-Updates.

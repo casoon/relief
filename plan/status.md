@@ -57,17 +57,22 @@ und [01](spezifikation/01-chromium-integration.md#umsetzung-im-fork-pakete-17-33
 CDP-Host wartet auf Netzwerk-Ruhe zusätzlich zur DOM-Ruhe (bahn.de stabil),
 beschrieben in
 [spezifikation/09](spezifikation/09-phasen-und-kriterien.md#nachtrag-netzwerk-ruhe-2026-09-25-belegt).
+Formular-Zusicherungen im Aufgabenformat (`assert:`) umgesetzt, browserfrei
+ausgewertet mit `a11y-dom`, `accname` und `a11y-report`, beschrieben in
+[spezifikation/12](spezifikation/12-produktumfang.md#formular-zusicherungen-umgesetzt-2026-09-30-paket-42).
 
 **Sofort startbar:**
-- Cloud: 42 (Formular-Zusicherungen), 46 (barrierlab), 48 (Sicherheits-Regressionsmatrix, browserfreier Teil;
+- Cloud: 49 (Zusicherungen nachschärfen), 46 (barrierlab), 48 (Sicherheits-Regressionsmatrix, browserfreier Teil;
   der Fork-Teil braucht 24)
-- Cloud + M4: 24 (Aktionen über AXActionData), 20 (Inspector), 36 (Branding)
+- Cloud + M4: 24 (Aktionen über AXActionData), 20 (Inspector), 36 (Branding),
+  44 (Lauf ohne Fenster, JUnit)
+- M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
 - Linie A: 24 und 20 parallel → 25 → dann 26, 29, 38, 39, 40 parallel → 41;
   47 läuft mit 20 und 25 als Abnahme mit.
-- Linie B: 42 → 43 und 44 parallel → 45.
+- Linie B: 43 und 44 parallel → 45; 49 jederzeit.
 - Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
 - Vor jeder Modellintegration (28 im Fork, 34): 48.
 
@@ -90,11 +95,11 @@ beschrieben in
 | 39 | Formular-Assistent | Cloud + M4 | offen | 24, 25 (26) | [39](39-formular-assistent.md) |
 | 40 | Overlay- und Consent-Dialoge | Cloud + M4 | offen | 24 | [40](40-overlay-und-consent.md) |
 | 41 | Fähigkeitsprofile | Cloud + M4 | offen | 25, 26, 29 | [41](41-faehigkeitsprofile.md) |
-| 42 | Formular-Zusicherungen im Aufgabenformat | Cloud | offen | — | [42](42-formular-zusicherungen.md) |
-| 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 | [43](43-voiceover-im-test.md) |
-| 44 | Lauf ohne Fenster, JUnit-Bericht | Cloud + M4 | offen | 42 | [44](44-kopflos-und-junit.md) |
+| 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
+| 44 | Lauf ohne Fenster, JUnit-Bericht | Cloud + M4 | offen | 42 ✓ | [44](44-kopflos-und-junit.md) |
 | 45 | Playwright-Anbindung | Cloud + M4 | offen | 24, 44 | [45](45-playwright-anbindung.md) |
 | 46 | barrierlab: Relief als Konsument, Reader ersetzen | Cloud (barrierlab) | offen | — | [46](46-barrierlab-einbinden.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20, 25 | [47](47-relief-ui-accessibility.md) |
 | 48 | Sicherheits-Regressionsmatrix für Modellgrenzen | Cloud | offen | 24, vor Modellintegration | [48](48-sicherheits-regressionen.md) |
+| 49 | Formular-Zusicherungen nachschärfen (Statusmeldung als Änderung, Prüfbefehle) | Cloud | offen | 42 ✓ | [49](49-zusicherungen-nachschaerfen.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |

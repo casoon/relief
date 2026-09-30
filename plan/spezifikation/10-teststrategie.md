@@ -56,6 +56,9 @@ neu entstandener oder in seiner Evidenz veränderter Befund bleibt getrennt.
 1. **Rust-Unit/Snapshot-Tests** (browserfrei): Modell → Graph → Intent →
    Validierung, gegen aufgezeichnete Bäume. Laufen in CI, schnell.
 2. **CDP-Integration** (Phase 0a): dieselben Aufgaben gegen echtes Chrome.
+   Formular-Zusicherungen (`assert:`) liefern Befunde im Format von
+   `a11y-report`; je Zusicherung eine richtige und eine kaputte Testseite
+   (→ 12, „Formular-Zusicherungen“).
 3. **Fork-Integrationstests** (`//relief/testing/`): je Integrationspunkt ein
    Test — Observer registriert, Update kommt an, `AXActionData` wirkt. Laufen
    nach jedem Upstream-Rebase; ein roter Test = Integrationspunkt gebrochen.
