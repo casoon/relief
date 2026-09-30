@@ -7,8 +7,9 @@ use relief_model::{
     Action, ApplyError, Fact, GraphVersion, NodeRef, Role, SemanticGraph, TreeDelta,
 };
 
-/// Zustand einer Seite (eines Tabs) auf der Rust-Seite der Grenze.
-#[derive(Debug, Clone, Default)]
+/// Zustand einer Seite (eines Tabs) auf der Rust-Seite der Grenze. Nicht
+/// kopierbar, weil die Sitzung eine offene Rückfrage hält.
+#[derive(Debug, Default)]
 pub struct Runtime {
     pub(crate) graph: SemanticGraph,
     /// Befehle in Sprache (→ `command`).

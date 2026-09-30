@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Kasse</title></head>
+<body>
+<main>
+  <h1>Kasse</h1>
+  <button id="kaufen">Jetzt kaufen</button>
+  <p role="status" id="s">0</p>
+</main>
+<script>
+  let klicks = 0;
+  document.getElementById('kaufen').onclick = () => {
+    document.getElementById('s').textContent = String(++klicks);
+  };
+</script>
+</body></html>

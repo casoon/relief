@@ -2,6 +2,8 @@
 # kaputtes Gegenstück mit einem Befund je Zusicherung.
 # `assert: …` prüft den aktuellen Stand; die Antwort sind die Befunde
 # (Regel-ID im Format von a11y-report), `expect:` prüft sie wie sonst.
+# „Rückruf anfordern“ enthält „order“ und ist HIGH: Erst die Rückfrage, dann
+# löst „!“ sie ein (Paket 48).
 
 url: ../fixtures/form-clean.html
 assert: feldnamen
@@ -10,6 +12,8 @@ assert: namen-wie-accname
 expect: Keine Befunde
 assert: tabfolge Name, Telefon, PLZ, Anliegen, Rückruf anfordern
 expect: Keine Befunde
+do: klicke Rückruf anfordern
+expect: Bestätigung nötig
 do: !klicke Rückruf anfordern
 assert: fehler-verknüpft Telefon
 expect: Keine Befunde
@@ -17,9 +21,13 @@ assert: fokus-auf-erstem-fehler
 expect: Keine Befunde
 do: fülle Telefon mit 030 1234567
 expect: SetValue
+do: klicke Rückruf anfordern
+expect: Bestätigung nötig
 do: !klicke Rückruf anfordern
 assert: bestätigungsdialog
 expect: Keine Befunde
+do: klicke Rückruf bestätigen
+expect: Bestätigung nötig
 do: !klicke Rückruf bestätigen
 assert: statusmeldung Danke, Rückruf angefordert
 expect: Keine Befunde
@@ -32,6 +40,8 @@ expect: form/name-accname
 expect: laut accname „PLZ (intern: Feld 7)“
 assert: tabfolge Name, Telefon, PLZ, Anliegen, Rückruf anfordern
 expect: „Anliegen“ wird per Tab nicht erreicht
+do: klicke Rückruf anfordern
+expect: Bestätigung nötig
 do: !klicke Rückruf anfordern
 assert: fehler-verknüpft Telefon
 expect: keine Fehlermeldung ist verknüpft
@@ -39,6 +49,8 @@ assert: fokus-auf-erstem-fehler
 expect: form/focus-first-error
 do: fülle Telefon mit 030 1234567
 expect: SetValue
+do: klicke Rückruf anfordern
+expect: Bestätigung nötig
 do: !klicke Rückruf anfordern
 assert: bestätigungsdialog
 expect: form/confirm-dialog-name

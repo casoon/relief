@@ -66,12 +66,16 @@ Formular-Zusicherungen im Aufgabenformat (`assert:`) umgesetzt, browserfrei
 ausgewertet mit `a11y-dom`, `accname` und `a11y-report` (Feature
 `assertions`, nicht im Fork), beschrieben in
 [spezifikation/12](spezifikation/12-produktumfang.md#formular-zusicherungen-umgesetzt-2026-09-30-paket-42).
+Sicherheits-Regressionsmatrix browserfrei umgesetzt (Missbrauchsfälle als
+Tests, Bestätigungstoken, Grenzen je Aufgabe, Security-Log), beschrieben in
+[spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#sicherheits-regressionsmatrix-entscheidung-browserfrei-umgesetzt-fork-teil-zu-bauen);
+der Browser-Test im Fork ist geschrieben, aber noch nicht gebaut.
 
 **Sofort startbar:**
-- Cloud: 49 (Zusicherungen nachschärfen), 46 (barrierlab), 48 (Sicherheits-Regressionsmatrix)
+- Cloud: 49 (Zusicherungen nachschärfen), 46 (barrierlab)
 - Cloud + M4: 20 (Inspector), 40 (Overlay und Consent), 36 (Branding),
   44 (Lauf ohne Fenster, JUnit)
-- M4: 43 (VoiceOver im Test)
+- M4: 43 (VoiceOver im Test), 48 (Fork-Teil bauen: Bestätigungs-Bypass im Fork)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
@@ -79,7 +83,7 @@ ausgewertet mit `a11y-dom`, `accname` und `a11y-report` (Feature
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 43 und 44 parallel → 45; 49 jederzeit.
 - Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
-- Vor jeder Modellintegration (28 im Fork, 34): 48.
+- Vor jeder Modellintegration (28 im Fork, 34): 48, dann 58.
 
 | Nr | Thema | Umgebung | Status | Abhängig von | Datei |
 |---|---|---|---|---|---|
@@ -104,6 +108,7 @@ ausgewertet mit `a11y-dom`, `accname` und `a11y-report` (Feature
 | 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 | [45](45-playwright-anbindung.md) |
 | 46 | barrierlab: Relief als Konsument, Reader ersetzen | Cloud (barrierlab) | offen | — | [46](46-barrierlab-einbinden.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20, 25 | [47](47-relief-ui-accessibility.md) |
-| 48 | Sicherheits-Regressionsmatrix für Modellgrenzen | Cloud | offen | 24 ✓, vor Modellintegration | [48](48-sicherheits-regressionen.md) |
+| 48 | Sicherheits-Regressionsmatrix für Modellgrenzen (browserfrei erledigt) | M4 | Fork-Teil zu bauen | 24 ✓, vor Modellintegration | [48](48-sicherheits-regressionen.md) |
 | 49 | Formular-Zusicherungen nachschärfen (Statusmeldung als Änderung, Prüfbefehle) | Cloud | offen | 42 ✓ | [49](49-zusicherungen-nachschaerfen.md) |
+| 58 | Sicherheitsgrenzen in Hosts und Modellaufruf verdrahten (Log, Budget, Formularziel) | Cloud + M4 | offen | 48, vor Modellintegration | [58](58-sicherheitsgrenzen-im-host.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |

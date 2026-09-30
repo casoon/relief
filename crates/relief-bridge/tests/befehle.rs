@@ -62,10 +62,41 @@ fn aktionen_werden_ax_schritte() {
             ),
         ]
     );
+    // „!“ löst nur die eben gestellte Rückfrage ein.
+    assert!(matches!(
+        rt.command("klicke Jetzt kaufen"),
+        Reply::Answer(_)
+    ));
     assert_eq!(
         schritte(&mut rt, "!klicke Jetzt kaufen"),
         vec![(Role::Button, Action::DoDefault, None)]
     );
+}
+
+#[test]
+fn bestaetigung_ohne_rueckfrage_und_zweimal_ergibt_keine_schritte() {
+    let mut rt = runtime_shop();
+    let Reply::Answer(text) = rt.command("!klicke Jetzt kaufen") else {
+        panic!("„!“ ohne Rückfrage darf nichts auslösen");
+    };
+    assert!(text.contains("keine offene Rückfrage"), "{text}");
+    assert!(matches!(
+        rt.command("klicke Jetzt kaufen"),
+        Reply::Answer(_)
+    ));
+    assert!(matches!(rt.command("Was ist hier?"), Reply::Answer(_)));
+    assert!(matches!(
+        rt.command("!klicke Jetzt kaufen"),
+        Reply::Answer(_)
+    ));
+    assert!(matches!(
+        rt.command("!klicke Jetzt kaufen"),
+        Reply::Perform(_)
+    ));
+    assert!(matches!(
+        rt.command("!klicke Jetzt kaufen"),
+        Reply::Answer(_)
+    ));
 }
 
 #[test]
