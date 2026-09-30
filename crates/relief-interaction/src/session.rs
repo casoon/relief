@@ -600,6 +600,23 @@ impl Session {
         }
     }
 
+    /// Aktion an einem bekannten Bedienelement, ohne Sprache (Semantic View,
+    /// Paket 29): derselbe Weg wie ein Befehl — Validierung, Rückfrage bei
+    /// Risiko, Security-Log. Verwirft eine offene Rückfrage und Auswahl wie
+    /// jede neue Eingabe.
+    pub fn request(
+        &mut self,
+        graph: &Graph,
+        model: &SemanticGraph,
+        control: Control,
+        kind: ActionKind,
+    ) -> Outcome {
+        self.confirmation = None;
+        self.confirm_target = None;
+        self.choices = None;
+        self.plan_control(graph, model, control, kind, false, None)
+    }
+
     /// Plan für ein Bedienelement; riskant ohne eingelöste Rückfrage →
     /// Rückfrage mit Einmal-Bestätigung.
     fn plan_control(

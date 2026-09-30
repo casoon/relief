@@ -127,3 +127,46 @@ fn sensibler_wert_ist_verdeckt() {
     let label = feld["label"].as_str().unwrap();
     assert!(label.ends_with("= (verdeckt)"), "{label}");
 }
+
+/// Semantic View (Paket 29): Einträge in Dokumentreihenfolge mit Bereich;
+/// Bedienung läuft als validierte Aktion, riskant nur nach Rückfrage.
+#[test]
+fn semantische_ansicht_bedient_ueber_validierte_aktionen() {
+    let mut rt = runtime_shop();
+    let view: Value = serde_json::from_str(&inspector_json(&rt)).unwrap();
+    let eintraege = view["semantic"].as_array().unwrap();
+    let text = |e: &Value| e["text"].as_str().unwrap().to_string();
+    let pos = |t: &str| {
+        eintraege
+            .iter()
+            .position(|e| text(e).starts_with(t))
+            .unwrap_or_else(|| panic!("{t} fehlt"))
+    };
+    // Reihenfolge wie im Dokument: Überschrift vor Warenkorb-Button.
+    assert!(pos("Nike Air Max") < pos("In den Warenkorb"));
+    let h1 = &eintraege[pos("Nike Air Max")];
+    assert_eq!(h1["kind"], "heading");
+    assert_eq!(h1["level"], 1);
+    // Linktext nur einmal: als Link, nicht zusätzlich als Text.
+    assert_eq!(
+        eintraege.iter().filter(|e| text(e) == "Impressum").count(),
+        1
+    );
+    let kaufen = &eintraege[pos("Jetzt kaufen")];
+    assert_eq!(kaufen["control"], "button");
+    assert!(kaufen["region"].as_str().is_some());
+
+    // Riskant: erst Rückfrage, keine Schritte; „ja“ führt aus.
+    let key = kaufen["key"].as_str().unwrap();
+    match rt.view_act(key, "activate", "") {
+        Reply::Answer(t) => assert!(t.starts_with("Bestätigung nötig"), "{t}"),
+        other => panic!("{other:?}"),
+    }
+    assert!(matches!(rt.command("ja"), Reply::Perform(_)));
+
+    // Unbekannter Schlüssel: nichts ausgeführt.
+    assert!(matches!(
+        rt.view_act("x#1", "activate", ""),
+        Reply::Answer(_)
+    ));
+}

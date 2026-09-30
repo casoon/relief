@@ -83,6 +83,7 @@ rust_static_library("relief_bridge_rs") {
     "crates/relief-bridge/src/inspector.rs",
     "crates/relief-bridge/src/lib.rs",
     "crates/relief-bridge/src/runtime.rs",
+    "crates/relief-bridge/src/semantic.rs",
   ]
   cxx_bindings = [ "crates/relief-bridge/src/cxx_bridge.rs" ]
 

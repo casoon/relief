@@ -89,7 +89,7 @@ impl Runtime {
     }
 
     /// Ergebnis der Sitzung in einen Auftrag an den Fork übersetzen.
-    fn reply(&mut self, graph: Graph, outcome: Outcome) -> Reply {
+    pub(crate) fn reply(&mut self, graph: Graph, outcome: Outcome) -> Reply {
         match outcome {
             Outcome::Answer(text) => Reply::Answer(text),
             Outcome::Scroll(direction) => Reply::Scroll(direction),
