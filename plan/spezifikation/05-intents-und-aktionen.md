@@ -479,11 +479,14 @@ Mit Paket 80 (M4, 2026-09-30): `09-consent.txt` samt Einwilligungsseite und
 zweiter Ebene im Fork ohne Ausfall (mit 01–05, 07, 14: 118/118); golem.de
 im eigenen Build „Seite ohne Dialog vermutlich Cookie-Hinweis“, Abo „Zu
 Golem pur“, kein Ablehnen ohne Bezahlung.
-Mit den Paketen 91 und 110 (`consent-zwecke.html`,
-`consent-zweck-titel.html`) ist `09-consent.txt` im Fork noch nicht
-gelaufen (→ Paket 140). Der Fork meldet zugeklappte Buttons als
-`expanded: false` (`ax_tree_mirror.cc`, `kCollapsed`), der Code ist für
-beide Hosts derselbe [Annahme bis zum Lauf].
+Mit den Paketen 91 und 110 (M4, 2026-09-30): `09-consent.txt` im Fork
+ohne Ausfall (mit 01–05, 07, 14: 135/135, allein 50/50); zugeklappte
+Buttons kommen als `expanded: false` an (`ax_tree_mirror.cc`,
+`kCollapsed`), Zweck-Titel und Rückfrage je Zweck wie über CDP. Die
+Statuszeile von `consent-zweck-titel.html` steht im Dialog: außerhalb
+blendet Blink sie bei `aria-modal` aus, der Fork sah „Zweck gewählt“ also
+nicht (wie ein Screenreader). Offen: Der Fork meldet nach „Ablehnen“
+zusätzlich „3 Elemente nicht mehr wahrnehmbar“, CDP nicht (→ Paket 141).
 
 ## Intent-Format [Annahme]
 

@@ -4,7 +4,6 @@
 <main>
   <h1>Zeitung</h1>
   <a href="#artikel">Zum Artikel</a>
-  <p role="status" id="s"></p>
 </main>
 <!-- Zweite Ebene wie bild.de (Paket 110): aufklappbare Zweck-Titel ohne
      Überschrift, einer mit „Required For Consent“, darunter „Einwilligen“
@@ -27,6 +26,9 @@
   <p id="z4" hidden>Werbung nach Ort und Gerät.</p>
   <button id="all">Alle akzeptieren</button>
   <button id="save">Auswahl speichern</button>
+  <!-- Statuszeile im Dialog: außerhalb blendet Chromium sie bei
+       aria-modal im AX-Baum aus (Fork), wie für einen Screenreader. -->
+  <p role="status" id="s"></p>
 </div>
 <script>
   const d = document.getElementById('d');
