@@ -17,9 +17,10 @@ crates/
 │       ├── fact.rs, id.rs    # Fact/Certainty/Source; TreeId, NodeId, NodeRef, GraphVersion
 │       ├── delta.rs          # TreeDelta: ableiten (between) und anwenden (apply)
 │       └── perception.rs     # Konverter a11y_perception::AXTree → SemanticGraph (Feature `perception`)
-├── relief-bridge/            # browserfrei, relief-model + cxx
+├── relief-bridge/            # browserfrei, relief-model + relief-interaction + cxx
 │   ├── src/
 │   │   ├── runtime.rs        # Runtime: Delta anwenden, Auskunft zu Knoten, Suche nach Name, Aktionswunsch → ActionPlan
+│   │   ├── command.rs        # Befehle im Fork: Eingabe → Session → Schritte (AXActionData oder Taste), Antwort nach der Ruhe
 │   │   └── cxx_bridge.rs     # Variante A: #[cxx::bridge] mit flachen Strukturen, Umwandlung ↔ Modell
 │   ├── mojom/                # Variante B: Entwurf relief_runtime.mojom (nicht gebaut)
 │   └── benches/bridge.rs     # criterion: Grenze, JSON, Anwenden, Neuaufbau auf spike/recordings
@@ -30,7 +31,8 @@ crates/
 │   │   ├── command.rs        # Text → Command (feste Formulierungen, kein LLM)
 │   │   ├── resolve.rs        # Zielbeschreibung → Bedienelement oder Abschnitt/Bereich; Schritte vom Fokus; was sich schließen lässt
 │   │   ├── validate.rs       # Bedienelement + Aktion → ActionPlan mit Risikoklasse; Seitentyp Anmeldung/Kasse erhöht (plan_on_page)
-│   │   └── respond.rs        # Antworttexte (auch wo bin ich, Vorlesen, Scrollergebnis), Wirkung einer Aktion aus zwei Modellständen
+│   │   ├── respond.rs        # Antworttexte (auch wo bin ich, Vorlesen, Scrollergebnis), Wirkung einer Aktion aus zwei Modellständen
+│   │   └── session.rs        # Befehlsablauf beider Hosts: Eingabe → Antwort oder Plan (Outcome), Antwort nach der Aktion, Position; Aufgabendateien
 │   └── tests/                # browserfrei gegen spike/recordings (über den Konverter als Modell)
 │       ├── recordings.rs     # Graph-Zusammenfassung je Aufnahme ↔ erwartungen/, Graph-Stabilität
 │       ├── aufgaben.rs       # Aufgaben aus spike/tasks nachgespielt, Spike-Befunde
@@ -69,8 +71,9 @@ spike/
 ```
 
 `relief-interaction` kennt keinen Browser und kein CDP und liest nur das
-Modell (`SemanticGraph`); es ist der Teil, der unverändert hinter dem
-Fork-Adapter laufen soll (eingebunden ist er dort noch nicht).
+Modell (`SemanticGraph`); es läuft unverändert im CDP-Host und hinter dem
+Fork-Adapter. Den Befehlsablauf (`session`) teilen sich beide Hosts; sie
+führen nur aus, was er zurückgibt, und holen danach die Antwort dort.
 `a11y-perception` kommt aus barrierlab (crates.io).
 
 `relief-model` ist das Modell, das der Fork-Adapter füllt: ein Baum je
@@ -81,7 +84,9 @@ Der Rundtest „Delta aus zwei Aufnahmen anwenden ergibt
 die zweite“ läuft auf allen Aufnahmepaaren in `spike/recordings`.
 
 `relief-bridge` ist die Rust-Seite der Grenze zum Fork: Delta rein,
-Auskünfte (mit `Certainty`) und geprüfte `ActionPlan`s raus. Der Fork ruft
+Auskünfte (mit `Certainty`) und geprüfte `ActionPlan`s raus; Befehle in
+Sprache kommen als Text rein und als Schritte (`AXActionData` oder Taste)
+bzw. Antworttext raus. Der Fork ruft
 sie über die `cxx`-Bridge im Browser-Prozess auf (Variante A); die C++-Hälfte
 erzeugt Chromiums Build. Der Mojo-Entwurf spiegelt dieselben Strukturen für
 einen späteren Utility-Prozess (nicht gebaut).
@@ -124,16 +129,17 @@ fork/
     ├── BUILD.gn              # rust_static_library relief_model_rs, relief_bridge_rs (cxx_bindings); source_set relief; group relief_tests
     ├── relief_attach.h       # AttachToTab: einziger Header, den Chromium einbindet
     ├── relief_tab_helper.*   # WebContentsObserver je Tab: AXMode, Pakete/Positionen → Delta, Lebenszyklus der Bäume, Reset, ActionPlan → AXActionData
-    ├── relief_switches.h     # --enable-relief, --relief-log, --relief-activate, --relief-screen-reader-mode
+    ├── relief_switches.h     # --enable-relief, --relief-log, --relief-activate, --relief-run, --relief-screen-reader-mode
+    ├── relief_task_runner.*  # --relief-run: Aufgabendateien abarbeiten (url/do/expect), Ruhe = keine AX-Pakete
     ├── bridge/
     │   ├── ax_tree_mirror.*  # eigener ui::AXTree je Tree-ID, AXTreeObserver, AXNodeData → cxx-Strukturen, Seitenkoordinaten
     │   └── runtime_host.*    # Rust-Runtime auf eigener Sequenz, Messprotokoll, activate planen
     └── testing/              # relief_browsertests (InProcessBrowserTest je Integrationspunkt), data/ Testseiten
 ```
 
-`scripts/fork-apply.sh` kopiert zusätzlich `crates/relief-model/src` und
-`crates/relief-bridge/src` nach `src/relief/crates/`; `relief-interaction`
-ist im Fork noch nicht dabei.
+`scripts/fork-apply.sh` kopiert zusätzlich die Quellen von
+`relief-model`, `relief-interaction` und `relief-bridge` nach
+`src/relief/crates/`.
 
 ```mermaid
 flowchart LR
@@ -143,6 +149,8 @@ flowchart LR
   D --> H["RuntimeHost (eigene Sequenz): apply_delta"] --> G["SemanticGraph (Rust)"]
   H -->|"--relief-activate: find_node + plan_action"| P["ActionPlan"]
   P --> A["ReliefTabHelper::Perform: AXActionData über AXActionHandlerRegistry"] --> R
+  T["--relief-run: ReliefTaskRunner"] -->|"do: Text"| H
+  H -->|"Schritte"| S["PerformStep: AXActionData oder Taste (ForwardKeyboardEvent)"] --> R
 ```
 
 - **Aktivierung**: nur mit `--enable-relief`; sonst ist die Subscription aus
@@ -150,6 +158,14 @@ flowchart LR
 - **Wirkung einer Aktion** steht in der nächsten Delta (PerformAction hat
   keine Antwort); das Protokoll zeigt nach `activate` die benannten Knoten
   der folgenden Deltas.
+- **Befehle**: `--relief-run=<aufgaben,…>` (`scripts/fork-run-tasks.sh`)
+  arbeitet Aufgabendateien im ersten Tab ab: Eingabe an die Runtime
+  (`run_command`), Schritte als `AXActionData` an den Frame des Knotens,
+  Escape und Pfeiltasten als echte Tastaturereignisse, Scrollen per
+  `kSetScrollOffset`; Ruhe = 300 ms ohne AX-Paket, dann die Antwort
+  (`finish_command`). Überschriften und Bereiche werden nicht fokussiert,
+  sondern als Startpunkt der Tab-Reihenfolge gesetzt; die Sitzung merkt sich
+  dort ihre Position (→ `plan/spezifikation/05`).
 - **Messen**: `--relief-log=<datei>` schreibt je Paket Zeiten (UI-Thread,
   Warteschlange, Rust) und Knotenzahlen; `scripts/fork-measure.mjs` schreibt
   über CDP Messknoten in die Seite (Ende-zu-Ende-Latenz);

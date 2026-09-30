@@ -29,6 +29,13 @@ inline constexpr char kReliefActivate[] = "relief-activate";
 // ändert oder verschiebt (Zeilen `node`/`bounds`).
 inline constexpr char kReliefLogNodes[] = "relief-log-nodes";
 
+// Aufgabendateien (spike/tasks/*.txt, kommagetrennt) im ersten Tab
+// abarbeiten wie `relief-cdp run`, Aktionen über AXActionData; Ausgabe auf
+// stdout, danach beendet sich der Browser (Rückgabewert 1 bei nicht
+// erfüllten Erwartungen). Relative URLs in den Dateien gelten relativ zur
+// Datei.
+inline constexpr char kReliefRun[] = "relief-run";
+
 }  // namespace relief::switches
 
 #endif  // RELIEF_RELIEF_SWITCHES_H_

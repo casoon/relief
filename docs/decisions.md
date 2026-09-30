@@ -52,6 +52,20 @@ Fork weg (Cargo-Feature `perception` in `relief-model`).
 *Grund:* Der Cargo-Workspace bleibt Quelle der Wahrheit, kein Eingriff in
 `//third_party/rust`; `use relief_model::…` bleibt in beiden Builds gleich.
 
+**Aktionen im Fork über `AXActionData`, Tasten als Ersatzweg; eigene Position statt Fokus-Trick**
+Der Fork führt geprüfte Pläne als `AXActionData` aus; wo das nicht reicht
+(Escape, Erhöhen/Verringern), sendet er echte Tastaturereignisse an das
+fokussierte Widget. Überschriften und Bereiche werden nicht fokussiert,
+sondern sichtbar gemacht und als Startpunkt der Tab-Reihenfolge gesetzt;
+die Sitzung merkt sich dort ihre Position, bis der Fokus sich bewegt.
+*Grund:* Kein DOM-Eingriff (`tabindex`) und kein experimentelles
+Blink-Feature; `Increment` über AX erreicht ARIA-Widgets nur mit
+`SynthesizedKeyboardEventsForAccessibilityActions` und verfehlt damit
+Zahlenfelder.
+*Konsequenz:* Der Befehlsablauf (`relief_interaction::session`) ist für
+CDP-Host und Fork derselbe; Tabelle und Befunde in
+`plan/spezifikation/05` („Im Fork über `AXActionData`“).
+
 **Blink bleibt unverändert, Fork minimal**
 *Grund:* Wartbarkeit gegenüber einem schnelllebigen Upstream.
 *Konsequenz:* eigener Code in `//relief/`, jeder Patch außerhalb ist einzeln

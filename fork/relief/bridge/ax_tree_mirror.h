@@ -100,6 +100,15 @@ class AXTreeMirror : public ui::AXTreeObserver {
   // wenn der Knoten fehlt oder keine Position hat.
   std::optional<gfx::RectF> NodePageBounds(ui::AXNodeID id, float scale) const;
 
+  // Scroll-Position des Root-Scrollers in Blink-Pixeln (Hauptdokument;
+  // nullopt ohne Root-Scroller).
+  struct Scroll {
+    ui::AXNodeID node;
+    int y;
+    int y_max;
+  };
+  std::optional<Scroll> RootScroll() const;
+
   // Die Runtime hat den Baum (mindestens eine Delta ging hinüber); nur dann
   // meldet das Entfernen ihn dort als removed_trees.
   bool IsKnownToRuntime() const { return sent_once_; }

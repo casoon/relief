@@ -16,17 +16,20 @@
 #include "base/task/bind_post_task.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "components/input/native_web_keyboard_event.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/browser_accessibility_state.h"
 #include "content/public/browser/host_zoom_map.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/page.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/scoped_accessibility_mode.h"
 #include "content/public/browser/web_contents.h"
 #include "relief/relief_attach.h"
 #include "relief/relief_switches.h"
+#include "relief/relief_task_runner.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "ui/accessibility/ax_action_data.h"
 #include "ui/accessibility/ax_action_handler_base.h"
@@ -35,6 +38,9 @@
 #include "ui/accessibility/ax_location_and_scroll_updates.h"
 #include "ui/accessibility/ax_mode.h"
 #include "ui/accessibility/ax_updates_and_events.h"
+#include "ui/events/keycodes/dom/dom_code.h"
+#include "ui/events/keycodes/dom/dom_key.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 #include "url/origin.h"
 
 namespace relief {
@@ -72,6 +78,8 @@ ax::mojom::Action ToAXAction(bridge::Action action) {
       return ax::mojom::Action::kScrollToMakeVisible;
     case bridge::Action::ShowContextMenu:
       return ax::mojom::Action::kShowContextMenu;
+    case bridge::Action::SetSequentialFocusNavigationStartingPoint:
+      return ax::mojom::Action::kSetSequentialFocusNavigationStartingPoint;
   }
   // Die Runtime plant nur gültige Aktionen (plan_action lehnt unbekannte
   // Enum-Werte ab).
@@ -106,10 +114,11 @@ ReliefTabHelper::ReliefTabHelper(content::WebContents* contents)
   std::vector<std::string> log_roles = base::SplitString(
       command_line.GetSwitchValueASCII(switches::kReliefLogNodes), ",",
       base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  const int tab = g_next_tab++;
   runtime_ = base::SequenceBound<RuntimeHost>(
       base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_VISIBLE}),
-      g_next_tab++, command_line.GetSwitchValuePath(switches::kReliefLog),
+      tab, command_line.GetSwitchValuePath(switches::kReliefLog),
       std::move(activate),
       std::set<std::string>(log_roles.begin(), log_roles.end()),
       base::BindPostTaskToCurrentDefault(base::BindRepeating(
@@ -132,6 +141,11 @@ ReliefTabHelper::ReliefTabHelper(content::WebContents* contents)
   if (need_reset) {
     Reset("attach");
   }
+  if (tab == 1 && command_line.HasSwitch(switches::kReliefRun)) {
+    task_runner_ = std::make_unique<ReliefTaskRunner>(
+        *this, *contents,
+        command_line.GetSwitchValueNative(switches::kReliefRun));
+  }
 }
 
 ReliefTabHelper::~ReliefTabHelper() = default;
@@ -141,6 +155,7 @@ void ReliefTabHelper::AccessibilityEventReceived(
   PacketTiming timing;
   timing.received = base::TimeTicks::Now();
   timing.updates = details.updates.size();
+  last_packet_ = timing.received;
 
   std::unique_ptr<AXTreeMirror>& mirror = trees_[details.ax_tree_id];
   if (!mirror) {
@@ -227,6 +242,7 @@ void ReliefTabHelper::AccessibilityLocationChangesReceived(
   PacketTiming timing;
   timing.kind = "location";
   timing.received = base::TimeTicks::Now();
+  last_packet_ = timing.received;
   timing.updates =
       details.location_changes.size() + details.scroll_changes.size();
   it->second->ApplyLocationChanges(details);
@@ -391,33 +407,157 @@ void ReliefTabHelper::DropTree(const ui::AXTreeID& tree_id) {
 }
 
 void ReliefTabHelper::Perform(bridge::ActionPlan plan) {
+  Send(std::string(plan.tree), plan.node, plan.action,
+       plan.has_value ? std::optional(std::string(plan.value)) : std::nullopt);
+}
+
+bool ReliefTabHelper::PerformStep(const bridge::Step& step) {
+  if (step.key != bridge::Key::None) {
+    PressKey(step.key);
+    return true;
+  }
+  return Send(std::string(step.tree), step.node, step.action,
+              step.has_value ? std::optional(std::string(step.value))
+                             : std::nullopt);
+}
+
+bool ReliefTabHelper::Send(const std::string& tree,
+                           int32_t node,
+                           bridge::Action action,
+                           std::optional<std::string> value) {
   // Der Plan wurde gegen einen Graph-Stand geprüft; bis hierher können
   // weitere Pakete angekommen sein. Maßgeblich ist, ob der Knoten im eigenen
   // Baum noch existiert (→ plan/spezifikation/02, „Datenfluss zurück“).
-  const ui::AXTreeID tree_id =
-      ui::AXTreeID::FromString(std::string(plan.tree));
+  const ui::AXTreeID tree_id = ui::AXTreeID::FromString(tree);
   auto it = trees_.find(tree_id);
-  if (it == trees_.end() || !it->second->HasNode(plan.node)) {
+  if (it == trees_.end() || !it->second->HasNode(node)) {
     runtime_.AsyncCall(&RuntimeHost::Log).WithArgs("activate\tstale");
-    return;
+    return false;
   }
   ui::AXActionHandlerBase* handler =
       ui::AXActionHandlerRegistry::GetInstance()->GetActionHandler(tree_id);
   if (!handler) {
     runtime_.AsyncCall(&RuntimeHost::Log).WithArgs("activate\tno-handler");
-    return;
+    return false;
   }
   ui::AXActionData data;
-  data.action = ToAXAction(plan.action);
+  data.action = ToAXAction(action);
   data.target_tree_id = tree_id;
-  data.target_node_id = plan.node;
-  if (plan.has_value) {
-    data.value = std::string(plan.value);
+  data.target_node_id = node;
+  if (value) {
+    data.value = std::move(*value);
   }
   handler->PerformAction(data);
   runtime_.AsyncCall(&RuntimeHost::Log)
       .WithArgs(base::StringPrintf("activate\tsent\taction=%s\tnode=%d",
-                                   ui::ToString(data.action), plan.node));
+                                   ui::ToString(data.action), node));
+  return true;
+}
+
+bool ReliefTabHelper::has_main_tree() const {
+  return root_ != ui::AXTreeIDUnknown() &&
+         root_ == web_contents()->GetPrimaryMainFrame()->GetAXTreeID();
+}
+
+void ReliefTabHelper::RunCommand(
+    const std::string& input,
+    base::OnceCallback<void(bridge::Reply)> done) {
+  runtime_.AsyncCall(&RuntimeHost::RunCommand)
+      .WithArgs(input)
+      .Then(std::move(done));
+}
+
+void ReliefTabHelper::FinishCommand(
+    base::OnceCallback<void(std::string)> done) {
+  runtime_.AsyncCall(&RuntimeHost::FinishCommand).Then(std::move(done));
+}
+
+void ReliefTabHelper::DescribePage(base::OnceCallback<void(std::string)> done) {
+  runtime_.AsyncCall(&RuntimeHost::DescribePage).Then(std::move(done));
+}
+
+void ReliefTabHelper::CountNodes(base::OnceCallback<void(uint64_t)> done) {
+  runtime_.AsyncCall(&RuntimeHost::NodeCount).Then(std::move(done));
+}
+
+void ReliefTabHelper::PressKey(bridge::Key key) {
+  ui::KeyboardCode code = ui::VKEY_ESCAPE;
+  ui::DomKey dom_key = ui::DomKey::ESCAPE;
+  ui::DomCode dom_code = ui::DomCode::ESCAPE;
+  const char* name = "Escape";
+  switch (key) {
+    case bridge::Key::None:
+    case bridge::Key::Escape:
+      break;
+    case bridge::Key::ArrowUp:
+      code = ui::VKEY_UP;
+      dom_key = ui::DomKey::ARROW_UP;
+      dom_code = ui::DomCode::ARROW_UP;
+      name = "ArrowUp";
+      break;
+    case bridge::Key::ArrowDown:
+      code = ui::VKEY_DOWN;
+      dom_key = ui::DomKey::ARROW_DOWN;
+      dom_code = ui::DomCode::ARROW_DOWN;
+      name = "ArrowDown";
+      break;
+  }
+  content::RenderFrameHost* frame = web_contents()->GetFocusedFrame();
+  if (!frame) {
+    frame = web_contents()->GetPrimaryMainFrame();
+  }
+  content::RenderWidgetHost* widget = frame->GetRenderWidgetHost();
+  for (const blink::WebInputEvent::Type type :
+       {blink::WebInputEvent::Type::kRawKeyDown,
+        blink::WebInputEvent::Type::kKeyUp}) {
+    input::NativeWebKeyboardEvent event(
+        type, blink::WebInputEvent::kNoModifiers, base::TimeTicks::Now());
+    event.windows_key_code = code;
+    event.native_key_code = code;
+    event.dom_key = dom_key;
+    event.dom_code = static_cast<int>(dom_code);
+    widget->ForwardKeyboardEvent(event);
+  }
+  runtime_.AsyncCall(&RuntimeHost::Log).WithArgs(std::string("key\t") + name);
+}
+
+std::optional<ReliefTabHelper::MainScroll> ReliefTabHelper::GetMainScroll()
+    const {
+  auto it = trees_.find(root_);
+  content::RenderWidgetHostView* view =
+      web_contents()->GetRenderWidgetHostView();
+  if (it == trees_.end() || !view) {
+    return std::nullopt;
+  }
+  const std::optional<AXTreeMirror::Scroll> scroll = it->second->RootScroll();
+  if (!scroll) {
+    return std::nullopt;
+  }
+  return MainScroll{scroll->y, scroll->y_max,
+                    static_cast<int>(view->GetVisibleViewportSize().height() *
+                                     Scale() * 0.8f)};
+}
+
+bool ReliefTabHelper::ScrollMainTo(int y) {
+  auto it = trees_.find(root_);
+  if (it == trees_.end()) {
+    return false;
+  }
+  const std::optional<AXTreeMirror::Scroll> scroll = it->second->RootScroll();
+  ui::AXActionHandlerBase* handler =
+      ui::AXActionHandlerRegistry::GetInstance()->GetActionHandler(root_);
+  if (!scroll || !handler) {
+    return false;
+  }
+  ui::AXActionData data;
+  data.action = ax::mojom::Action::kSetScrollOffset;
+  data.target_tree_id = root_;
+  data.target_node_id = scroll->node;
+  data.target_point = gfx::Point(0, y);
+  handler->PerformAction(data);
+  runtime_.AsyncCall(&RuntimeHost::Log)
+      .WithArgs(base::StringPrintf("scroll\tsent\ty=%d", y));
+  return true;
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(ReliefTabHelper);

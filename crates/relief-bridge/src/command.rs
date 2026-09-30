@@ -21,13 +21,29 @@ pub struct AxStep {
     pub value: Option<String>,
 }
 
+/// Taste als echtes Tastaturereignis an das fokussierte Element: der
+/// Ersatzweg, wo `AXActionData` nicht reicht.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Key {
+    Escape,
+    ArrowUp,
+    ArrowDown,
+}
+
+/// Ein Schritt einer Aktion.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Step {
+    Ax(AxStep),
+    Key(Key),
+}
+
 /// Was der Fork nach einer Eingabe tun soll.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Reply {
     Answer(String),
     /// Schritte der Reihe nach senden, Ruhe abwarten, [`Runtime::finish`].
-    Perform(Vec<AxStep>),
-    /// Escape als Taste an den Fokus (kein AX-Weg), Ruhe, [`Runtime::finish`].
+    Perform(Vec<Step>),
+    /// [`Key::Escape`] an den Fokus (kein AX-Weg), Ruhe, [`Runtime::finish`].
     Escape,
     /// Dokument scrollen; Antwort über `respond::scrolled`.
     Scroll(ScrollDirection),
@@ -123,35 +139,36 @@ impl Runtime {
     }
 }
 
-/// Ein geprüfter Plan als AX-Schritte (→ `plan/spezifikation/05`, Tabelle
+/// Ein geprüfter Plan als Schritte (→ `plan/spezifikation/05`, Tabelle
 /// „Aktion → AX-Weg“).
 ///
 /// Fehler: Der Plan lässt sich im Modell nicht abbilden (Option fehlt).
-pub fn ax_steps(model: &SemanticGraph, plan: &InteractionPlan) -> Result<Vec<AxStep>, String> {
-    let at = |action| AxStep {
+pub fn ax_steps(model: &SemanticGraph, plan: &InteractionPlan) -> Result<Vec<Step>, String> {
+    let ax = |action| AxStep {
         target: plan.target.clone(),
         action,
         value: None,
     };
+    let at = |action| Step::Ax(ax(action));
     Ok(match &plan.kind {
         ActionKind::Focus => vec![at(Action::Focus)],
         ActionKind::Activate => vec![at(Action::DoDefault)],
         // Erst fokussieren wie eine Person, die ins Feld geht.
         ActionKind::SetValue(v) => vec![
             at(Action::Focus),
-            AxStep {
+            Step::Ax(AxStep {
                 value: Some(v.clone()),
-                ..at(Action::SetValue)
-            },
+                ..ax(Action::SetValue)
+            }),
         ],
         // Die Option selbst auslösen: Blink wählt sie über
         // `HTMLOptionElement::AccessKeyAction` aus und feuert `input`/`change`.
-        ActionKind::Select(label) => vec![AxStep {
+        ActionKind::Select(label) => vec![Step::Ax(AxStep {
             target: option(model, &plan.target, label)
                 .ok_or_else(|| format!("Option „{label}“ nicht im Baum"))?,
             action: Action::DoDefault,
             value: None,
-        }],
+        })],
         // Überschriften und Bereiche sind nicht fokussierbar: sichtbar machen
         // und die Tab-Reihenfolge dort beginnen lassen (→ `session`,
         // Position).
@@ -159,11 +176,14 @@ pub fn ax_steps(model: &SemanticGraph, plan: &InteractionPlan) -> Result<Vec<AxS
             at(Action::ScrollToMakeVisible),
             at(Action::SetSequentialFocusNavigationStartingPoint),
         ],
-        // Blink ändert native Felder direkt; ARIA-Widgets erreicht es nur mit
-        // `SynthesizedKeyboardEventsForAccessibilityActions` (Pfeiltaste am
-        // Element).
-        ActionKind::Increment => vec![at(Action::Focus), at(Action::Increment)],
-        ActionKind::Decrement => vec![at(Action::Focus), at(Action::Decrement)],
+        // Ersatzweg: fokussieren, dann echte Pfeiltaste wie eine Person an
+        // der Tastatur. `Increment` über AX erreicht ARIA-Widgets nur mit
+        // dem experimentellen Blink-Feature
+        // `SynthesizedKeyboardEventsForAccessibilityActions`, und mit ihm
+        // schickt Blink einem Zahlenfeld (ohne Ausrichtung) „Pfeil rechts“,
+        // das es übergeht (→ `plan/spezifikation/05`).
+        ActionKind::Increment => vec![at(Action::Focus), Step::Key(Key::ArrowUp)],
+        ActionKind::Decrement => vec![at(Action::Focus), Step::Key(Key::ArrowDown)],
     })
 }
 

@@ -19,8 +19,9 @@ siehe `docs/architecture.md`. Dazu das Fork-Grundgerüst: Chromium
 `~/chromium/src/out/Relief`. Mit `--enable-relief` liest er den AXTree samt
 Positionen im Browser-Prozess, auch aus cross-site-iframes, führt ihn als
 `SemanticGraph` in der Rust-Runtime nach (über Navigation, Back-Forward-Cache
-und Discard hinweg) und kann über `--relief-activate` einen benannten Knoten
-per `AXActionData` auslösen; Browser-Tests je Integrationspunkt
+und Discard hinweg) und führt Befehle in Sprache über `AXActionData` aus
+(Tasten als Ersatzweg); die Aufgaben `spike/tasks/01`–`05` laufen dort mit
+`--relief-run` vollständig. Browser-Tests je Integrationspunkt
 (`relief_browsertests`). Eine Bedienoberfläche hat der Fork noch nicht.
 
 ## Ausführen
@@ -103,6 +104,13 @@ In der Umgebung auf claude.ai eintragen:
 
 ```bash
 ./scripts/chromium-setup.sh     # depot_tools, Checkout ohne Historie, Tag, gn gen, Build
+```
+
+Aufgaben im eigenen Build über den AX-Weg (Ausgabe wie `relief-cdp run`):
+
+```bash
+scripts/fork-apply.sh ~/chromium/src --continue && autoninja -C ~/chromium/src/out/Relief chrome
+scripts/fork-run-tasks.sh spike/tasks/0[1-5]*.txt     # RELIEF_LOG=<datei> für das Protokoll
 ```
 
 Voraussetzungen: Xcode mit macOS-SDK, `git-lfs` (`brew install git-lfs && git lfs

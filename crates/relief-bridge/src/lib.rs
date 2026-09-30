@@ -26,6 +26,6 @@ mod command;
 mod cxx_bridge;
 mod runtime;
 
-pub use command::{ax_steps, AxStep, Reply};
+pub use command::{ax_steps, AxStep, Key, Reply, Step};
 pub use cxx_bridge::{delta_from_ffi, delta_to_ffi, ffi};
 pub use runtime::{ActionPlan, ActionRequest, Answer, Rejection, Runtime};

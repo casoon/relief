@@ -29,7 +29,7 @@ use relief_model::{
 
 use relief_interaction::{ScrollDirection, TaskLine};
 
-use crate::command::Reply;
+use crate::command::{Key, Reply, Step};
 use crate::runtime::{ActionRequest, Rejection, Runtime};
 
 #[cxx::bridge(namespace = "relief::bridge")]
@@ -309,9 +309,20 @@ pub mod ffi {
         Bottom,
     }
 
-    /// Eine Aktion über `AXActionData`.
+    /// Taste an das fokussierte Element (Ersatzweg ohne `AXActionData`).
+    #[derive(Debug)]
+    enum Key {
+        None,
+        Escape,
+        ArrowUp,
+        ArrowDown,
+    }
+
+    /// Ein Schritt: `key != None` ist eine Taste, sonst eine Aktion über
+    /// `AXActionData` an (`tree`, `node`).
     #[derive(Debug, Clone)]
-    struct AxStep {
+    struct Step {
+        key: Key,
         tree: String,
         node: i32,
         action: Action,
@@ -325,7 +336,7 @@ pub mod ffi {
     struct Reply {
         kind: ReplyKind,
         text: String,
-        steps: Vec<AxStep>,
+        steps: Vec<Step>,
         scroll: ScrollDirection,
     }
 
@@ -502,19 +513,35 @@ fn run_command(runtime: &mut Runtime, input: &str) -> ffi::Reply {
         }
         Reply::Perform(steps) => {
             out.kind = ffi::ReplyKind::Perform;
-            out.steps = steps
-                .into_iter()
-                .map(|s| ffi::AxStep {
-                    tree: s.target.tree.0,
-                    node: s.target.node.0,
-                    action: action_to_ffi(s.action),
-                    has_value: s.value.is_some(),
-                    value: s.value.unwrap_or_default(),
-                })
-                .collect();
+            out.steps = steps.into_iter().map(step_to_ffi).collect();
         }
     }
     out
+}
+
+fn step_to_ffi(step: Step) -> ffi::Step {
+    match step {
+        Step::Ax(s) => ffi::Step {
+            key: ffi::Key::None,
+            tree: s.target.tree.0,
+            node: s.target.node.0,
+            action: action_to_ffi(s.action),
+            has_value: s.value.is_some(),
+            value: s.value.unwrap_or_default(),
+        },
+        Step::Key(key) => ffi::Step {
+            key: match key {
+                Key::Escape => ffi::Key::Escape,
+                Key::ArrowUp => ffi::Key::ArrowUp,
+                Key::ArrowDown => ffi::Key::ArrowDown,
+            },
+            tree: String::new(),
+            node: 0,
+            action: ffi::Action::Focus,
+            has_value: false,
+            value: String::new(),
+        },
+    }
 }
 
 fn finish_command(runtime: &mut Runtime) -> String {
