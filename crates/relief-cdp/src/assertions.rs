@@ -15,6 +15,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use a11y_report::Finding;
 use anyhow::{anyhow, Result};
 use chromiumoxide::cdp::browser_protocol::dom::{
     DescribeNodeParams, GetDocumentParams, Node, ShadowRootType,
@@ -50,11 +51,12 @@ const TAB_END: &str = "document.getElementById('relief-tab-start')?.remove()";
 /// die DOM-Fakten.
 const NOT_RENDERED: &[&str] = &["script", "style", "template", "noscript"];
 
-/// Eine Zusicherung prüfen; Ergebnis als Text (Befunde oder „Keine Befunde.“).
-pub async fn run(session: &mut Session, text: &str) -> Result<String> {
+/// Eine Zusicherung prüfen; Ergebnis als Text (Befunde oder „Keine
+/// Befunde.“) und die Befunde selbst (für den Bericht).
+pub async fn run(session: &mut Session, text: &str) -> Result<(String, Vec<Finding>)> {
     let assertion = match Assertion::parse(text) {
         Ok(a) => a,
-        Err(msg) => return Ok(msg),
+        Err(msg) => return Ok((msg, Vec::new())),
     };
     session.update(false, None).await?;
     let dom = if assertion.needs_dom() {
@@ -78,7 +80,7 @@ pub async fn run(session: &mut Session, text: &str) -> Result<String> {
             tab_sequence: tabs.as_deref(),
         },
     );
-    Ok(assertions::render(&findings))
+    Ok((assertions::render(&findings), findings))
 }
 
 /// DOM-Knotentypen (Zahlen des DOM-Standards, von CDP durchgereicht).

@@ -66,6 +66,9 @@ Semantic Inspector im Fork (Side Panel, WebUI, live, Auswahl und
 Aktivierung getrennt), beschrieben in
 [spezifikation/01](spezifikation/01-chromium-integration.md#semantic-inspector-paket-20-belegt);
 der VoiceOver-Durchgang durch das Panel steht mit 47 aus.
+Bericht für CI (`relief-cdp test`: JUnit, a11y-report mit zusammengefassten
+Befunden, `--fork` ohne Fenster über den AX-Weg), beschrieben in
+[spezifikation/12](spezifikation/12-produktumfang.md#bericht-für-ci-umgesetzt-2026-09-30-paket-44).
 Befehlsleiste im Fork als Teil des Relief-Panels, Rückfragen (Nummer, „ja“,
 „abbrechen“) für alle Hosts, beschrieben in
 [spezifikation/05](spezifikation/05-intents-und-aktionen.md#rückfragen-und-befehlsleiste-im-fork-paket-25-belegt).
@@ -87,15 +90,14 @@ der Bestätigungs-Bypass ist auch im Fork getestet.
 
 **Sofort startbar:**
 - Cloud: 58 (Sicherheitsgrenzen im Host), 64 (DOM-Fakten für fremde Frames)
-- Cloud + M4: 26 (Sprache), 29 (Semantic View), 38 (Sprungmarken), 39 (Formular-Assistent), 21 (Befunde im Inspector), 40 (Overlay und Consent), 36 (Branding),
-  44 (Lauf ohne Fenster, JUnit)
+- Cloud + M4: 26 (Sprache), 29 (Semantic View), 38 (Sprungmarken), 39 (Formular-Assistent), 21 (Befunde im Inspector), 40 (Overlay und Consent), 36 (Branding), 45 (Playwright)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
 - Linie A: 26, 29, 38, 39, 40 parallel → 41;
   47 läuft mit 20 und 25 als Abnahme mit.
-- Linie B: 43 und 44 parallel → 45; 64 jederzeit.
+- Linie B: 45 (44 erledigt), 43 zurückgestellt; 64 jederzeit.
 - Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
 - Vor jeder Modellintegration (28 im Fork, 34): 48, dann 58.
 
@@ -116,8 +118,7 @@ der Bestätigungs-Bypass ist auch im Fork getestet.
 | 40 | Overlay- und Consent-Dialoge | Cloud + M4 | offen | 24 ✓ | [40](40-overlay-und-consent.md) |
 | 41 | Fähigkeitsprofile | Cloud + M4 | offen | 25 ✓, 26, 29 | [41](41-faehigkeitsprofile.md) |
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
-| 44 | Lauf ohne Fenster, JUnit-Bericht | Cloud + M4 | offen | 42 ✓ | [44](44-kopflos-und-junit.md) |
-| 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 | [45](45-playwright-anbindung.md) |
+| 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 ✓ | [45](45-playwright-anbindung.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 ✓ | [47](47-relief-ui-accessibility.md) |
 | 58 | Sicherheitsgrenzen in Hosts und Modellaufruf verdrahten (Log, Budget, Formularziel) | Cloud + M4 | offen | 48 ✓, vor Modellintegration | [58](58-sicherheitsgrenzen-im-host.md) |
 | 64 | DOM-Fakten für iframes in anderem Prozess, ID-Bereich im Shadow DOM | Cloud | offen | 55 ✓ | [64](64-dom-fakten-fremde-frames.md) |

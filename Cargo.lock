@@ -1090,6 +1090,7 @@ name = "relief-cdp"
 version = "0.0.1"
 dependencies = [
  "a11y-perception",
+ "a11y-report",
  "anyhow",
  "chromiumoxide",
  "futures",

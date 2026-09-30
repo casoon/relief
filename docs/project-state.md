@@ -38,6 +38,8 @@ Google Chrome (Pfad über `CHROME` überschreibbar).
 cargo test --workspace      # browserfrei, auch gegen die Aufnahmen in spike/recordings
 cargo run -p relief-cdp -- run spike/tasks/0*.txt spike/tasks/10-real.txt   # Aufgaben mit Erwartungen
 cargo run -p relief-cdp -- run spike/tasks/11-korpus.txt --headful          # realer Korpus, sichtbarer Browser
+cargo run -p relief-cdp -- test spike/tasks/0*.txt --junit out.xml --report befunde.json   # ohne Fenster, Bericht für CI, Fehler bei verfehlter Erwartung
+cargo run -p relief-cdp -- test --fork spike/tasks/0[1-5]*.txt --junit out.xml             # dasselbe im eigenen Build (--headless=new, AX-Weg)
 cargo run -p relief-cdp -- repl https://www.gov.uk/     # interaktiv, --headful für sichtbares Fenster
 cargo run -p relief-cdp -- measure <url>... --repeat 5  # Zeiten und Graph-Stabilität
 cargo run -p relief-cdp -- record spike/tasks/0*.txt   # AX-Aufnahmen nach spike/recordings

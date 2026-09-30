@@ -1,0 +1,9 @@
+# Bericht (Paket 44): derselbe Befund in zwei Zuständen einer Aufgabe steht
+# im Bericht (`relief-cdp test --report`) einmal, mit beiden Zuständen.
+url: ../fixtures/form-broken.html
+assert: feldnamen
+expect: form/field-name
+do: fülle Name mit Erika Muster
+expect: SetValue
+assert: feldnamen
+expect: form/field-name
