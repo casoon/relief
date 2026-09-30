@@ -24,6 +24,7 @@
 mod command;
 #[allow(unsafe_code)]
 mod cxx_bridge;
+pub mod devtools;
 mod inspector;
 mod runtime;
 

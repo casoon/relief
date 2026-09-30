@@ -370,6 +370,14 @@ pub mod ffi {
         fields: Vec<FieldFact>,
     }
 
+    /// Antwort einer Methode der Domäne `Relief.*` (Paket 45): `json` ist
+    /// bei `ok` das Ergebnis, sonst die Fehlermeldung.
+    #[derive(Debug, Clone)]
+    struct DevToolsReply {
+        ok: bool,
+        json: String,
+    }
+
     #[derive(Debug)]
     enum TaskKind {
         Url,
@@ -411,6 +419,9 @@ pub mod ffi {
         /// Offene Rückfrage mit dem jetzigen Modell neu stellen
         /// (`Runtime::reconfirm`).
         fn reconfirm(runtime: &mut Runtime) -> Reply;
+        /// Methode der CDP-Domäne `Relief.*`, Parameter als JSON
+        /// (`devtools::command`).
+        fn devtools_command(runtime: &Runtime, method: &str, params: &str) -> DevToolsReply;
         /// Eingabe für Protokoll und Log der Befehlsleiste, Wert verdeckt
         /// (`relief_interaction::redact_input`).
         fn redact_input(input: &str) -> String;
@@ -604,6 +615,19 @@ fn apply_form_facts(runtime: &mut Runtime, facts: &ffi::FormFacts) {
 
 fn reconfirm(runtime: &mut Runtime) -> ffi::Reply {
     reply_to_ffi(runtime.reconfirm())
+}
+
+fn devtools_command(runtime: &Runtime, method: &str, params: &str) -> ffi::DevToolsReply {
+    match crate::devtools::command(runtime, method, params) {
+        Ok(value) => ffi::DevToolsReply {
+            ok: true,
+            json: value.to_string(),
+        },
+        Err(message) => ffi::DevToolsReply {
+            ok: false,
+            json: message,
+        },
+    }
 }
 
 fn redact_input(input: &str) -> String {

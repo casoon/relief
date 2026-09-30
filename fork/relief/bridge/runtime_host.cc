@@ -88,6 +88,12 @@ void RuntimeHost::LogSecurity() {
   }
 }
 
+bridge::DevToolsReply RuntimeHost::DevToolsCommand(const std::string& method,
+                                                   const std::string& params) {
+  Log("devtools\t" + method);
+  return bridge::devtools_command(*runtime_, method, params);
+}
+
 std::string RuntimeHost::FinishCommand() {
   return std::string(bridge::finish_command(*runtime_));
 }

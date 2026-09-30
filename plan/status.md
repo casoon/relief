@@ -139,16 +139,21 @@ Felder mit `autocomplete` für Zahlungs-/Identitätsdaten (Renderer-Anfrage
 nur bei einer Rückfrage), beschrieben in
 [spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#bestätigungstoken-umgesetzt).
 
+Playwright steuert Relief und fragt über die CDP-Domäne `Relief.*`
+Seitenmodell und Formular-Zusicherungen ab (`examples/playwright/`),
+beschrieben in
+[spezifikation/12](spezifikation/12-produktumfang.md#playwright-anbindung-umgesetzt-2026-09-30-paket-45).
+
 **Sofort startbar:**
 - Cloud: 105 (Frames anderer Prozesse beim Laden), 106 (`tabfolge` sporadisch)
-- Cloud + M4: 26 (Sprache), 29 (Semantic View), 111 (Branding-Reste), 112 (`autocomplete` im Fork), 45 (Playwright)
+- Cloud + M4: 26 (Sprache), 29 (Semantic View), 111 (Branding-Reste), 112 (`autocomplete` im Fork)
 - M4: 43 (VoiceOver im Test), 141 (Diff im Fork)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
 - Linie A: 26, 29 parallel → 41 (40, 80, 91, 110 erledigt);
   47 läuft mit 20 und 25 als Abnahme mit.
-- Linie B: 45 (44 erledigt), 43 zurückgestellt; 105 und 106 jederzeit (85 erledigt).
+- Linie B: 45 und 44 erledigt, 43 zurückgestellt; 105 und 106 jederzeit (85 erledigt).
 - Produkt: 111 jederzeit; 37 erst vor einer Weitergabe an Dritte.
 - Vor jeder Modellintegration (28 im Fork, 34): 48 ✓, 58 ✓, 75 ✓.
 
@@ -165,7 +170,6 @@ nur bei einer Rückfrage), beschrieben in
 | 37 | Updates und Auslieferung (Signatur, Notarisierung) | M4 + Entscheidung | zurückgestellt (Nutzer, 2026-09-30) | 36 | [37](37-updates-und-auslieferung.md) |
 | 41 | Fähigkeitsprofile | Cloud + M4 | offen | 25 ✓, 26, 29 | [41](41-faehigkeitsprofile.md) |
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
-| 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 ✓ | [45](45-playwright-anbindung.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 ✓ | [47](47-relief-ui-accessibility.md) |
 | 112 | HTML-`autocomplete` im Fork außerhalb einer Rückfrage | Cloud + M4 | offen | 75 ✓ | [112](112-autocomplete-im-fork.md) |
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
