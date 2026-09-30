@@ -163,3 +163,69 @@ fn nach_der_aktion_antwortet_die_runtime_mit_der_wirkung() {
         "{wo}"
     );
 }
+
+#[test]
+fn mehrdeutig_nummeriert_und_per_zahl_oder_name_waehlbar() {
+    let mut rt = runtime_shop();
+    let Reply::Answer(text) = rt.command("Öffne den Warenkorb") else {
+        panic!("Rückfrage erwartet")
+    };
+    assert!(text.contains("  1. [link] Warenkorb (0)"), "{text}");
+    assert!(text.contains("  2. [button] In den Warenkorb"), "{text}");
+    assert_eq!(
+        schritte(&mut rt, "2"),
+        vec![(Role::Button, Action::DoDefault, None)]
+    );
+
+    assert!(matches!(
+        rt.command("Öffne den Warenkorb"),
+        Reply::Answer(_)
+    ));
+    assert_eq!(
+        schritte(&mut rt, "link"),
+        vec![(Role::Link, Action::DoDefault, None)]
+    );
+
+    // Die Auswahl gilt nur für die nächste Eingabe.
+    assert!(matches!(
+        rt.command("Öffne den Warenkorb"),
+        Reply::Answer(_)
+    ));
+    assert!(matches!(rt.command("Was ist hier?"), Reply::Answer(_)));
+    assert!(matches!(rt.command("2"), Reply::Answer(t) if t.starts_with("Nicht verstanden")));
+}
+
+#[test]
+fn ja_bestaetigt_einmal_abbrechen_verwirft() {
+    let mut rt = runtime_shop();
+    assert!(
+        matches!(rt.command("klicke Jetzt kaufen"), Reply::Answer(t) if t.starts_with("Bestätigung nötig"))
+    );
+    assert_eq!(
+        schritte(&mut rt, "ja"),
+        vec![(Role::Button, Action::DoDefault, None)]
+    );
+    // Ein zweites „ja“ löst nichts mehr aus.
+    assert!(matches!(rt.command("ja"), Reply::Answer(t) if t.starts_with("Nicht verstanden")));
+
+    assert!(matches!(
+        rt.command("klicke Jetzt kaufen"),
+        Reply::Answer(_)
+    ));
+    assert_eq!(
+        rt.command("abbrechen"),
+        Reply::Answer("Abgebrochen. Nichts ausgeführt.".into())
+    );
+    assert!(matches!(rt.command("ja"), Reply::Answer(t) if t.starts_with("Nicht verstanden")));
+    assert!(
+        matches!(rt.command("!klicke Jetzt kaufen"), Reply::Answer(t) if t.starts_with("Bestätigung nötig"))
+    );
+    assert_eq!(
+        rt.command("abbrechen"),
+        Reply::Answer("Abgebrochen. Nichts ausgeführt.".into())
+    );
+    assert_eq!(
+        rt.command("abbrechen"),
+        Reply::Answer("Nichts offen, das sich abbrechen ließe.".into())
+    );
+}

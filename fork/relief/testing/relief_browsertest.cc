@@ -646,6 +646,21 @@ content::WebContents* FindInspector() {
   return nullptr;
 }
 
+// Taste mit Strg+Umschalt direkt an das Widget des Hauptframes, wie die
+// Tastatur sie liefert.
+void PressWithCtrlShift(content::WebContents* contents,
+                        ui::KeyboardCode code,
+                        char16_t character) {
+  input::NativeWebKeyboardEvent event(
+      blink::WebInputEvent::Type::kRawKeyDown,
+      blink::WebInputEvent::kControlKey | blink::WebInputEvent::kShiftKey,
+      base::TimeTicks::Now());
+  event.windows_key_code = code;
+  event.dom_key = ui::DomKey::FromCharacter(character);
+  contents->GetPrimaryMainFrame()->GetRenderWidgetHost()->ForwardKeyboardEvent(
+      event);
+}
+
 // Texte aller Einträge der Knotenliste im Inspector.
 std::string InspectorOptions(content::WebContents* inspector) {
   return content::EvalJs(inspector,
@@ -663,19 +678,8 @@ IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, Inspektor) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
                                            Url("a.test", "/inspektor.html")));
   // Strg+Umschalt+I auf der Seite öffnet den Inspector.
-  // Direkt an das Widget des Hauptframes, wie die Tastatur es liefert.
   auto press_shortcut = [&] {
-    input::NativeWebKeyboardEvent event(
-        blink::WebInputEvent::Type::kRawKeyDown,
-        blink::WebInputEvent::kControlKey | blink::WebInputEvent::kShiftKey,
-        base::TimeTicks::Now());
-    event.windows_key_code = ui::VKEY_I;
-    event.dom_key = ui::DomKey::FromCharacter('I');
-    event.dom_code = static_cast<int>(ui::DomCode::US_I);
-    web_contents()
-        ->GetPrimaryMainFrame()
-        ->GetRenderWidgetHost()
-        ->ForwardKeyboardEvent(event);
+    PressWithCtrlShift(web_contents(), ui::VKEY_I, u'I');
   };
   SidePanelUI* side_panel = SidePanelUI::From(browser());
   const SidePanelEntry::Key key(SidePanelEntry::Id::kRelief);
@@ -760,6 +764,133 @@ IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, Inspektor) {
   press_shortcut();
   EXPECT_TRUE(base::test::RunUntil(
       [&] { return !side_panel->IsSidePanelEntryShowing(key); }));
+}
+
+}  // namespace relief
+
+namespace relief {
+
+namespace {
+
+std::string State(content::WebContents* panel);
+
+// Befehl über das Eingabefeld der Leiste abschicken, sobald die Leiste
+// bereit ist (ein laufender Befehl wartet noch auf Ruhe).
+void SendCommand(content::WebContents* panel, std::string_view text) {
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return State(panel).find("Führe aus") == std::string::npos; }));
+  ASSERT_TRUE(content::ExecJs(
+      panel, base::StringPrintf(
+                 "document.getElementById('cmd').value = '%s';"
+                 "document.getElementById('cmd-form').requestSubmit();",
+                 std::string(text).c_str())));
+}
+
+std::string LastAnswer(content::WebContents* panel) {
+  return content::EvalJs(panel,
+                         "(document.querySelector('#log li:last-child') || "
+                         "{textContent: ''}).textContent")
+      .ExtractString();
+}
+
+std::string State(content::WebContents* panel) {
+  return content::EvalJs(panel,
+                         "document.getElementById('cmd-state').textContent")
+      .ExtractString();
+}
+
+}  // namespace
+
+// Befehlsleiste (Paket 25): Strg+Umschalt+Leertaste öffnet sie im
+// Relief-Panel mit Fokus im Eingabefeld; mehrdeutige Ziele per Nummer,
+// Bestätigung mit „ja“, Escape bricht eine Rückfrage ab und schließt sonst.
+IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, Befehlsleiste) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
+                                           Url("a.test", "/inspektor.html")));
+  const std::string main = TreeOf(web_contents()->GetPrimaryMainFrame());
+  GraphRecorder graph(helper());
+  ASSERT_TRUE(base::test::RunUntil([&] { return helper().has_main_tree(); }));
+
+  web_contents()->Focus();
+  PressWithCtrlShift(web_contents(), ui::VKEY_SPACE, u' ');
+  content::WebContents* panel = nullptr;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    panel = FindInspector();
+    return panel && !panel->IsLoading() &&
+           content::EvalJs(panel, "document.activeElement.id")
+                   .ExtractString() == "cmd";
+  }));
+
+  // Abfrage: Antwort im Log, Fokus bleibt in der Leiste.
+  SendCommand(panel, "was kann ich tun");
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return LastAnswer(panel).find("[button] In den Warenkorb") !=
+           std::string::npos;
+  }));
+  EXPECT_EQ("Fertig.", State(panel));
+
+  // Mehrdeutig: nummeriert, „2“ wählt den Button, Fokus geht zum Ziel.
+  SendCommand(panel, "öffne Warenkorb");
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return LastAnswer(panel).find("2. [button] In den Warenkorb") !=
+           std::string::npos;
+  }));
+  EXPECT_NE(State(panel).find("Auswahl erwartet"), std::string::npos);
+  SendCommand(panel, "2");
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(web_contents(),
+                           "document.getElementById('s').textContent")
+               .ExtractString() == "Gekauft.";
+  }));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(web_contents(),
+                           "document.activeElement.id")
+               .ExtractString() == "kaufen";
+  }));
+
+  // Bestätigung: Escape bricht ab, nichts passiert; „ja“ löst einmal aus.
+  SendCommand(panel, "klicke Jetzt bestellen");
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return LastAnswer(panel).find("Bestätigung nötig") != std::string::npos;
+  }));
+  ASSERT_TRUE(content::ExecJs(
+      panel,
+      "document.getElementById('cmd').dispatchEvent(new KeyboardEvent("
+      "'keydown', {key: 'Escape', bubbles: true}))"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return LastAnswer(panel).find("Abgebrochen. Nichts ausgeführt.") !=
+           std::string::npos;
+  }));
+  SendCommand(panel, "ja");
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return LastAnswer(panel).find("Nicht verstanden") != std::string::npos;
+  }));
+  EXPECT_EQ("0", content::EvalJs(web_contents(),
+                                 "document.getElementById('b').textContent"));
+
+  SendCommand(panel, "klicke Jetzt bestellen");
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return LastAnswer(panel).find("Bestätigung nötig") != std::string::npos;
+  })) << LastAnswer(panel);
+  SendCommand(panel, "ja");
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(web_contents(),
+                           "document.getElementById('b').textContent")
+               .ExtractString() == "1";
+  }));
+
+  // Escape ohne Rückfrage schließt das Panel.
+  SidePanelUI* side_panel = SidePanelUI::From(browser());
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return State(panel).starts_with("Fertig."); }));
+  ASSERT_TRUE(content::ExecJs(
+      panel,
+      "document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}))"));
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return !side_panel->IsSidePanelEntryShowing(
+        SidePanelEntry::Key(SidePanelEntry::Id::kRelief));
+  }));
+  EXPECT_TRUE(graph.Find("Jetzt bestellen", main));
 }
 
 }  // namespace relief

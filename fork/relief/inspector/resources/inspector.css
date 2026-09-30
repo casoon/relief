@@ -60,3 +60,40 @@ select {
     animation: none !important;
   }
 }
+
+h3 {
+  font-size: 1em;
+  margin: 12px 0 4px;
+}
+
+#cmd-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+#cmd-form label {
+  flex-basis: 100%;
+  font-weight: 600;
+}
+
+#cmd {
+  flex: 1 1 12em;
+  font: inherit;
+}
+
+#cmd-state {
+  font-weight: 600;
+}
+
+#log {
+  margin: 0;
+  max-height: 16em;
+  overflow-y: auto;
+  padding-left: 1.5em;
+}
+
+#log li {
+  white-space: pre-wrap;
+  margin-bottom: 6px;
+}

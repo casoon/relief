@@ -1,6 +1,7 @@
 // Relief. MIT-Lizenz wie das Relief-Repository.
 //
-// Semantic Inspector: zeigt den Graph der Seite (Bereiche, Überschriften,
+// Relief-Panel: Befehlsleiste (oben) und Semantic Inspector. Der Inspector
+// zeigt den Graph der Seite (Bereiche, Überschriften,
 // Bedienelemente) mit Herkunft der Namen. Auswahl (Pfeiltasten) und
 // Aktivierung („Im Dokument zeigen“) sind getrennt; Aktualisierungen der
 // Seite werden gebündelt angesagt. Nur DOM-APIs, kein innerHTML (Trusted
@@ -183,6 +184,113 @@ nodes.addEventListener('keydown', (event) => {
 });
 nodes.addEventListener('dblclick', activate);
 showButton.addEventListener('click', activate);
+
+// ---------------------------------------------------------------------------
+// Befehlsleiste: Eingabe → Runtime; Zustände sichtbar und als Statusmeldung
+// (bereit, führe aus, Rückfrage, Bestätigung, fertig); Antworten im Log.
+
+const cmdForm = document.getElementById('cmd-form');
+const cmdInput = document.getElementById('cmd');
+const cmdState = document.getElementById('cmd-state');
+const cancelButton = document.getElementById('cancel');
+const log = document.getElementById('log');
+
+// Höchstens so viele Antworten im Log.
+const LOG_MAX = 20;
+
+let busy = false;
+let pending = false;
+
+function setState(text) {
+  cmdState.textContent = text;
+  cancelButton.disabled = !busy && !pending;
+}
+
+function stateAfter(answer) {
+  if (answer.startsWith('Bestätigung nötig')) {
+    pending = true;
+    return 'Bestätigung erwartet: „ja“ oder „abbrechen“.';
+  }
+  if (answer.startsWith('Mehrdeutig') || answer.startsWith('Mehrere')) {
+    pending = true;
+    return 'Auswahl erwartet: Zahl oder Name, oder „abbrechen“.';
+  }
+  pending = false;
+  return 'Fertig.';
+}
+
+function addLog(input, answer) {
+  const entry = document.createElement('li');
+  const asked = document.createElement('strong');
+  asked.textContent = `${input}: `;
+  entry.append(asked, answer);
+  log.append(entry);
+  while (log.children.length > LOG_MAX) {
+    log.firstElementChild.remove();
+  }
+  entry.scrollIntoView({block: 'nearest'});
+}
+
+let lastInput = '';
+
+// Schickt die Eingabe; false, wenn noch ein Befehl läuft (die Eingabe
+// bleibt dann stehen).
+function send(text) {
+  if (text.trim() === '') {
+    return true;
+  }
+  if (busy) {
+    setState('Noch beschäftigt: Eingabe bleibt stehen. Warten oder abbrechen.');
+    return false;
+  }
+  busy = true;
+  lastInput = text.trim();
+  setState('Führe aus …');
+  chrome.send('command', [lastInput]);
+  return true;
+}
+
+cmdForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  if (send(cmdInput.value)) {
+    cmdInput.value = '';
+  }
+});
+
+function cancel() {
+  if (!busy && !pending) {
+    return;
+  }
+  if (!busy) {
+    // Offene Rückfrage: die Runtime verwirft sie und antwortet.
+    busy = true;
+    lastInput = 'abbrechen';
+    setState('Breche ab …');
+  }
+  chrome.send('cancel');
+}
+cancelButton.addEventListener('click', cancel);
+
+// Escape: laufende Ausführung oder offene Rückfrage abbrechen, sonst das
+// Panel schließen (Chromium gibt den Fokus an die Seite zurück).
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') {
+    return;
+  }
+  event.preventDefault();
+  if (busy || pending) {
+    cancel();
+  } else {
+    chrome.send('close');
+  }
+});
+
+addWebUiListener('answer', (answer, acted) => {
+  busy = false;
+  addLog(lastInput || 'abbrechen', answer);
+  setState(stateAfter(answer) + (acted ? ' Fokus liegt auf der Seite.' : ''));
+});
+addWebUiListener('focusCommand', () => cmdInput.focus());
 
 addWebUiListener('graph', render);
 addWebUiListener('status', (text) => {

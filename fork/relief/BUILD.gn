@@ -109,6 +109,8 @@ source_set("relief") {
     "inspector/relief_inspector_ui.cc",
     "inspector/relief_inspector_ui.h",
     "relief_attach.h",
+    "relief_executor.cc",
+    "relief_executor.h",
     "relief_switches.h",
     "relief_tab_helper.cc",
     "relief_tab_helper.h",

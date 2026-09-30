@@ -51,7 +51,7 @@ class InspectorContentsWrapper : public WebUIContentsWrapper {
                              profile,
                              IDS_SETTINGS_ACCESSIBILITY,
                              /*webui_resizes_host=*/false,
-                             /*esc_closes_ui=*/true,
+                             /*esc_closes_ui=*/false,
                              /*supports_draggable_regions=*/false,
                              ReliefInspectorUI::GetWebUIName()) {
     SetEmbedder();
@@ -87,10 +87,16 @@ class InspectorView : public SidePanelWebUIView {
  public:
   InspectorView(SidePanelEntryScope& scope,
                 std::unique_ptr<InspectorContentsWrapper> wrapper)
-      : SidePanelWebUIView(scope,
-                           base::RepeatingClosure(),
-                           base::RepeatingClosure(),
-                           wrapper.get()),
+      : SidePanelWebUIView(
+            scope,
+            base::RepeatingClosure(),
+            // Schließen aus der WebUI (Escape): das Side Panel des Fensters.
+            base::BindRepeating(
+                [](BrowserWindowInterface* browser) {
+                  SidePanelUI::From(browser)->Close();
+                },
+                &scope.GetBrowserWindowInterface()),
+            wrapper.get()),
         wrapper_(std::move(wrapper)) {}
 
  private:
@@ -125,8 +131,10 @@ void RegisterAction(BrowserWindowInterface& browser) {
               },
               &browser))
           .SetActionId(kActionSidePanelShowRelief)
-          .SetText(u"Relief Inspector")
-          .SetTooltipText(u"Relief Inspector (Strg+Umschalt+I)")
+          .SetText(u"Relief")
+          .SetTooltipText(
+              u"Relief: Befehl (Strg+Umschalt+Leertaste), Inspector "
+              u"(Strg+Umschalt+I)")
           // Platzhalter bis zum Branding (Paket 36).
           .SetImage(ui::ImageModel::FromVectorIcon(vector_icons::kVisibilityIcon,
                                                    ui::kColorIcon))

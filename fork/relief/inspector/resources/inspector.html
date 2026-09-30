@@ -2,16 +2,32 @@
 <html lang="de">
 <head>
   <meta charset="utf-8">
-  <title>Relief Inspector</title>
+  <title>Relief</title>
   <link rel="stylesheet" href="inspector.css">
   <script type="module" src="inspector.js"></script>
 </head>
 <body>
   <header>
-    <h1>Relief Inspector</h1>
+    <h1>Relief</h1>
     <p id="page">Warte auf die Seite …</p>
   </header>
   <main>
+    <section aria-labelledby="cmd-title">
+      <h2 id="cmd-title">Befehl</h2>
+      <form id="cmd-form">
+        <label for="cmd">Befehl an Relief</label>
+        <input id="cmd" type="text" autocomplete="off" spellcheck="false"
+            aria-describedby="cmd-hint">
+        <button type="submit">Ausführen</button>
+        <button type="button" id="cancel" disabled>Abbrechen</button>
+      </form>
+      <p id="cmd-hint" class="hint">Zum Beispiel „was kann ich tun“, „gehe
+        zu Suche“ oder „hilfe“. Escape bricht ab bzw. schließt das Panel.</p>
+      <p id="cmd-state" role="status">Bereit.</p>
+      <h3 id="log-title">Antworten</h3>
+      <ol id="log" role="log" aria-labelledby="log-title"></ol>
+    </section>
+    <h2 id="inspector-title">Seite</h2>
     <label for="nodes">Knoten der Seite</label>
     <select id="nodes" size="14" aria-describedby="nodes-hint"></select>
     <p id="nodes-hint" class="hint">Pfeiltasten wählen aus, Eingabetaste zeigt den

@@ -31,6 +31,7 @@
 #include "content/public/browser/web_contents.h"
 #include "relief/inspector/relief_inspector.h"
 #include "relief/relief_attach.h"
+#include "relief/relief_executor.h"
 #include "relief/relief_switches.h"
 #include "relief/relief_task_runner.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
@@ -59,9 +60,6 @@ int g_next_tab = 1;
 // wieder aus dem Tritt kommt, soll das nicht in Schleife auslösen.
 constexpr base::TimeDelta kResetInterval = base::Seconds(5);
 
-// Inspector „im Dokument zeigen“: so lange auf die Wirkung warten, bevor
-// die Antwort entsteht.
-constexpr base::TimeDelta kShowSettle = base::Milliseconds(400);
 
 ax::mojom::Action ToAXAction(bridge::Action action) {
   switch (action) {
@@ -148,6 +146,7 @@ ReliefTabHelper::ReliefTabHelper(content::WebContents* contents)
   if (need_reset) {
     Reset("attach");
   }
+  executor_ = std::make_unique<ReliefExecutor>(*this, *contents);
   key_callback_ = base::BindRepeating(&ReliefTabHelper::OnKeyPress,
                                       base::Unretained(this));
   WatchKeys(contents->GetPrimaryMainFrame());
@@ -203,25 +202,55 @@ void ReliefTabHelper::WatchKeys(content::RenderFrameHost* frame) {
 }
 
 bool ReliefTabHelper::OnKeyPress(const input::NativeWebKeyboardEvent& event) {
-  // Strg+Umschalt+I, ohne weitere Umschalttasten (macOS: Befehlstaste
-  // bleibt frei, die Entwicklertools liegen auf Befehl+Wahl+I).
+  // Strg+Umschalt+I (Inspector) und Strg+Umschalt+Leertaste
+  // (Befehlsleiste), ohne weitere Umschalttasten (macOS: die
+  // Entwicklertools liegen auf Befehl+Wahl+I).
   constexpr int kModifiers = blink::WebInputEvent::kControlKey |
                              blink::WebInputEvent::kShiftKey |
                              blink::WebInputEvent::kAltKey |
                              blink::WebInputEvent::kMetaKey;
+  const bool command = event.windows_key_code == ui::VKEY_SPACE;
   if (event.GetType() != blink::WebInputEvent::Type::kRawKeyDown ||
-      event.windows_key_code != ui::VKEY_I ||
+      (event.windows_key_code != ui::VKEY_I && !command) ||
       (event.GetModifiers() & kModifiers) !=
           (blink::WebInputEvent::kControlKey |
            blink::WebInputEvent::kShiftKey)) {
     return false;
   }
-  runtime_.AsyncCall(&RuntimeHost::Log).WithArgs("inspector\ttaste");
-  if (tabs::TabInterface* tab =
-          tabs::TabInterface::MaybeGetFromContents(web_contents())) {
+  runtime_.AsyncCall(&RuntimeHost::Log)
+      .WithArgs(command ? "leiste\ttaste" : "inspector\ttaste");
+  tabs::TabInterface* tab =
+      tabs::TabInterface::MaybeGetFromContents(web_contents());
+  if (!tab) {
+    return true;
+  }
+  if (!command) {
     ToggleInspector(*tab);
+    return true;
+  }
+  // Leiste öffnen und fokussieren; ist das Panel noch nicht bereit, holt
+  // es sich die Anforderung beim Start (TakeFocusCommandRequest).
+  focus_command_requested_ = true;
+  ShowInspector(*tab);
+  for (InspectorObserver& observer : observers_) {
+    observer.OnFocusCommandRequested();
   }
   return true;
+}
+
+void ReliefTabHelper::Interact(
+    const std::string& input,
+    base::OnceCallback<void(ReliefExecutor::Result)> done) {
+  RunCommand(input, base::BindOnce(
+                        [](base::WeakPtr<ReliefTabHelper> self,
+                           base::OnceCallback<void(ReliefExecutor::Result)> done,
+                           bridge::Reply reply) {
+                          if (self) {
+                            self->executor().Execute(std::move(reply),
+                                                     std::move(done));
+                          }
+                        },
+                        weak_factory_.GetWeakPtr(), std::move(done)));
 }
 
 void ReliefTabHelper::DidFinishLoad(content::RenderFrameHost* render_frame_host,
@@ -266,29 +295,14 @@ void ReliefTabHelper::Show(const std::string& key,
             if (!self) {
               return;
             }
-            if (reply.kind != bridge::ReplyKind::Perform) {
-              std::move(done).Run(std::string(reply.text));
-              return;
-            }
-            for (const bridge::Step& step : reply.steps) {
-              if (!self->PerformStep(step)) {
-                std::move(done).Run("Knoten nicht mehr im Baum.");
-                return;
-              }
-            }
-            // Wirkung abwarten wie eine Person, die hinsieht; die Antwort
-            // nennt, wo Relief jetzt steht.
-            base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-                FROM_HERE,
+            self->executor().Execute(
+                std::move(reply),
                 base::BindOnce(
-                    [](base::WeakPtr<ReliefTabHelper> self,
-                       base::OnceCallback<void(std::string)> done) {
-                      if (self) {
-                        self->FinishCommand(std::move(done));
-                      }
+                    [](base::OnceCallback<void(std::string)> done,
+                       ReliefExecutor::Result result) {
+                      std::move(done).Run(std::move(result.text));
                     },
-                    self, std::move(done)),
-                kShowSettle);
+                    std::move(done)));
           },
           weak_factory_.GetWeakPtr(), std::move(done)));
 }

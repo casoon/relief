@@ -67,7 +67,8 @@ CDP-Host und Fork derselbe; Tabelle und Befunde in
 `plan/spezifikation/05` („Im Fork über `AXActionData`“).
 
 **Relief-Oberflächen als WebUI im Side Panel, zur Laufzeit angemeldet**
-Der Inspector ist eine WebUI in einem Side-Panel-Eintrag je Tab; WebUI und
+Befehlsleiste und Inspector sind eine WebUI in einem Side-Panel-Eintrag je
+Tab (keine schwebende Leiste über der Seite); WebUI und
 Aktions-Element meldet `//relief` zur Laufzeit an, Ressourcen kommen ohne
 grit als Header.
 *Grund:* Semantisches HTML mit nativen Bedienelementen ist mit denselben

@@ -29,7 +29,7 @@ use chromiumoxide::Page;
 use futures::StreamExt;
 use relief_interaction::{
     command, expectation_met, parse_input, parse_tasks, respond, uses_focus, ActionPlan, Graph,
-    Outcome, Session as Dialog, TaskLine,
+    Outcome, Pending, Session as Dialog, TaskLine,
 };
 use relief_model::{perception, NodeRef, SemanticGraph, TreeId};
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -276,7 +276,13 @@ impl Session {
         // Die Seite kann sich seit der letzten Aufnahme geändert haben.
         self.update(false, None).await?;
         self.before_action = Some(self.model.clone());
-        let (confirmed, cmd) = match parse_input(input) {
+        // Antwort auf eine offene Rückfrage (Zahl, „ja“, „abbrechen“)?
+        let input = match self.session.pending_reply(&self.graph, &self.model, input) {
+            Pending::Done(outcome) => return self.run(outcome).await,
+            Pending::Confirm(again) => again,
+            Pending::Command => input.to_string(),
+        };
+        let (confirmed, cmd) = match parse_input(&input) {
             Ok(c) => c,
             Err(msg) => return Ok(msg),
         };
@@ -285,10 +291,15 @@ impl Session {
         } else {
             None
         };
-        match self
+        let outcome = self
             .session
-            .handle(&self.graph, &self.model, confirmed, cmd, focus.as_ref())
-        {
+            .handle(&self.graph, &self.model, confirmed, cmd, focus.as_ref());
+        self.run(outcome).await
+    }
+
+    /// Ergebnis der Sitzung ausführen bzw. beantworten.
+    async fn run(&mut self, outcome: Outcome) -> Result<String> {
+        match outcome {
             Outcome::Answer(text) => Ok(text),
             Outcome::Perform { plan, label } => self.perform(plan, label).await,
             Outcome::Escape { target, reaches } => self.escape(&target, reaches.as_deref()).await,

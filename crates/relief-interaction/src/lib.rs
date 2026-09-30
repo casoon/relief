@@ -41,6 +41,6 @@ pub use resolve::{
 };
 pub use security::{Decision, Limit, PlanId, Reason, SecurityEvent};
 pub use session::{
-    expectation_met, parse_input, parse_tasks, uses_focus, Outcome, Session, TaskLine,
+    expectation_met, parse_input, parse_tasks, uses_focus, Outcome, Pending, Session, TaskLine,
 };
 pub use validate::{plan, plan_navigation, plan_on_page, ActionKind, ActionPlan, Rejection, Risk};

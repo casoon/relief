@@ -59,6 +59,15 @@ class InspectorHandler : public content::WebUIMessageHandler,
     web_ui()->RegisterMessageCallback(
         "show", base::BindRepeating(&InspectorHandler::OnShow,
                                     base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "command", base::BindRepeating(&InspectorHandler::OnCommand,
+                                       base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "cancel", base::BindRepeating(&InspectorHandler::OnCancel,
+                                      base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "close", base::BindRepeating(&InspectorHandler::OnClose,
+                                     base::Unretained(this)));
 
   }
   void OnJavascriptDisallowed() override {
@@ -75,6 +84,12 @@ class InspectorHandler : public content::WebUIMessageHandler,
     }
   }
   void OnTabHelperDestroyed() override { observation_.Reset(); }
+  void OnFocusCommandRequested() override {
+    if (ReliefTabHelper* helper = Helper()) {
+      helper->TakeFocusCommandRequest();
+    }
+    FocusCommand();
+  }
 
  private:
   // Tab-Helfer der gezeigten Seite; nach einem Discard ein neuer.
@@ -103,6 +118,61 @@ class InspectorHandler : public content::WebUIMessageHandler,
       embedder->ShowUI();
     }
     Refresh();
+    if (ReliefTabHelper* helper = Helper();
+        helper && helper->TakeFocusCommandRequest()) {
+      FocusCommand();
+    }
+  }
+
+  // Tastaturfokus ins Panel und dort ins Befehlsfeld.
+  void FocusCommand() {
+    if (!IsJavascriptAllowed()) {
+      return;
+    }
+    web_ui()->GetWebContents()->Focus();
+    FireWebUIListener("focusCommand");
+  }
+
+  void OnCommand(const base::ListValue& args) {
+    ReliefTabHelper* helper = Helper();
+    if (!helper || args.empty() || !args[0].is_string()) {
+      return;
+    }
+    helper->Interact(args[0].GetString(),
+                     base::BindOnce(&InspectorHandler::SendAnswer,
+                                    weak_factory_.GetWeakPtr()));
+  }
+
+  // Nach einer Aktion auf der Seite bekommt die Seite den Tastaturfokus:
+  // dort steht das Ziel (Fokus bleibt beim Ziel). Abfragen lassen ihn im
+  // Panel.
+  void SendAnswer(ReliefExecutor::Result result) {
+    FireWebUIListener("answer", base::Value(std::move(result.text)),
+                      base::Value(result.acted));
+    if (result.acted) {
+      if (ReliefTabHelper* helper = Helper()) {
+        helper->web_contents()->Focus();
+      }
+    }
+  }
+
+  // Abbrechen: eine laufende Ausführung (ihre Antwort meldet das), sonst
+  // eine offene Rückfrage in der Runtime.
+  void OnCancel(const base::ListValue& args) {
+    ReliefTabHelper* helper = Helper();
+    if (!helper || helper->executor().Cancel()) {
+      return;
+    }
+    helper->Interact("abbrechen",
+                     base::BindOnce(&InspectorHandler::SendAnswer,
+                                    weak_factory_.GetWeakPtr()));
+  }
+
+  // Schließen gibt den Fokus an die Seite zurück (Side Panel).
+  void OnClose(const base::ListValue& args) {
+    if (auto embedder = Embedder()) {
+      embedder->CloseUI();
+    }
   }
 
 
