@@ -35,6 +35,7 @@
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "relief/common/form_facts.mojom.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
+#include "relief/branding_strings.h"
 #include "relief/inspector/relief_inspector.h"
 #include "relief/relief_attach.h"
 #include "relief/marks_overlay.h"
@@ -101,6 +102,8 @@ ax::mojom::Action ToAXAction(bridge::Action action) {
 }  // namespace
 
 base::CallbackListSubscription AttachToTab(tabs::TabInterface& tab) {
+  // Produktname in übersetzten Texten, unabhängig von --enable-relief.
+  ApplyBrandingStrings();
   if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableRelief)) {
     return {};

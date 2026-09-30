@@ -130,7 +130,8 @@ Befunde aus `a11y-rules` im Inspector (Stufe `Semantics` auf dem AXTree,
 übrige Regeln als nicht geprüft), beschrieben in
 [spezifikation/01](spezifikation/01-chromium-integration.md#befunde-im-inspector-paket-21-belegt).
 
-Der Build heißt „Relief“ (`Relief.app`, eigenes Profilverzeichnis),
+Der Build heißt „Relief“ (`Relief.app`, eigenes Profilverzeichnis,
+Platzhaltersymbol, übersetzte Texte der Über-Seite und Menüs),
 beschrieben in
 [spezifikation/01](spezifikation/01-chromium-integration.md#name-und-branding-paket-36-belegt).
 
@@ -146,7 +147,7 @@ beschrieben in
 
 **Sofort startbar:**
 - Cloud: 105 (Frames anderer Prozesse beim Laden), 106 (`tabfolge` sporadisch)
-- Cloud + M4: 26 (Sprache), 29 (Semantic View), 111 (Branding-Reste), 112 (`autocomplete` im Fork)
+- Cloud + M4: 26 (Sprache), 29 (Semantic View), 112 (`autocomplete` im Fork)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
@@ -154,7 +155,7 @@ beschrieben in
 - Linie A: 26, 29 parallel → 41 (40, 80, 91, 110 erledigt);
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 und 44 erledigt, 43 zurückgestellt; 105 und 106 jederzeit (85 erledigt).
-- Produkt: 111 jederzeit; 37 erst vor einer Weitergabe an Dritte.
+- Produkt: 37 erst vor einer Weitergabe an Dritte.
 - Vor jeder Modellintegration (28 im Fork, 34): 48 ✓, 58 ✓, 75 ✓.
 
 | Nr | Thema | Umgebung | Status | Abhängig von | Datei |
@@ -166,7 +167,6 @@ beschrieben in
 | 30 | CDP-Host: barrierlab-Release übernehmen (Nachladen erledigt) | Cloud | wartet auf barrierlab-Release | barrierlab | [30](30-cdp-host-pflege.md) |
 | 31 | Plattformen Linux und Windows (Build-Hosts) | offen | zurückgestellt (Nutzer, 2026-09-30) | 14 ✓, 17 ✓ | [31](31-plattformen.md) |
 | 34 | Bridge-Variante B (Utility-Prozess) bauen und messen | Cloud + M4 | später | 19 ✓, vor KI-Code in der Runtime | [34](34-bridge-utility-prozess.md) |
-| 111 | Branding: übersetzte Texte und Symbol | Cloud + M4 | offen | 36 ✓ | [111](111-branding-texte-und-symbol.md) |
 | 37 | Updates und Auslieferung (Signatur, Notarisierung) | M4 + Entscheidung | zurückgestellt (Nutzer, 2026-09-30) | 36 | [37](37-updates-und-auslieferung.md) |
 | 41 | Fähigkeitsprofile | Cloud + M4 | offen | 25 ✓, 26, 29 | [41](41-faehigkeitsprofile.md) |
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
