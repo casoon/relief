@@ -101,8 +101,10 @@ bild.de, welt.de, faz.net, t-online.de, heise.de erkannt, Ablehnen auf
 google.de, zdf.de, ikea.com ausgeführt; Einwilligungsseite ohne Dialog
 (golem.de) als Cookie-Hinweis, Korpus ohne Fehltreffer, Abo ohne Signalwort
 (sueddeutsche.de „Jetzt testen“), Einstellungen nur auf „cookie-einstellungen
-öffnen“, beschrieben in
-[spezifikation/05](spezifikation/05-intents-und-aktionen.md#overlay--und-consent-dialoge-pakete-40-80-belegt).
+öffnen“; zweite Ebene mit Buttons je Zweck zusammengefasst angesagt und
+nie selbst gewählt, „Auswahl speichern“ als Speichern, gleichnamiger Link
+neben dem Button zählt nicht (spiegel.de, heise.de), beschrieben in
+[spezifikation/05](spezifikation/05-intents-und-aktionen.md#overlay--und-consent-dialoge-pakete-40-80-91-belegt).
 
 Sicherheits-Regressionsmatrix umgesetzt (Missbrauchsfälle als
 Tests, Bestätigungstoken, Grenzen je Aufgabe, Security-Log), beschrieben in
@@ -122,12 +124,12 @@ beschrieben in
 
 **Sofort startbar:**
 - Cloud: 76 (Werte außerhalb der Rückfrage), 85 (Frames anderer Prozesse, Nachtrag)
-- Cloud + M4: 26 (Sprache), 29 (Semantic View), 111 (Branding-Reste), 45 (Playwright), 91 (Consent: zweite Ebene)
+- Cloud + M4: 26 (Sprache), 29 (Semantic View), 111 (Branding-Reste), 45 (Playwright), 110 (Consent: Zweck-Titel)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
-- Linie A: 26, 29 parallel → 41 (40 und 80 erledigt, Nachtrag 91);
+- Linie A: 26, 29 parallel → 41 (40, 80, 91 erledigt, Nachtrag 110);
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 (44 erledigt), 43 zurückgestellt; 85 jederzeit (70 erledigt).
 - Produkt: 111 jederzeit; 37 erst vor einer Weitergabe an Dritte.
@@ -153,4 +155,4 @@ beschrieben in
 | 85 | CDP-Host: Frames anderer Prozesse, Nachtrag (Änderungssignal, Verschachtelung, Zählung) | Cloud | offen | 70 ✓ | [85](85-cdp-host-frames-nachtrag.md) |
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
-| 91 | Consent: zweite Ebene auf echten Seiten | Cloud + M4 | offen | 80 ✓ | [91](91-consent-zweite-ebene.md) |
+| 110 | Consent: Zweck-Titel und Rückfrage je Zweck | Cloud + M4 | offen | 91 ✓ | [110](110-consent-zweck-titel.md) |

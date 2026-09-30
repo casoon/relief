@@ -332,6 +332,7 @@ pub fn overlay(graph: &Graph, o: &Overlay) -> String {
         ButtonKind::Accept,
         ButtonKind::Reject,
         ButtonKind::Settings,
+        ButtonKind::Save,
         ButtonKind::Pay,
         ButtonKind::Close,
     ] {
@@ -342,6 +343,11 @@ pub fn overlay(graph: &Graph, o: &Overlay) -> String {
         if !names.is_empty() {
             parts.push(format!("{} {}", k.label(), names.join(", ")));
         }
+    }
+    // Zweck-Buttons zusammengefasst, nicht als Liste je Zweck.
+    let purposes = purposes(graph, o);
+    if !purposes.is_empty() {
+        parts.push(format!("{} {purposes}", ButtonKind::Purpose.label()));
     }
     let others = o.of_kind(ButtonKind::Other).count();
     if others > 0 {
@@ -366,8 +372,34 @@ pub fn overlay(graph: &Graph, o: &Overlay) -> String {
     out
 }
 
+/// Zweck-Buttons nach Namen mit Anzahl: „„Zustimmen“ 6-mal, „Ablehnen“
+/// 3-mal“; leer ohne Zweck-Buttons.
+fn purposes(graph: &Graph, o: &Overlay) -> String {
+    let mut counts: Vec<(String, usize)> = Vec::new();
+    for i in o.of_kind(ButtonKind::Purpose) {
+        let name = graph.controls[i].display_name();
+        match counts.iter_mut().find(|(n, _)| *n == name) {
+            Some((_, count)) => *count += 1,
+            None => counts.push((name, 1)),
+        }
+    }
+    counts
+        .iter()
+        .map(|(name, count)| format!("„{name}“ {count}-mal"))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// Kein Button, der ablehnt: das ansagen, nicht umgehen.
 pub fn no_reject(o: &Overlay) -> String {
+    // Zweite Ebene: Ablehnen nur je Zweck. Das ist kein Ablehnen des
+    // Ganzen, und Relief wählt es nicht selbst.
+    if o.of_kind(ButtonKind::Purpose).next().is_some() {
+        return "Kein Ablehnen für alle Zwecke zusammen; die Buttons vermutlich je Zweck \
+                wählt Relief nicht selbst, „klicke …“ mit ihrem Namen wählt einen. \
+                Relief stimmt nie selbst zu und umgeht keine Bezahlschranke."
+            .into();
+    }
     let mut out = String::from(if o.of_kind(ButtonKind::Pay).next().is_some() {
         "Kein Ablehnen ohne Bezahlung."
     } else {

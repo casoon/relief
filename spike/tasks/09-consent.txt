@@ -71,3 +71,21 @@ expect: Ablehnen „Alle ablehnen“
 do: Cookies ablehnen
 expect: Activate auf [button] Alle ablehnen
 expect: Ablehnung gespeichert.
+
+# Zweite Ebene mit Buttons je Zweck (wie spiegel.de, Paket 91). Der Link
+# „Einstellungen“ im Text zählt neben dem gleichnamigen Button nicht (wie
+# heise.de). Zustimmen und Ablehnen je Zweck werden zusammengefasst
+# angesagt und nie von selbst gewählt; „Einstellungen anwenden“ speichert
+# und öffnet nichts.
+url: ../fixtures/consent-zwecke.html
+do: Welcher Dialog ist offen?
+expect: Einstellungen „Einstellungen“, „Einstellungen“
+do: Cookie-Einstellungen öffnen
+expect: Activate auf [button] Einstellungen
+do: Welcher Dialog ist offen?
+expect: Zustimmen „Allen zustimmen“, Speichern „Einstellungen anwenden“, vermutlich je Zweck „Zustimmen“ 3-mal, „Ablehnen“ 2-mal
+expect: Kein Ablehnen für alle Zwecke zusammen
+do: Cookies ablehnen
+expect: Nicht abgelehnt
+do: Cookie-Einstellungen öffnen
+expect: Keine Einstellungen gefunden, nichts geöffnet

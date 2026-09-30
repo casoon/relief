@@ -12,12 +12,16 @@ expect: vermutlich Cookie-Dialog
 expect: Abo „Jetzt abonnieren“
 do: Cookies ablehnen
 expect: Nicht abgelehnt
-# Zweite Ebene (Paket 80): Einstellungen nur auf ausdrücklichen Befehl.
-# Dort lehnen mehrere Buttons je Zweck ab; Relief fragt nach, klickt nicht.
+# Zweite Ebene (Pakete 80, 91): Einstellungen nur auf ausdrücklichen
+# Befehl. Dort stehen Zustimmen und Ablehnen je Zweck; die Ansage fasst sie
+# zusammen, „cookies ablehnen“ klickt keinen davon.
 do: Cookie-Einstellungen öffnen
 expect: Activate auf [button] Einstellungen
+do: Welcher Dialog ist offen?
+expect: vermutlich je Zweck „Zustimmen“
+expect: Kein Ablehnen für alle Zwecke zusammen
 do: Cookies ablehnen
-expect: Mehrere Buttons lehnen vermutlich ab
+expect: Nicht abgelehnt
 
 # „für Utiq jetzt ablehnen“ ist ein Link zu einem Drittanbieter, kein Ablehnen.
 url: https://www.bild.de/
@@ -50,6 +54,9 @@ do: Welcher Dialog ist offen?
 expect: vermutlich Cookie-Dialog
 do: Cookies ablehnen
 expect: Nicht abgelehnt
+# Link und Button „Einstellungen“ (Paket 91): der Button, ohne Rückfrage.
+do: Cookie-Einstellungen öffnen
+expect: Activate auf [button] Einstellungen
 
 # Einwilligungsseite ohne Dialog (Paket 80): Cookie-Hinweis, Abo „pur“.
 url: https://www.golem.de/

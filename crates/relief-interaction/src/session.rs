@@ -22,7 +22,7 @@
 
 use std::time::Duration;
 
-use relief_model::{NodeRef, SemanticGraph};
+use relief_model::{NodeRef, Role, SemanticGraph};
 
 use crate::command::{self, parse, Command, ScrollDirection, Step};
 use crate::form;
@@ -877,6 +877,22 @@ fn consent_button(
     };
     let mut found: Vec<&Control> = consent.of_kind(kind).map(|i| &graph.controls[i]).collect();
     found.dedup_by_key(|c| c.dom_node_id);
+    // Ein Link mit demselben Namen wie der eine Button fällt weg (heise.de:
+    // Link „Einstellungen“ im Fließtext und Button „Einstellungen“). Wie
+    // beim Ablehnen zählt der Button; zwei gleiche Buttons fragen weiter nach.
+    if let [button] = found
+        .iter()
+        .filter(|c| c.role == Role::Button)
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        let name = button.name.value.as_deref().map(str::to_lowercase);
+        if found.iter().all(|c| {
+            c.role == Role::Button || c.name.value.as_deref().map(str::to_lowercase) == name
+        }) {
+            return Ok((**button).clone());
+        }
+    }
     match found.as_slice() {
         [one] => Ok((*one).clone()),
         [] => Err(Miss::Text(format!(
@@ -1235,6 +1251,58 @@ mod tests {
         let model = crate::overlay::consent_page(&["Alle akzeptieren"]);
         let text = run(&mut s, &model, false, Command::ConsentSettings).unwrap();
         assert!(text.starts_with("Keine Einstellungen gefunden"), "{text}");
+    }
+
+    #[test]
+    fn ablehnen_je_zweck_wird_nicht_gewaehlt() {
+        // Zweite Ebene wie spiegel.de: kein Ablehnen des Ganzen.
+        let model = crate::overlay::consent_page(&[
+            "Zustimmen",
+            "Ablehnen",
+            "Zustimmen",
+            "Ablehnen",
+            "Einstellungen anwenden",
+            "Allen zustimmen",
+        ]);
+        let mut s = Session::new();
+        let text = run(&mut s, &model, false, Command::RejectConsent).unwrap();
+        assert!(text.starts_with("Nicht abgelehnt:"), "{text}");
+        assert!(
+            text.contains("vermutlich je Zweck „Zustimmen“ 2-mal, „Ablehnen“ 2-mal"),
+            "{text}"
+        );
+        assert!(
+            text.contains("Kein Ablehnen für alle Zwecke zusammen"),
+            "{text}"
+        );
+        assert!(!text.contains("Cookie-Einstellungen öffnen"), "{text}");
+        // „Einstellungen anwenden“ speichert, öffnet nichts.
+        let text = run(&mut s, &model, false, Command::ConsentSettings).unwrap();
+        assert!(text.starts_with("Keine Einstellungen gefunden"), "{text}");
+        assert!(s.take_security_log().is_empty());
+    }
+
+    #[test]
+    fn einstellungen_als_link_und_button_waehlt_den_button() {
+        // Wie heise.de: Link „Einstellungen“ im Text, Button „Einstellungen“.
+        let mut model =
+            crate::overlay::consent_page(&["Einstellungen", "Alle akzeptieren", "Einstellungen"]);
+        let frame = model
+            .trees
+            .get_mut(&relief_model::TreeId("frame".into()))
+            .unwrap();
+        frame.nodes.get_mut(&relief_model::NodeId(20)).unwrap().role = Role::Link;
+        let g = Graph::build(&model);
+        let mut s = Session::new();
+        let out = s.handle(&g, &model, false, Command::ConsentSettings, None);
+        assert_eq!(target(out), frame_node(22));
+        // Zwei gleiche Buttons fragen weiter nach.
+        let model = crate::overlay::consent_page(&["Einstellungen", "Einstellungen"]);
+        let text = run(&mut s, &model, false, Command::ConsentSettings).unwrap();
+        assert!(
+            text.starts_with("Mehrere Buttons öffnen vermutlich Einstellungen"),
+            "{text}"
+        );
     }
 
     #[test]

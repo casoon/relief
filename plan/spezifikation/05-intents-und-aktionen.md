@@ -235,7 +235,7 @@ Offen: deiktische Ziele („dieses Feld“, „hier“) kennt der Parser noch
 nicht; Ausgabe pausieren fehlt (die Leiste bündelt nur); manueller
 Tastatur- und VoiceOver-Durchgang (→ 47).
 
-## Overlay- und Consent-Dialoge (Pakete 40, 80) [belegt]
+## Overlay- und Consent-Dialoge (Pakete 40, 80, 91) [belegt]
 
 Browserfrei in `relief-interaction` (`overlay.rs`, Befehle in `command.rs`,
 Ablauf in `session.rs`, Texte in `respond.rs`); beide Hosts nutzen es ohne
@@ -269,6 +269,31 @@ Regeln [Entscheidung]:
   ausdrücklich, und Einstellungen öffnen stimmt nicht zu; „klicke
   Einstellungen“ ging schon vorher, der Befehl findet nur den richtigen
   Button, wenn er „Cookie-Manager“ oder „Anpassen“ heißt.
+- **Buttons je Zweck** (Paket 91) [Entscheidung]: Auf der zweiten Ebene
+  stehen Zustimmen und Ablehnen je Zweck (spiegel.de sechsmal „Zustimmen“,
+  dreimal „Ablehnen“; bild.de „Einwilligen“ und „Ablehnen“ je Zweck). Sie
+  sind eine eigene Art (`ButtonKind::Purpose`, Ansage „vermutlich je
+  Zweck“): weder Ablehnen noch Zustimmen des Ganzen. Die Ansage fasst sie
+  nach Namen zusammen („vermutlich je Zweck „Zustimmen“ 6-mal, „Ablehnen“
+  3-mal“) statt jeden einzeln zu nennen; ohne Ablehnen des Ganzen sagt
+  sie „Kein Ablehnen für alle Zwecke zusammen; die Buttons vermutlich je
+  Zweck wählt Relief nicht selbst, „klicke …“ mit ihrem Namen wählt einen“.
+  „cookies ablehnen“ klickt keinen davon („Nicht abgelehnt“); vorher fragte
+  es nummeriert zwischen drei gleichen „Ablehnen“ nach, ohne zu sagen, zu
+  welchem Zweck sie gehören.
+- **Speichern** (Paket 91) [Entscheidung]: Ein Button mit Einstellungswort
+  und Speichern-Wort („Auswahl speichern“, „Einstellungen anwenden“) ist
+  `ButtonKind::Save`, nicht Einstellungen. Sonst aktivierte
+  „cookie-einstellungen öffnen“ auf der zweiten Ebene von spiegel.de
+  „Einstellungen anwenden“ und speicherte damit eine Auswahl. Speichern
+  wählt Relief nie selbst.
+- **Gleichnamiger Link und Button** (Paket 91, heise.de) [Entscheidung]:
+  Finden „cookies ablehnen“ oder „cookie-einstellungen öffnen“ genau einen
+  Button und daneben nur Links mit demselben Namen (heise.de: Link
+  „Einstellungen“ im Fließtext, Button „Einstellungen“), gilt der Button,
+  ohne Rückfrage; wie beim Ablehnen zählen Buttons, nicht Links. Zwei
+  gleichnamige **Buttons** fragen weiter nummeriert nach: Ob sie dasselbe
+  tun, weiß Relief nicht.
 - **Modalität bleibt:** Erkennung und Buttons nur unter erreichbaren
   Elementen (`Graph::is_reachable`). „was ist hinter dem Dialog“ nennt
   gesperrte Überschriften und Bedienelemente (höchstens je 10), **merkt aber
@@ -306,8 +331,17 @@ Erkennung [Annahme: Wortlisten, nicht kalibriert]:
 - **Buttons** (`Fact<ButtonKind>`), Vorrang: Abo (abo, abonn…, pur,
   werbefrei, bezahl…) vor Ablehnen (ablehnen, nur notwendige, ohne
   Einwilligung, reject …) vor Einstellungen (einstellung, anpassen,
-  optionen, verwalten, details, auswahl …) vor Zustimmen (akzeptier…,
-  zustimmen, einwilligen, einverstanden, accept, „OK“ …) vor Schließen.
+  optionen, verwalten, details, auswahl …; mit speicher…, anwenden,
+  übernehm…, bestätig…, save, apply, confirm dazu Speichern) vor Zustimmen
+  (akzeptier…, zustimmen, einwilligen, einverstanden, accept, „OK“ …) vor
+  Schließen. Danach werden Zustimmen- und Ablehnen-**Buttons**, deren Name
+  im Overlay mehr als einmal vorkommt, zu „je Zweck“ (`Uncertain`,
+  Evidence „…, aber 3-mal gleich benannt: vermutlich je Zweck“). Grund wie
+  beim Abo ohne Signalwort: Das nimmt Buttons nur aus Ablehnen und
+  Zustimmen heraus und macht nichts wählbar; lieber einmal zu oft.
+  Nebenfolge: Bei zwei gleichen „Alle ablehnen“ (etwa doppelt eingebaut)
+  fragt „cookies ablehnen“ nicht mehr nummeriert nach, sondern sagt sie
+  als „je Zweck“ an; „klicke Alle ablehnen“ wählt weiterhin einen.
   Wortanfänge, `$` für ganze Wörter („pur“ ≠ „purpose“, „consent“ ≠
   „Consenthub“). Ein **Link**, der nach Ablehnen klingt, lehnt nicht ab
   (bild.de, welt.de: „für Utiq jetzt ablehnen“ führt zu einem
@@ -336,10 +370,13 @@ kostenlos, „Akzeptieren und schließen“ → Escape, Hintergrund nur lesend),
 `consent-abo.html` (kein Ablehnen ohne Abo), `consent-iframe.html` (Buttons
 im iframe eines modalen Dialogs), `consent-seite.html` (Einwilligungsseite
 ohne Dialog), `consent-einstellungen.html` (Abo „Jetzt testen“, Ablehnen
-erst nach „cookie-einstellungen öffnen“) → 33/33 über CDP.
+erst nach „cookie-einstellungen öffnen“), `consent-zwecke.html` (Paket 91:
+Link und Button „Einstellungen“, zweite Ebene mit Buttons je Zweck,
+„Einstellungen anwenden“ als Speichern) → 41/41 über CDP (mit 01–08 und
+15: 176/176, 2026-09-30).
 
 Echte Seiten (`spike/tasks/12-consent-real.txt`, CDP-Host, 2026-09-30,
-Netz; 29/29; keine Einwilligung erteilt):
+Netz; mit Paket 91 32/32; keine Einwilligung erteilt):
 
 | Seite | erkannt | Beschreibung (Auszug) | Ablehnen |
 |---|---|---|---|
@@ -355,15 +392,20 @@ Netz; 29/29; keine Einwilligung erteilt):
 | zdf.de | „cmp-dialog-description“ | Zustimmen, Ablehnen „Ablehnen“ | ausgeführt, Dialog geschlossen |
 | ikea.com/de | nicht modaler Dialog „Hej! …“ | Ablehnen „Optionale Cookies ablehnen“ | ausgeführt, Dialog geschlossen |
 
-Zweite Ebene auf spiegel.de: „cookie-einstellungen öffnen“ → `Activate`
-auf „Einstellungen“, der „privacy manager“ öffnet sich; dort lehnen drei
-Buttons je Zweck ab („Ablehnen“), „cookies ablehnen“ fragt deshalb
-nummeriert nach und klickt nichts (in der Datei). Nur gelesen, nicht in der
-Datei: bild.de (zweite Ebene nur „Einwilligen“ je Zweck, kein Ablehnen),
-faz.net (Einstellungen ist der Link „Cookie-Manager“; auf der zweiten Ebene
-gelten Zweck-Buttons wie „Verwendung … zur Auswahl von Werbeanzeigen“ über
-„auswahl“ als Einstellungen), heise.de (zwei „Einstellungen“-Buttons →
-nummerierte Rückfrage).
+Zweite Ebene auf spiegel.de (Paket 91, in der Datei): „cookie-einstellungen
+öffnen“ → `Activate` auf „Einstellungen“, der „privacy manager“ öffnet
+sich. Ansage: „Zustimmen „Allen zustimmen“, Speichern „Einstellungen
+anwenden“, Schließen „Schließen“, vermutlich je Zweck „Zustimmen“ 6-mal,
+„Ablehnen“ 3-mal, 22 weitere. Kein Ablehnen für alle Zwecke zusammen …“;
+„cookies ablehnen“ → „Nicht abgelehnt“, nichts geklickt. heise.de (in der
+Datei): Link „Einstellungen“ im Text und Button „Einstellungen“ →
+`Activate` auf den Button, ohne Rückfrage. Nur gelesen, nicht in der Datei:
+bild.de (zweite Ebene „vermutlich je Zweck „Einwilligen“ 12-mal,
+„Ablehnen“ 8-mal“, Speichern „Auswahl speichern“; Zweck-Titel mit „Required
+For Consent“ gelten noch als Zustimmen, → Paket 110), faz.net
+(Einstellungen ist der Link „Cookie-Manager“; auf der zweiten Ebene gelten
+Zweck-Titel wie „Verwendung … zur Auswahl von Werbeanzeigen“ über
+„auswahl“ als Einstellungen, → Paket 110).
 
 Korpus ohne Fehltreffer (`spike/tasks/11-korpus.txt`: casoon.de,
 insights.casoon.de → „Kein Dialog und kein Cookie-Hinweis erkannt“), dazu
