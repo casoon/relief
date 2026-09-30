@@ -219,6 +219,36 @@ Paket 49).
   eingefügte Live-Region oft nicht ansagen, ist Praxiswissen, hier nicht
   gemessen; der Abgleich mit echter Ausgabe ist 43.
 
+### Bericht für CI [umgesetzt 2026-09-30, Paket 44]
+
+`relief-cdp test <aufgaben>… [--junit datei] [--report datei] [--fork]`
+läuft ohne Fenster und endet mit Fehler, sobald eine Erwartung verfehlt
+oder eine Seite nicht ladbar ist (anders als `run`, das immer mit 0 endet
+und nicht ladbare Seiten überspringt).
+
+- **JUnit:** eine `testsuite` je Aufgabendatei, ein `testcase` je
+  `expect:`-Zeile (Name: vorige Eingabe → Erwartung), `failure` mit der
+  letzten Antwort; nicht ladbare Seiten als `error`.
+- **a11y-report:** die Befunde aller `assert:`-Zeilen, zusammengefasst über
+  einen stabilen Schlüssel (Regel, Ergebnis, Seite, Knoten/Selektor,
+  Rolle, Name; die Meldung zählt nicht). Die Zustände, in denen ein Befund
+  auftrat, stehen als Evidence `{source: "state", field: "nach", value:
+  <letzte Eingabe bzw. „Laden“>}`. Belegt mit `spike/tasks/08-zustaende.txt`:
+  derselbe `form/field-name`-Befund vor und nach einer Eingabe → ein Befund
+  mit beiden Zuständen.
+- **`--fork`:** startet den eigenen Build mit `--headless=new
+  --enable-relief --relief-run=…` (Aktionen über `AXActionData`) und liest
+  dessen Ausgabe. Belegt: `spike/tasks/01`–`05`, `07` → 79/79, dieselbe Zahl
+  wie der CDP-Host auf denselben Dateien. Zusicherungen gibt es im Fork nicht
+  (Feature `assertions` aus); `--report` gilt nur für den CDP-Host.
+- **Beispiel für Projekte:** `examples/ci/relief-test.yml` (nicht aktiv im
+  Relief-Repository).
+
+Offen: Laufzeit je Datei im Fork-Bericht (die Ausgabe trägt sie nicht);
+Befunde tragen heute keine Knoten-ID (Schlüssel ist dann Regel, Seite,
+Rolle, Name) — zwei gleichnamige Felder mit demselben Befund fallen
+zusammen.
+
 ### Relief ersetzt den barrierlab-Reader [Entscheidung 2026-09-30]
 
 In barrierlab war ein eigenes Prüfwerkzeug geplant („Reader-Host“):

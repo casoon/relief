@@ -6,6 +6,8 @@
 //! relief-cdp measure <url>... [--repeat N]       Zeiten und Graph-Stabilität
 //! relief-cdp record <aufgaben.txt>... [--out dir]  Aufnahmen als Fixtures speichern
 //! relief-cdp palette <url>                       Befehlsleiste im Browser (immer sichtbar)
+//! relief-cdp test <aufgaben.txt>... [--junit out.xml] [--report befunde.json] [--fork]
+//!                                                ohne Fenster, Bericht für CI; `--fork`: eigener Build (--relief-run)
 //! ```
 //!
 //! Aufgabendatei: `url: …` (Pfad relativ zur Aufgabendatei als `file://`, mit
@@ -20,6 +22,7 @@ mod capture;
 mod live;
 mod palette;
 mod record;
+mod report;
 mod server;
 
 use std::path::{Path, PathBuf};
@@ -57,7 +60,11 @@ async fn main() -> Result<()> {
         .enumerate()
         .filter(|(i, a)| {
             !a.starts_with("--")
-                && (*i == 0 || !matches!(args[i - 1].as_str(), "--repeat" | "--out"))
+                && (*i == 0
+                    || !matches!(
+                        args[i - 1].as_str(),
+                        "--repeat" | "--out" | "--junit" | "--report"
+                    ))
         })
         .map(|(_, a)| a)
         .collect();
@@ -65,10 +72,26 @@ async fn main() -> Result<()> {
         bail!("Aufruf: relief-cdp run|repl|measure …");
     };
 
+    let option = |name: &str| {
+        args.iter()
+            .position(|a| a == name)
+            .and_then(|i| args.get(i + 1))
+            .map(PathBuf::from)
+    };
+    if mode.as_str() == "test" && args.iter().any(|a| a == "--fork") {
+        return test_fork(rest, option("--junit"));
+    }
+
     let headful = headful || mode.as_str() == "palette";
     let (mut browser, handler) = launch(headful).await?;
     let result = match mode.as_str() {
-        "run" => run_files(&browser, rest).await,
+        "run" => run_files(&browser, rest).await.map(|_| ()),
+        "test" => match run_files(&browser, rest).await {
+            Ok((suites, findings)) => {
+                write_reports(&suites, &findings, option("--junit"), option("--report"))
+            }
+            Err(e) => Err(e),
+        },
         "repl" => {
             repl(
                 &browser,
@@ -398,16 +421,31 @@ async fn repl(browser: &Browser, url: &str) -> Result<()> {
     Ok(())
 }
 
-async fn run_files(browser: &Browser, files: &[&String]) -> Result<()> {
+/// Aufgabendateien abarbeiten; Ausgabe auf stdout, dazu die Ergebnisse je
+/// Datei und die Befunde der Zusicherungen für den Bericht.
+async fn run_files(
+    browser: &Browser,
+    files: &[&String],
+) -> Result<(Vec<report::Suite>, report::Findings)> {
     let (mut passed, mut failed) = (0, 0);
     let mut servers = server::Servers::default();
+    let mut suites = Vec::new();
+    let mut findings = report::Findings::default();
     for file in files {
         let path = PathBuf::from(file);
         let base = path.parent().unwrap_or(Path::new(".")).to_path_buf();
         let text = std::fs::read_to_string(&path)?;
         println!("\n=== {} ===", path.display());
+        let started_file = Instant::now();
+        let mut suite = report::Suite {
+            name: path.display().to_string(),
+            ..report::Suite::default()
+        };
         let mut session: Option<Session> = None;
         let mut last = String::new();
+        // Zustand, auf den sich Antwort und Befunde beziehen.
+        let mut state = String::from("Laden");
+        let mut page_url = String::new();
         for line in parse_tasks(&text) {
             match line {
                 TaskLine::Url(url) => {
@@ -416,6 +454,9 @@ async fn run_files(browser: &Browser, files: &[&String]) -> Result<()> {
                             Ok(url) => url,
                             Err(e) => {
                                 println!("\n## {url}\n!! Server nicht startbar: {e}");
+                                suite
+                                    .errors
+                                    .push(format!("Server nicht startbar: {url}: {e}"));
                                 session = None;
                                 continue;
                             }
@@ -423,6 +464,8 @@ async fn run_files(browser: &Browser, files: &[&String]) -> Result<()> {
                         None => to_url(&url, &base),
                     };
                     println!("\n## {url}");
+                    state = "Laden".into();
+                    page_url = url.clone();
                     match Session::open(browser, &url).await {
                         Ok(s) => {
                             println!("{}", respond::describe(&s.graph));
@@ -430,6 +473,7 @@ async fn run_files(browser: &Browser, files: &[&String]) -> Result<()> {
                         }
                         Err(e) => {
                             println!("!! Seite nicht ladbar: {e}");
+                            suite.errors.push(format!("Seite nicht ladbar: {url}: {e}"));
                             session = None;
                         }
                     }
@@ -437,6 +481,7 @@ async fn run_files(browser: &Browser, files: &[&String]) -> Result<()> {
                 TaskLine::Do(input) => {
                     let Some(s) = session.as_mut() else { continue };
                     let started = Instant::now();
+                    state = input.clone();
                     last = s
                         .handle(&input)
                         .await
@@ -453,28 +498,114 @@ async fn run_files(browser: &Browser, files: &[&String]) -> Result<()> {
                 }
                 TaskLine::Assert(text) => {
                     let Some(s) = session.as_mut() else { continue };
-                    last = assertions::run(s, &text)
-                        .await
-                        .unwrap_or_else(|e| format!("Fehler: {e}"));
+                    last = match assertions::run(s, &text).await {
+                        Ok((answer, found)) => {
+                            findings.add(&page_url, &state, found);
+                            answer
+                        }
+                        Err(e) => format!("Fehler: {e}"),
+                    };
                     println!("\n? {text}\n{}", indent(&last));
                 }
                 TaskLine::Expect(expected) => {
                     if session.is_none() {
                         continue;
                     }
-                    if expectation_met(&last, &expected) {
+                    let ok = expectation_met(&last, &expected);
+                    if ok {
                         passed += 1;
                         println!("  ✓ erwartet „{expected}“");
                     } else {
                         failed += 1;
                         println!("  ✗ erwartet „{expected}“ — FEHLT");
                     }
+                    suite.cases.push(report::Case {
+                        name: expected,
+                        after: state.clone(),
+                        passed: ok,
+                        answer: last.clone(),
+                    });
                 }
             }
         }
+        suite.seconds = started_file.elapsed().as_secs_f64();
+        suites.push(suite);
     }
     println!("\nErwartungen: {passed} erfüllt, {failed} nicht erfüllt");
+    Ok((suites, findings))
+}
+
+/// JUnit-XML und a11y-report schreiben; Fehler, wenn eine Erwartung nicht
+/// erfüllt ist (Rückgabewert für CI).
+fn write_reports(
+    suites: &[report::Suite],
+    findings: &report::Findings,
+    junit: Option<PathBuf>,
+    befunde: Option<PathBuf>,
+) -> Result<()> {
+    if let Some(path) = junit {
+        std::fs::write(&path, report::junit(suites))?;
+        println!("JUnit: {}", path.display());
+    }
+    if let Some(path) = befunde {
+        std::fs::write(&path, serde_json::to_string_pretty(&findings.report())?)?;
+        println!(
+            "Befunde: {} ({} nach Zusammenfassen)",
+            path.display(),
+            findings.len()
+        );
+    }
+    let failed = suites
+        .iter()
+        .flat_map(|s| &s.cases)
+        .filter(|c| !c.passed)
+        .count();
+    let errors: usize = suites.iter().map(|s| s.errors.len()).sum();
+    if failed + errors > 0 {
+        bail!("{failed} Erwartungen nicht erfüllt, {errors} Läufe unvollständig");
+    }
     Ok(())
+}
+
+/// Aufgaben im eigenen Build ohne Fenster (`--headless=new`, `--relief-run`,
+/// Aktionen über AXActionData). `CHROME` setzt den Build, Standard
+/// `~/chromium/src/out/Relief`. Zusicherungen gibt es dort nicht (Feature
+/// `assertions` ist im Fork aus), der Bericht enthält nur Erwartungen.
+fn test_fork(files: &[&String], junit: Option<PathBuf>) -> Result<()> {
+    let chrome = std::env::var_os("CHROME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
+                .join("chromium/src/out/Relief/Chromium.app/Contents/MacOS/Chromium")
+        });
+    let profile = std::env::temp_dir().join(format!("relief-test-{}", std::process::id()));
+    let files: Vec<String> = files
+        .iter()
+        .map(|f| {
+            std::fs::canonicalize(f)
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|_| f.to_string())
+        })
+        .collect();
+    let output = std::process::Command::new(&chrome)
+        .args([
+            "--headless=new",
+            "--enable-relief",
+            "--no-first-run",
+            "--use-mock-keychain",
+        ])
+        .arg(format!("--user-data-dir={}", profile.display()))
+        .arg(format!("--relief-run={}", files.join(",")))
+        .stderr(std::process::Stdio::null())
+        .output()?;
+    std::fs::remove_dir_all(&profile).ok();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    print!("{stdout}");
+    let suites = report::parse_fork_output(&stdout);
+    if suites.is_empty() {
+        bail!("keine Ausgabe vom Fork ({})", chrome.display());
+    }
+    write_reports(&suites, &report::Findings::default(), junit, None)
 }
 
 async fn measure(browser: &Browser, urls: &[&String], repeat: usize) -> Result<()> {

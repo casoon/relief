@@ -67,8 +67,9 @@ crates/
         ├── assertions.rs     # `assert:`-Zeilen: DOM-Fakten aus DOM.getDocument + DOMSnapshot, Tab-Folge beobachten, Fokus → relief_interaction::assertions
         ├── palette.rs        # Befehlsleiste: Binding, Bestätigung, Protokoll, Selbsttest
         ├── record.rs         # Aufgaben abspielen, AXSnapshots vorher/nachher speichern
+        ├── report.rs         # Bericht: JUnit-XML je Aufgabendatei, a11y-report mit über Zustände zusammengefassten Befunden, Ausgabe des Fork-Runners lesen
         ├── palette.js        # in jedes Dokument eingefügte Leiste (modaler <dialog>, Status-Popover)
-        └── main.rs           # Session (Aufnahme → Modell → Graph, Tree-ID je Dokument), Modi run / repl / measure / record / palette
+        └── main.rs           # Session (Aufnahme → Modell → Graph, Tree-ID je Dokument), Modi run / test / repl / measure / record / palette
 spike/
 ├── fixtures/                 # eigene Testseiten
 ├── tasks/                    # Aufgabendateien (url:/do:/assert:/expect:)
