@@ -101,8 +101,10 @@ bild.de, welt.de, faz.net, t-online.de, heise.de erkannt, Ablehnen auf
 google.de, zdf.de, ikea.com ausgeführt; Einwilligungsseite ohne Dialog
 (golem.de) als Cookie-Hinweis, Korpus ohne Fehltreffer, Abo ohne Signalwort
 (sueddeutsche.de „Jetzt testen“), Einstellungen nur auf „cookie-einstellungen
-öffnen“, beschrieben in
-[spezifikation/05](spezifikation/05-intents-und-aktionen.md#overlay--und-consent-dialoge-pakete-40-80-belegt).
+öffnen“; zweite Ebene mit Buttons je Zweck zusammengefasst angesagt und
+nie selbst gewählt, „Auswahl speichern“ als Speichern, gleichnamiger Link
+neben dem Button zählt nicht (spiegel.de, heise.de), beschrieben in
+[spezifikation/05](spezifikation/05-intents-und-aktionen.md#overlay--und-consent-dialoge-pakete-40-80-91-belegt).
 
 Sicherheits-Regressionsmatrix umgesetzt (Missbrauchsfälle als
 Tests, Bestätigungstoken, Grenzen je Aufgabe, Security-Log), beschrieben in
@@ -115,30 +117,37 @@ Aktion verdeckt sie, Protokolle den Wert jedes Ausfüll- und Auswahlbefehls
 (Paket 76, Fork-Teil zu bauen), beschrieben in
 [spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#sensible-werte-außerhalb-der-rückfrage-umgesetzt-paket-76-fork-teil-zu-bauen).
 
+Befunde aus `a11y-rules` im Inspector (Stufe `Semantics` auf dem AXTree,
+übrige Regeln als nicht geprüft), beschrieben in
+[spezifikation/01](spezifikation/01-chromium-integration.md#befunde-im-inspector-paket-21-belegt).
+
+Der Build heißt „Relief“ (`Relief.app`, eigenes Profilverzeichnis),
+beschrieben in
+[spezifikation/01](spezifikation/01-chromium-integration.md#name-und-branding-paket-36-belegt).
+
 **Sofort startbar:**
 - Cloud: 85 (Frames anderer Prozesse, Nachtrag), 100 (sensible Werte in Auskünften)
-- Cloud + M4: 26 (Sprache), 29 (Semantic View), 21 (Befunde im Inspector), 36 (Branding), 45 (Playwright), 91 (Consent: zweite Ebene)
-- M4: 43 (VoiceOver im Test), 76 (Fork-Teil bauen)
+- Cloud + M4: 26 (Sprache), 29 (Semantic View), 111 (Branding-Reste), 45 (Playwright), 110 (Consent: Zweck-Titel)
+- M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
-- Linie A: 26, 29 parallel → 41 (40 und 80 erledigt, Nachtrag 91);
+- Linie A: 26, 29 parallel → 41 (40, 80, 91 erledigt, Nachtrag 110);
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 (44 erledigt), 43 zurückgestellt; 85 jederzeit (70 erledigt).
-- Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
+- Produkt: 111 jederzeit; 37 erst vor einer Weitergabe an Dritte.
 - Vor jeder Modellintegration (28 im Fork, 34): 48 ✓, 58 ✓; 75 (Weg b: Renderer-Anfrage).
 
 | Nr | Thema | Umgebung | Status | Abhängig von | Datei |
 |---|---|---|---|---|---|
 | 10 | Cloud-Setup: Nachweis in einer Cloud-Session (CI unter Linux grün) | Cloud | blockiert: Cloud-Sessions HTTP 403 | Zugang | [10](10-cloud-umgebung-und-ci.md) |
-| 21 | Befunde aus a11y-rules im Inspector | Cloud + M4 | offen | 20 ✓ | [21](21-befunde-im-inspector.md) |
 | 26 | Sprachschicht | Cloud + M4 | offen | 25 ✓ | [26](26-sprache.md) |
 | 28 | Resolver: Messlauf und Schwellen | lokal / Cloud (API-Key) | wartet auf API-Key | 27 ✓, 12 ✓ | [28](28-resolver-fehlende-namen.md) |
 | 29 | Semantic View | Cloud + M4 | offen | 25 ✓ | [29](29-semantic-view.md) |
 | 30 | CDP-Host: barrierlab-Release übernehmen (Nachladen erledigt) | Cloud | wartet auf barrierlab-Release | barrierlab | [30](30-cdp-host-pflege.md) |
 | 31 | Plattformen Linux und Windows (Build-Hosts) | offen | zurückgestellt (Nutzer, 2026-09-30) | 14 ✓, 17 ✓ | [31](31-plattformen.md) |
 | 34 | Bridge-Variante B (Utility-Prozess) bauen und messen | Cloud + M4 | später | 19 ✓, vor KI-Code in der Runtime | [34](34-bridge-utility-prozess.md) |
-| 36 | Name und Branding „Relief“ | Cloud + M4 | offen | 19 ✓ | [36](36-branding.md) |
+| 111 | Branding: übersetzte Texte und Symbol | Cloud + M4 | offen | 36 ✓ | [111](111-branding-texte-und-symbol.md) |
 | 37 | Updates und Auslieferung (Signatur, Notarisierung) | M4 + Entscheidung | zurückgestellt (Nutzer, 2026-09-30) | 36 | [37](37-updates-und-auslieferung.md) |
 | 41 | Fähigkeitsprofile | Cloud + M4 | offen | 25 ✓, 26, 29 | [41](41-faehigkeitsprofile.md) |
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
@@ -149,5 +158,5 @@ Aktion verdeckt sie, Protokolle den Wert jedes Ausfüll- und Auswahlbefehls
 | 85 | CDP-Host: Frames anderer Prozesse, Nachtrag (Änderungssignal, Verschachtelung, Zählung) | Cloud | offen | 70 ✓ | [85](85-cdp-host-frames-nachtrag.md) |
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
-| 91 | Consent: zweite Ebene auf echten Seiten | Cloud + M4 | offen | 80 ✓ | [91](91-consent-zweite-ebene.md) |
-| 100 | Sensible Werte in Auskünften und unverstandenen Eingaben | Cloud + M4 | offen | 76 | [100](100-sensible-werte-in-auskuenften.md) |
+| 100 | Sensible Werte in Auskünften und unverstandenen Eingaben | Cloud + M4 | offen | 76 ✓ | [100](100-sensible-werte-in-auskuenften.md) |
+| 110 | Consent: Zweck-Titel und Rückfrage je Zweck | Cloud + M4 | offen | 91 ✓ | [110](110-consent-zweck-titel.md) |

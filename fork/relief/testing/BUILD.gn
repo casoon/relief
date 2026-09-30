@@ -39,7 +39,7 @@ test("relief_browsertests") {
   data_deps = [ "//chrome:packed_resources" ]
   if (is_mac) {
     # Wie browser_tests: InProcessBrowserTest nutzt Framework und Helfer aus
-    # Chromium.app.
+    # Relief.app (Produktname aus BRANDING, Paket 36).
     data_deps += [
       "//chrome",
       "//chrome:chrome_framework",
