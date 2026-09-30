@@ -59,9 +59,60 @@ Besonders relevant für motorische und visuelle Einschränkungen.
 Vorbild/Konkurrenz: Chromium Reading Mode (→ 01). Unterschied: Reading Mode ist
 lesend, Semantic View ist **bedienend**.
 
-Offen [validieren]: Rendering als WebUI (HTML in Chromium, eigener
-Renderer-Prozess) oder native Views. WebUI ist schneller entwickelt und selbst
-barrierefrei testbar.
+### Umsetzung im Fork (Paket 29) [belegt]
+
+- **Ort und Form [Entscheidung]:** WebUI im Relief-Side-Panel, wie der
+  Inspector (→ 01, „Semantic Inspector“), umschaltbar über „Ansicht:
+  Befehle und Inspector · Semantische Ansicht“ (native Radiobuttons). Die
+  Originalseite bleibt daneben sichtbar und ist die „Originalansicht“;
+  zurück geht jederzeit über denselben Schalter oder Escape (Panel zu).
+  Native Controls statt nachgebauter Rollen (→ 13).
+- **Daten** (`crates/relief-bridge/src/semantic.rs`, im Inspector-JSON als
+  `semantic`): Überschriften, Texte und Bedienelemente des Interaction
+  Graph in Dokumentreihenfolge mit ihrem Bereich; Texte in einem
+  Bedienelement nur als dessen Name; Herkunft unsicherer Namen und
+  „gesperrt“ bei offenem modalem Dialog sichtbar; sensible Werte nie im
+  Klartext.
+- **Bedienung:** Button/Link → auslösen, Auswahl → `Select`, Textfeld →
+  `SetValue` beim Übernehmen (Eingabetaste/Verlassen, nicht je Taste),
+  Kontrollkästchen/Radio → auslösen (Zustand kommt von der Seite zurück),
+  Zahlenfeld → erhöhen/verringern. Jede Bedienung geht als
+  `Runtime::view_act` über `Session::request`: dieselbe Validierung,
+  Rückfrage bei Risiko und dasselbe Security-Log wie ein Befehl, samt
+  Formularziel aus dem Renderer (→ 07, Paket 75). Rückfragen erscheinen in
+  der Ansicht mit „Ja, ausführen“/„Abbrechen“; der Fokus bleibt in der
+  Ansicht. Das Protokoll nennt Art und Schlüssel, nie den Wert.
+- **Wechsel ohne Seitenaktion:** Umschalten ändert nur das Panel. Die
+  Ansicht setzt den Fokus auf den zuletzt gewählten Eintrag bzw. die
+  Position der Sitzung; ist er verschwunden, sagt die Statuszeile das und
+  die Ansicht beginnt oben. Zurück im Inspector ist derselbe Eintrag
+  gewählt. Fokus und angefangene Eingabe bleiben über Aktualisierungen
+  erhalten.
+- **Darstellung (→ 13):** Größen in `em` (Zoom, Textgröße), Systemfarben
+  (`GrayText`, `Highlight`; hoher Kontrast), keine Animationen bei
+  reduzierter Bewegung, Fokus immer sichtbar.
+- **Belegt:** `relief_browsertests --gtest_filter=*SemantischeAnsicht*`
+  (Wechsel ohne Wirkung auf der Seite; Größe wählen, in den Warenkorb,
+  Name ausfüllen, Newsletter anhaken, „Jetzt kaufen“ erst nach „Ja,
+  ausführen“; Ort über den Wechsel; jedes Bedienelement mit Namen im
+  AX-Baum), `tests/inspector.rs`
+  `semantische_ansicht_bedient_ueber_validierte_aktionen`; Sichtprüfung
+  auf `spike/fixtures/shop-clean.html`.
+
+**Abgrenzung zu Chromium Reading Mode** [belegt: Code, 154.0.8037.58]:
+Reading Mode (`chrome/browser/ui/views/side_panel/read_anything/`,
+`read_anything_untrusted_page_handler.cc`) zeigt im Side Panel den
+**Hauptinhalt** einer Seite zum Lesen (Text, Überschriften, Links, Bilder,
+mit Schrift-, Abstands- und Farbeinstellungen und Vorlesen), gewonnen aus
+dem AXTree mit HTML-Modus und Inhaltsauswahl. Er bietet keine
+Bedienelemente der Seite an und ändert nichts an ihr. Die Semantic View
+zeigt **alle** Bereiche samt Navigation, Suche und Formularen und ist
+**bedienend**: Jede Aktion wirkt als validierter Plan auf die Originalseite,
+mit Rückfrage bei Risiko. Beide leben im Side Panel und lesen den AXTree;
+Relief übernimmt von Reading Mode nur das Muster, nicht den Code.
+
+Offen (→ Paket 113): vereinfachte Ansicht (dritte Stufe zwischen Original
+und semantisch) und eine Ansicht über die ganze Tab-Breite statt im Panel.
 
 ## Speech Assist
 

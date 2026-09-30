@@ -72,6 +72,17 @@ bridge::Reply RuntimeHost::RunCommand(const std::string& input,
   return bridge::run_command(*runtime_, input);
 }
 
+bridge::Reply RuntimeHost::ViewAct(const std::string& key,
+                                   const std::string& kind,
+                                   const std::string& value,
+                                   std::optional<bridge::FormFacts> facts) {
+  Log("view\t" + kind + "\t" + key);
+  if (facts) {
+    bridge::apply_form_facts(*runtime_, *facts);
+  }
+  return bridge::view_act(*runtime_, key, kind, value);
+}
+
 bridge::Found RuntimeHost::ConfirmationTarget() {
   return bridge::confirmation_target(*runtime_);
 }

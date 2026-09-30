@@ -100,6 +100,8 @@ impl Control {
 #[derive(Debug, Clone, Serialize)]
 pub struct Text {
     pub text: String,
+    /// Textknoten bzw. die Überschrift, deren Text es ist.
+    pub node: NodeRef,
     /// Index in [`Graph::regions`].
     pub region: Option<usize>,
     /// Vorausgehende Überschrift (Index in [`Graph::headings`]).
@@ -254,7 +256,7 @@ impl Graph {
                         dom_node_id: node.dom_node_id,
                         region: stack.last().copied(),
                     });
-                    self.push_text(text, stack, Some(level));
+                    self.push_text(text, at, stack, Some(level));
                 }
             }
 
@@ -266,7 +268,7 @@ impl Graph {
 
             if *role == Role::StaticText && !in_owner {
                 if let Some(text) = non_empty(node.name.value.as_deref()) {
-                    self.push_text(text, stack, None);
+                    self.push_text(text, at, stack, None);
                 }
             }
         }
@@ -289,9 +291,10 @@ impl Graph {
         }
     }
 
-    fn push_text(&mut self, text: String, stack: &[usize], level: Option<u8>) {
+    fn push_text(&mut self, text: String, at: &NodeRef, stack: &[usize], level: Option<u8>) {
         self.texts.push(Text {
             text,
+            node: at.clone(),
             region: stack.last().copied(),
             heading: self.headings.len().checked_sub(1),
             level,

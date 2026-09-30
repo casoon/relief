@@ -65,6 +65,12 @@ class RuntimeHost {
   // Protokoll, damit eine neu gestellte Rückfrage (Reconfirm) dazugehört.
   bridge::Reply RunCommand(const std::string& input,
                            std::optional<bridge::FormFacts> facts);
+  // Bedienung aus der Semantic View (Paket 29); protokolliert Art und
+  // Schlüssel, nie den Wert.
+  bridge::Reply ViewAct(const std::string& key,
+                        const std::string& kind,
+                        const std::string& value,
+                        std::optional<bridge::FormFacts> facts);
   // Ziel der offenen Rückfrage (`found` false: keine).
   bridge::Found ConfirmationTarget();
   // Angaben zum Ziel ins Modell und die offene Rückfrage damit neu stellen.

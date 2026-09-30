@@ -833,6 +833,150 @@ IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, Inspektor) {
       [&] { return !side_panel->IsSidePanelEntryShowing(key); }));
 }
 
+// Semantic View (Paket 29): Wechsel der Ansicht löst auf der Seite nichts
+// aus; Produkt und Formular sind vollständig über die Ansicht bedienbar
+// (Auswahl, Button, Textfeld, Kontrollkästchen, riskanter Button nur nach
+// „Ja, ausführen“); der Ort bleibt über den Wechsel erhalten; jedes
+// Bedienelement der Ansicht hat einen Namen.
+IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, SemantischeAnsicht) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), Url("a.test", "/semantische-ansicht.html")));
+  SidePanelUI* side_panel = SidePanelUI::From(browser());
+  const SidePanelEntry::Key key(SidePanelEntry::Id::kRelief);
+  web_contents()->Focus();
+  PressWithCtrlShift(web_contents(), ui::VKEY_I, u'I');
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return side_panel->IsSidePanelEntryShowing(key); }));
+  content::WebContents* panel = nullptr;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    panel = FindInspector();
+    return panel && !panel->IsLoading() &&
+           InspectorOptions(panel).find("[button] Jetzt kaufen") !=
+               std::string::npos;
+  }));
+  auto page = [&](const std::string& script) {
+    return content::EvalJs(web_contents(), script).ExtractString();
+  };
+  auto in_panel = [&](const std::string& script) {
+    return content::EvalJs(panel, script);
+  };
+  constexpr char kStatus[] = "document.getElementById('s').textContent";
+  // Ein Element der Ansicht über seinen Text.
+  auto control = [](const std::string& selector, const std::string& text) {
+    return "[...document.querySelectorAll('#semantic-body " + selector +
+           "')].find(e => e.textContent.startsWith('" + text + "'))";
+  };
+
+  // Wechsel: nichts auf der Seite.
+  ASSERT_TRUE(content::ExecJs(
+      panel, "document.querySelector('input[value=semantic]').click()"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return in_panel(control("button", "In den Warenkorb") + " !== undefined")
+        .ExtractBool();
+  }));
+  EXPECT_EQ("", page(kStatus));
+  EXPECT_EQ("BODY", page("document.activeElement.tagName"));
+  EXPECT_EQ("h1", in_panel("document.querySelector('#semantic-body h3') ? "
+                           "'h1' : 'fehlt'")
+                      .ExtractString());
+
+  // Größe wählen, in den Warenkorb.
+  ASSERT_TRUE(content::ExecJs(panel, R"(
+      const s = [...document.querySelectorAll('#semantic-body label')]
+          .find(l => l.textContent.startsWith('Größe')).querySelector('select');
+      s.value = '43';
+      s.dispatchEvent(new Event('change'));)"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return page("document.getElementById('groesse').value") == "43"; }));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return in_panel("document.getElementById('semantic-status').textContent")
+               .ExtractString()
+               .find("Select") != std::string::npos;
+  }));
+  ASSERT_TRUE(content::ExecJs(
+      panel, control("button", "In den Warenkorb") + ".click()"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return page(kStatus) == "Größe 43 in den Warenkorb gelegt";
+  }));
+
+  // Formular: Name, Newsletter.
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return in_panel("document.getElementById('semantic-status').textContent")
+               .ExtractString() != "Führe aus …";
+  }));
+  ASSERT_TRUE(content::ExecJs(panel, R"(
+      const i = [...document.querySelectorAll('#semantic-body label')]
+          .find(l => l.textContent.startsWith('Name')).querySelector('input');
+      i.value = 'Erika';
+      i.dispatchEvent(new Event('change'));)"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return page("document.getElementById('name').value") == "Erika"; }));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return in_panel("document.getElementById('semantic-status').textContent")
+               .ExtractString() != "Führe aus …";
+  }));
+  ASSERT_TRUE(content::ExecJs(
+      panel, control("label", "Newsletter") + ".querySelector('input').click()"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(web_contents(),
+                           "document.getElementById('newsletter').checked")
+        .ExtractBool();
+  }));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return in_panel("document.getElementById('semantic-status').textContent")
+               .ExtractString() != "Führe aus …";
+  }));
+
+  // Riskant: erst Rückfrage, dann genau einmal.
+  ASSERT_TRUE(
+      content::ExecJs(panel, control("button", "Jetzt kaufen") + ".click()"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return !in_panel("document.getElementById('semantic-confirm').hidden")
+                .ExtractBool();
+  }));
+  EXPECT_EQ("Größe 43 in den Warenkorb gelegt", page(kStatus));
+  ASSERT_TRUE(content::ExecJs(
+      panel, "document.getElementById('semantic-yes').click()"));
+  ASSERT_TRUE(base::test::RunUntil([&] { return page(kStatus) == "Gekauft"; }));
+
+  // Ort über den Wechsel: zurück zum Inspector und wieder her.
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return in_panel("document.getElementById('semantic-status').textContent")
+               .ExtractString() != "Führe aus …";
+  }));
+  ASSERT_TRUE(content::ExecJs(panel, control("button", "Jetzt kaufen") +
+                                         ".focus()"));
+  ASSERT_TRUE(content::ExecJs(
+      panel, "document.querySelector('input[value=inspector]').click()"));
+  EXPECT_NE(in_panel("document.getElementById('nodes').selectedOptions[0]"
+                     ".textContent")
+                .ExtractString()
+                .find("Jetzt kaufen"),
+            std::string::npos);
+  ASSERT_TRUE(content::ExecJs(
+      panel, "document.querySelector('input[value=semantic]').click()"));
+  EXPECT_EQ("Jetzt kaufen",
+            in_panel("document.activeElement.textContent").ExtractString());
+  EXPECT_EQ("Gekauft", page(kStatus));
+
+  // Semantik der Ansicht: jedes Bedienelement hat einen Namen.
+  content::ScopedAccessibilityModeOverride mode(panel, ui::kAXModeComplete);
+  content::WaitForAccessibilityTreeToContainNodeWithName(
+      panel, "Jetzt kaufen");
+  const ui::AXTreeUpdate tree = content::GetAccessibilityTreeSnapshot(panel);
+  int controls = 0;
+  for (const ui::AXNodeData& node : tree.nodes) {
+    if (ui::IsControl(node.role) && !node.IsIgnored() &&
+        !node.HasState(ax::mojom::State::kInvisible)) {
+      ++controls;
+      EXPECT_FALSE(
+          node.GetStringAttribute(ax::mojom::StringAttribute::kName).empty())
+          << ui::ToString(node.role);
+    }
+  }
+  EXPECT_GE(controls, 6);
+}
+
 }  // namespace relief
 
 namespace relief {

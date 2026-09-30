@@ -28,7 +28,9 @@ per Nummer, „ja“, „abbrechen“), darunter der Semantic Inspector
 (Strg+Umschalt+I oder `--relief-inspector`): Bereiche, Überschriften und
 Bedienelemente live mit Herkunft der Namen, Auswahl und „im Dokument
 zeigen“ getrennt, Befunde aus `a11y-rules` je Knoten (nur Regeln, die auf
-dem Accessibility-Tree laufen; die übrigen als nicht geprüft). Dazu Tastatur-Sprungmarken über der Seite
+dem Accessibility-Tree laufen; die übrigen als nicht geprüft), umschaltbar
+auf die Semantic View (die Seite als bedienbare Ansicht, jede Bedienung als
+validierte Aktion auf die Originalseite). Dazu Tastatur-Sprungmarken über der Seite
 (Strg+Umschalt+M). Über CDP beantwortet der Build die Domäne `Relief.*`
 (Seitenmodell, Formular-Zusicherungen); `examples/playwright/` nutzt sie
 aus Playwright.

@@ -112,6 +112,16 @@ class ReliefTabHelper
   // Deltas.
   void RunCommand(const std::string& input,
                   base::OnceCallback<void(bridge::Reply)> done);
+  // Bedienung aus der Semantic View (Paket 29): wie RunCommand, aber mit
+  // Schlüssel und Art statt Sprache; ViewInteract führt die Antwort aus.
+  void ViewAct(const std::string& key,
+               const std::string& kind,
+               const std::string& value,
+               base::OnceCallback<void(bridge::Reply)> done);
+  void ViewInteract(const std::string& key,
+                    const std::string& kind,
+                    const std::string& value,
+                    base::OnceCallback<void(ReliefExecutor::Result)> done);
   void FinishCommand(base::OnceCallback<void(std::string)> done);
   // Methode der CDP-Domäne `Relief.*` gegen den aktuellen Graphen
   // (Paket 45, → devtools/relief_devtools.h).
@@ -157,7 +167,14 @@ class ReliefTabHelper
  private:
   // Befehlskette mit Angaben des Renderers zum Formular (Paket 75,
   // → RunCommand in relief_tab_helper.cc).
-  void OnTargetBeforeCommand(const std::string& input,
+  // Führt den Auftrag mit (optionalen) Angaben zum Formular aus und
+  // liefert die Antwort der Runtime.
+  using Runner =
+      base::OnceCallback<void(std::optional<bridge::FormFacts>,
+                              base::OnceCallback<void(bridge::Reply)>)>;
+  void RunWithFormFacts(Runner run,
+                        base::OnceCallback<void(bridge::Reply)> done);
+  void OnTargetBeforeCommand(Runner run,
                              base::OnceCallback<void(bridge::Reply)> done,
                              bridge::Found open);
   void OnCommandReplied(std::optional<std::pair<std::string, int32_t>> asked,

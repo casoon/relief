@@ -780,18 +780,69 @@ bool ReliefTabHelper::has_main_tree() const {
 void ReliefTabHelper::RunCommand(
     const std::string& input,
     base::OnceCallback<void(bridge::Reply)> done) {
+  RunWithFormFacts(
+      base::BindOnce(
+          [](base::WeakPtr<ReliefTabHelper> self, const std::string& input,
+             std::optional<bridge::FormFacts> facts,
+             base::OnceCallback<void(bridge::Reply)> replied) {
+            self->runtime_.AsyncCall(&RuntimeHost::RunCommand)
+                .WithArgs(input, std::move(facts))
+                .Then(std::move(replied));
+          },
+          weak_factory_.GetWeakPtr(), input),
+      std::move(done));
+}
+
+void ReliefTabHelper::ViewAct(const std::string& key,
+                              const std::string& kind,
+                              const std::string& value,
+                              base::OnceCallback<void(bridge::Reply)> done) {
+  RunWithFormFacts(
+      base::BindOnce(
+          [](base::WeakPtr<ReliefTabHelper> self, const std::string& key,
+             const std::string& kind, const std::string& value,
+             std::optional<bridge::FormFacts> facts,
+             base::OnceCallback<void(bridge::Reply)> replied) {
+            self->runtime_.AsyncCall(&RuntimeHost::ViewAct)
+                .WithArgs(key, kind, value, std::move(facts))
+                .Then(std::move(replied));
+          },
+          weak_factory_.GetWeakPtr(), key, kind, value),
+      std::move(done));
+}
+
+void ReliefTabHelper::ViewInteract(
+    const std::string& key,
+    const std::string& kind,
+    const std::string& value,
+    base::OnceCallback<void(ReliefExecutor::Result)> done) {
+  ViewAct(key, kind, value,
+          base::BindOnce(
+              [](base::WeakPtr<ReliefTabHelper> self,
+                 base::OnceCallback<void(ReliefExecutor::Result)> done,
+                 bridge::Reply reply) {
+                if (self) {
+                  self->executor().Execute(std::move(reply), std::move(done));
+                }
+              },
+              weak_factory_.GetWeakPtr(), std::move(done)));
+}
+
+void ReliefTabHelper::RunWithFormFacts(
+    Runner run,
+    base::OnceCallback<void(bridge::Reply)> done) {
   runtime_.AsyncCall(&RuntimeHost::ConfirmationTarget)
       .Then(base::BindOnce(&ReliefTabHelper::OnTargetBeforeCommand,
-                           weak_factory_.GetWeakPtr(), input,
+                           weak_factory_.GetWeakPtr(), std::move(run),
                            std::move(done)));
 }
 
 void ReliefTabHelper::OnTargetBeforeCommand(
-    const std::string& input,
+    Runner run,
     base::OnceCallback<void(bridge::Reply)> done,
     bridge::Found open) {
-  auto run = base::BindOnce(
-      [](base::WeakPtr<ReliefTabHelper> self, const std::string& input,
+  auto go = base::BindOnce(
+      [](base::WeakPtr<ReliefTabHelper> self, Runner run,
          base::OnceCallback<void(bridge::Reply)> done,
          std::optional<bridge::FormFacts> facts) {
         if (!self) {
@@ -801,17 +852,17 @@ void ReliefTabHelper::OnTargetBeforeCommand(
         if (facts) {
           asked.emplace(std::string(facts->tree), facts->node);
         }
-        self->runtime_.AsyncCall(&RuntimeHost::RunCommand)
-            .WithArgs(input, std::move(facts))
-            .Then(base::BindOnce(&ReliefTabHelper::OnCommandReplied, self,
-                                 std::move(asked), std::move(done)));
+        std::move(run).Run(
+            std::move(facts),
+            base::BindOnce(&ReliefTabHelper::OnCommandReplied, self,
+                           std::move(asked), std::move(done)));
       },
-      weak_factory_.GetWeakPtr(), input, std::move(done));
+      weak_factory_.GetWeakPtr(), std::move(run), std::move(done));
   if (!open.found) {
-    std::move(run).Run(std::nullopt);
+    std::move(go).Run(std::nullopt);
     return;
   }
-  FetchFormFacts(open, std::move(run));
+  FetchFormFacts(open, std::move(go));
 }
 
 void ReliefTabHelper::OnCommandReplied(

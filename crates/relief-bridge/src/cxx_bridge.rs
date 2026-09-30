@@ -419,6 +419,8 @@ pub mod ffi {
         /// Offene Rückfrage mit dem jetzigen Modell neu stellen
         /// (`Runtime::reconfirm`).
         fn reconfirm(runtime: &mut Runtime) -> Reply;
+        /// Bedienung aus der Semantic View (`Runtime::view_act`).
+        fn view_act(runtime: &mut Runtime, key: &str, kind: &str, value: &str) -> Reply;
         /// Methode der CDP-Domäne `Relief.*`, Parameter als JSON
         /// (`devtools::command`).
         fn devtools_command(runtime: &Runtime, method: &str, params: &str) -> DevToolsReply;
@@ -615,6 +617,10 @@ fn apply_form_facts(runtime: &mut Runtime, facts: &ffi::FormFacts) {
 
 fn reconfirm(runtime: &mut Runtime) -> ffi::Reply {
     reply_to_ffi(runtime.reconfirm())
+}
+
+fn view_act(runtime: &mut Runtime, key: &str, kind: &str, value: &str) -> ffi::Reply {
+    reply_to_ffi(runtime.view_act(key, kind, value))
 }
 
 fn devtools_command(runtime: &Runtime, method: &str, params: &str) -> ffi::DevToolsReply {
