@@ -440,7 +440,7 @@ std::optional<AXTreeMirror::Scroll> AXTreeMirror::RootScroll() const {
   int x = 0;
   int y = 0;
   scroller->GetScrollInfo(&x, &y);
-  return Scroll{scroller->id(), y,
+  return Scroll{scroller->id(), x, y,
                 scroller->GetIntAttribute(ax::mojom::IntAttribute::kScrollYMax)};
 }
 

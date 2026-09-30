@@ -84,6 +84,14 @@ class InspectorHandler : public content::WebUIMessageHandler,
     }
   }
   void OnTabHelperDestroyed() override { observation_.Reset(); }
+  void OnExternalAnswer(const std::string& input,
+                        const ReliefExecutor::Result& result) override {
+    if (!IsJavascriptAllowed()) {
+      return;
+    }
+    FireWebUIListener("externalAnswer", base::Value(input),
+                      base::Value(result.text), base::Value(result.acted));
+  }
   void OnFocusCommandRequested() override {
     if (ReliefTabHelper* helper = Helper()) {
       helper->TakeFocusCommandRequest();
@@ -118,9 +126,13 @@ class InspectorHandler : public content::WebUIMessageHandler,
       embedder->ShowUI();
     }
     Refresh();
-    if (ReliefTabHelper* helper = Helper();
-        helper && helper->TakeFocusCommandRequest()) {
-      FocusCommand();
+    if (ReliefTabHelper* helper = Helper()) {
+      if (auto answer = helper->TakeExternalAnswer()) {
+        OnExternalAnswer(answer->first, answer->second);
+      }
+      if (helper->TakeFocusCommandRequest()) {
+        FocusCommand();
+      }
     }
   }
 

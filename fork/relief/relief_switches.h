@@ -40,6 +40,10 @@ inline constexpr char kReliefRun[] = "relief-run";
 // Sonst öffnet und schließt ihn Strg+Umschalt+I auf der Seite.
 inline constexpr char kReliefInspector[] = "relief-inspector";
 
+// Sprungmarken im ersten Tab nach dem ersten Laden zeigen (Nachweise,
+// Vorführung). Sonst Strg+Umschalt+M auf der Seite.
+inline constexpr char kReliefMarks[] = "relief-marks";
+
 }  // namespace relief::switches
 
 #endif  // RELIEF_RELIEF_SWITCHES_H_

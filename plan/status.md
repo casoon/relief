@@ -69,6 +69,9 @@ der VoiceOver-Durchgang durch das Panel steht mit 47 aus.
 Bericht für CI (`relief-cdp test`: JUnit, a11y-report mit zusammengefassten
 Befunden, `--fork` ohne Fenster über den AX-Weg), beschrieben in
 [spezifikation/12](spezifikation/12-produktumfang.md#bericht-für-ci-umgesetzt-2026-09-30-paket-44).
+Tastatur-Sprungmarken im Fork (Overlay, Auswahl über die Sitzung, auch
+Klick-`<div>`s; spiegel.de- und bild.de-Consent), beschrieben in
+[spezifikation/12](spezifikation/12-produktumfang.md#tastatur-sprungmarken-umgesetzt-2026-09-30-paket-38).
 Befehlsleiste im Fork als Teil des Relief-Panels, Rückfragen (Nummer, „ja“,
 „abbrechen“) für alle Hosts, beschrieben in
 [spezifikation/05](spezifikation/05-intents-und-aktionen.md#rückfragen-und-befehlsleiste-im-fork-paket-25-belegt).
@@ -96,12 +99,12 @@ sensible Werte (Paket 58, im Fork belegt).
 
 **Sofort startbar:**
 - Cloud: 70 (CDP-Host mit Site Isolation), 76 (Werte außerhalb der Rückfrage)
-- Cloud + M4: 26 (Sprache), 29 (Semantic View), 38 (Sprungmarken), 39 (Formular-Assistent), 21 (Befunde im Inspector), 40 (Overlay und Consent), 36 (Branding), 45 (Playwright)
+- Cloud + M4: 26 (Sprache), 29 (Semantic View), 39 (Formular-Assistent), 21 (Befunde im Inspector), 40 (Overlay und Consent), 36 (Branding), 45 (Playwright)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
-- Linie A: 26, 29, 38, 39, 40 parallel → 41;
+- Linie A: 26, 29, 39, 40 parallel → 41;
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 (44 erledigt), 43 zurückgestellt; 70 jederzeit.
 - Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
@@ -119,7 +122,6 @@ sensible Werte (Paket 58, im Fork belegt).
 | 34 | Bridge-Variante B (Utility-Prozess) bauen und messen | Cloud + M4 | später | 19 ✓, vor KI-Code in der Runtime | [34](34-bridge-utility-prozess.md) |
 | 36 | Name und Branding „Relief“ | Cloud + M4 | offen | 19 ✓ | [36](36-branding.md) |
 | 37 | Updates und Auslieferung (Signatur, Notarisierung) | M4 + Entscheidung | Entscheidung nötig | 36 | [37](37-updates-und-auslieferung.md) |
-| 38 | Tastatur-Sprungmarken aus dem Seitenmodell | Cloud + M4 | offen | 24 ✓, 25 ✓ | [38](38-tastatur-sprungmarken.md) |
 | 39 | Formular-Assistent | Cloud + M4 | offen | 24 ✓, 25 ✓ (26) | [39](39-formular-assistent.md) |
 | 40 | Overlay- und Consent-Dialoge | Cloud + M4 | offen | 24 ✓ | [40](40-overlay-und-consent.md) |
 | 41 | Fähigkeitsprofile | Cloud + M4 | offen | 25 ✓, 26, 29 | [41](41-faehigkeitsprofile.md) |

@@ -238,3 +238,68 @@ fn ja_bestaetigt_einmal_abbrechen_verwirft() {
         Reply::Answer("Nichts offen, das sich abbrechen ließe.".into())
     );
 }
+
+/// Wie `runtime_shop`, jeder Knoten mit einer Position (die CDP-Aufnahmen
+/// tragen keine), in Dokumentreihenfolge untereinander.
+fn runtime_shop_mit_positionen() -> Runtime {
+    let pair = common::pairs()
+        .into_iter()
+        .find(|p| p.name.contains("01-shop-clean"))
+        .expect("Aufnahme 01-shop-clean");
+    let mut model = pair.before;
+    let order = model.document_order();
+    for (i, at) in order.iter().enumerate() {
+        let tree = model.trees.get_mut(&at.tree).unwrap();
+        tree.nodes.get_mut(&at.node).unwrap().bounds = Some(relief_model::Rect {
+            x: 10.0,
+            y: 20.0 * i as f32,
+            width: 80.0,
+            height: 16.0,
+        });
+    }
+    let mut runtime = Runtime::new();
+    runtime
+        .apply(&TreeDelta::between(&SemanticGraph::default(), &model))
+        .unwrap();
+    runtime
+}
+
+#[test]
+fn sprungmarken_listen_und_waehlen_mit_rueckfrage() {
+    let mut rt = runtime_shop_mit_positionen();
+    let Reply::Answer(liste) = rt.command("sprungmarken") else {
+        panic!("Liste erwartet")
+    };
+    assert!(liste.starts_with("12 Sprungmarken:"), "{liste}");
+    let zeile = liste
+        .lines()
+        .find(|l| l.contains("[button] Jetzt kaufen"))
+        .unwrap();
+    let marke = zeile.trim().split(':').next().unwrap().to_string();
+    assert_eq!(marke.len(), 2);
+
+    assert!(
+        matches!(rt.command(&format!("marke {marke}")), Reply::Answer(t) if t.starts_with("Bestätigung nötig"))
+    );
+    assert_eq!(
+        schritte(&mut rt, "ja"),
+        vec![(Role::Button, Action::DoDefault, None)]
+    );
+    // Felder werden fokussiert, nicht ausgelöst.
+    let suche = liste
+        .lines()
+        .find(|l| l.contains("[searchbox] Suche"))
+        .unwrap()
+        .trim()
+        .split(':')
+        .next()
+        .unwrap()
+        .to_string();
+    assert_eq!(
+        schritte(&mut rt, &format!("marke {suche}")),
+        vec![(Role::SearchBox, Action::Focus, None)]
+    );
+    assert!(
+        matches!(rt.command("marke zz"), Reply::Answer(t) if t.starts_with("Keine Sprungmarke"))
+    );
+}

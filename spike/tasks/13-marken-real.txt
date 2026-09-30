@@ -1,0 +1,8 @@
+# Sprungmarken auf echten Seiten (Paket 38), nur lokal (Netz): Consent-
+# Dialoge im iframe. Fork: scripts/fork-run-tasks.sh spike/tasks/13-marken-real.txt
+url: https://www.spiegel.de/
+do: sprungmarken
+expect: Sprungmarken:
+url: https://www.bild.de/
+do: sprungmarken
+expect: Sprungmarken:

@@ -27,7 +27,8 @@ Befehlsleiste (Strg+Umschalt+Leertaste; alle Befehle des Spikes, Rückfragen
 per Nummer, „ja“, „abbrechen“), darunter der Semantic Inspector
 (Strg+Umschalt+I oder `--relief-inspector`): Bereiche, Überschriften und
 Bedienelemente live mit Herkunft der Namen, Auswahl und „im Dokument
-zeigen“ getrennt.
+zeigen“ getrennt. Dazu Tastatur-Sprungmarken über der Seite
+(Strg+Umschalt+M).
 
 ## Ausführen
 

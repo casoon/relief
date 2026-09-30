@@ -87,6 +87,10 @@ std::string RuntimeHost::InspectorJson() {
   return std::string(bridge::inspector_json(*runtime_));
 }
 
+rust::Vec<bridge::MarkBox> RuntimeHost::ShowMarks() {
+  return bridge::show_marks(*runtime_);
+}
+
 bridge::Reply RuntimeHost::ShowNode(const std::string& key) {
   Log("show\t" + key);
   return bridge::show_node(*runtime_, key);

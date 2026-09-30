@@ -337,7 +337,6 @@ impl Session {
         // Antwort auf eine offene Rückfrage (Zahl, „ja“, „abbrechen“)?
         let input = match self.session.pending_reply(&self.graph, &self.model, input) {
             Pending::Done(outcome) => return self.run(outcome).await,
-            Pending::Confirm(again) => again,
             Pending::Command => input.to_string(),
         };
         let (confirmed, cmd) = match parse_input(&input) {

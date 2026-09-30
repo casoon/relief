@@ -1,0 +1,19 @@
+# Sprungmarken (Paket 38) im Fork: Positionen gibt es nur dort (die CDP-
+# Aufnahmen tragen keine), deshalb nicht im CDP-Host und nicht im CI-Glob.
+#   scripts/fork-run-tasks.sh spike/tasks/14-marken-fork.txt
+url: ../fixtures/shop-clean.html
+do: sprungmarken
+expect: 12 Sprungmarken
+expect: [button] Jetzt kaufen
+# Oben links steht „Home“.
+do: marke aa
+expect: Activate auf [link] Home
+url: ../fixtures/form.html
+do: sprungmarken
+expect: [textbox] E-Mail
+expect: [checkbox] Datenschutzhinweise
+url: ../fixtures/shop-broken.html
+# Der <div> mit Klick-Handler ist über den AXTree erreichbar, wenn Chromium
+# ihm eine Standardaktion gibt; ohne Namen verlangt er eine Rückfrage.
+do: sprungmarken
+expect: Name unbekannt
