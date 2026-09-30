@@ -4,7 +4,8 @@
 // plan/spezifikation/01, „Umsetzung im Fork“): Beobachter registriert, Baum
 // kommt an, Aktion kommt an, Positionen (auch mit Browser-Zoom und im
 // iframe), cross-site-iframe (OOPIF), Navigation mit Back-Forward-Cache,
-// Discard, begrenzter Neuaufbau nach kaputtem Paket. Die Tests lesen den
+// Discard, begrenzter Neuaufbau nach kaputtem Paket, Bestätigung nicht
+// umgehbar (Befehl über die Runtime bis zum Klick). Die Tests lesen den
 // Graphen der Runtime über die Deltas, die sie tatsächlich angewandt hat
 // (RuntimeHost::SetDeltaObserverForTesting).
 
@@ -22,6 +23,7 @@
 #include "base/task/bind_post_task.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
 #include "chrome/browser/ui/browser.h"
@@ -529,6 +531,52 @@ INSTANTIATE_TEST_SUITE_P(All,
                            return info.param ? "WebContentsBleiben"
                                              : "WebContentsErsetzt";
                          });
+
+// Bestätigungs-Bypass (Paket 48, → plan/spezifikation/07): „!“ ohne eben
+// gestellte Rückfrage, nach einer anderen Eingabe oder ein zweites Mal
+// ergibt nur eine Rückfrage und keinen Schritt; Rückfrage plus „!“ klickt
+// genau einmal. Gezählt wird im DOM der Seite.
+IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, BestaetigungNurEinmalUndGebunden) {
+  GraphRecorder graph(helper());
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), Url("a.test", "/kasse.html")));
+  const std::string main = TreeOf(web_contents()->GetPrimaryMainFrame());
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return graph.Find("Jetzt kaufen", main) && graph.root() == main; }));
+
+  auto run = [&](const std::string& input) {
+    base::test::TestFuture<bridge::Reply> reply;
+    helper().RunCommand(input, reply.GetCallback());
+    return reply.Take();
+  };
+  auto rueckfrage = [&](const std::string& input) {
+    bridge::Reply reply = run(input);
+    return reply.kind == bridge::ReplyKind::Answer &&
+           std::string(reply.text).starts_with("Bestätigung nötig") &&
+           reply.steps.empty();
+  };
+  constexpr char kKlicks[] = "document.getElementById('s').textContent";
+
+  EXPECT_TRUE(rueckfrage("!klicke Jetzt kaufen"));
+  EXPECT_TRUE(rueckfrage("klicke Jetzt kaufen"));
+  EXPECT_EQ(bridge::ReplyKind::Answer, run("Was ist hier?").kind);
+  EXPECT_TRUE(rueckfrage("!klicke Jetzt kaufen"));
+  EXPECT_EQ("0", content::EvalJs(web_contents(), kKlicks));
+
+  // Die Rückfrage aus der letzten Eingabe gilt: Schritte senden.
+  bridge::Reply reply = run("!klicke Jetzt kaufen");
+  ASSERT_EQ(bridge::ReplyKind::Perform, reply.kind) << std::string(reply.text);
+  for (const bridge::Step& step : reply.steps) {
+    ASSERT_TRUE(helper().PerformStep(step));
+  }
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(web_contents(), kKlicks).ExtractString() == "1";
+  }));
+
+  // Dieselbe Bestätigung ein zweites Mal: nur eine neue Rückfrage.
+  EXPECT_TRUE(rueckfrage("!klicke Jetzt kaufen"));
+  EXPECT_EQ("1", content::EvalJs(web_contents(), kKlicks));
+}
 
 // Neuaufbau nach kaputtem Paket: ein Reset sofort, ein zweiter frühestens
 // nach der Mindestspanne, danach ist der Baum wieder da.

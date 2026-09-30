@@ -28,6 +28,7 @@ Gültige Entscheidungen und Rahmenbedingungen stehen in `docs/decisions.md` und
 | 42–45 | Linie Prüfen (→ spezifikation/12) |
 | 46 | barrierlab |
 | 47–48 | Querschnitt: Relief-Oberfläche und Sicherheitsgrenzen |
+| 58 | Querschnitt: Sicherheitsgrenzen in Hosts (Nachtrag zu 48) |
 | 64 | Linie Prüfen: Nachtrag zu 42/49/55 |
 | 90 | zurückgestellt |
 

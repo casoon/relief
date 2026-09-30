@@ -77,8 +77,13 @@ Relief ersetzt in barrierlab den Reader-Host als Konsument
 (casoon/barrierlab#29, zum Merge offen); Kandidaten zum Ablegen in
 [spezifikation/12](spezifikation/12-produktumfang.md#kandidaten-zum-ablegen-stand-2026-09-30).
 
+Sicherheits-Regressionsmatrix umgesetzt (Missbrauchsfälle als
+Tests, Bestätigungstoken, Grenzen je Aufgabe, Security-Log), beschrieben in
+[spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#sicherheits-regressionsmatrix-entscheidung-umgesetzt-im-fork-belegt);
+der Bestätigungs-Bypass ist auch im Fork getestet.
+
 **Sofort startbar:**
-- Cloud: 48 (Sicherheits-Regressionsmatrix), 64 (DOM-Fakten für fremde Frames)
+- Cloud: 58 (Sicherheitsgrenzen im Host), 64 (DOM-Fakten für fremde Frames)
 - Cloud + M4: 25 (Befehlsleiste), 21 (Befunde im Inspector), 40 (Overlay und Consent), 36 (Branding),
   44 (Lauf ohne Fenster, JUnit)
 - M4: 43 (VoiceOver im Test)
@@ -89,7 +94,7 @@ Relief ersetzt in barrierlab den Reader-Host als Konsument
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 43 und 44 parallel → 45; 64 jederzeit.
 - Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
-- Vor jeder Modellintegration (28 im Fork, 34): 48.
+- Vor jeder Modellintegration (28 im Fork, 34): 48, dann 58.
 
 | Nr | Thema | Umgebung | Status | Abhängig von | Datei |
 |---|---|---|---|---|---|
@@ -112,6 +117,6 @@ Relief ersetzt in barrierlab den Reader-Host als Konsument
 | 44 | Lauf ohne Fenster, JUnit-Bericht | Cloud + M4 | offen | 42 ✓ | [44](44-kopflos-und-junit.md) |
 | 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 | [45](45-playwright-anbindung.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 | [47](47-relief-ui-accessibility.md) |
-| 48 | Sicherheits-Regressionsmatrix für Modellgrenzen | Cloud | offen | 24 ✓, vor Modellintegration | [48](48-sicherheits-regressionen.md) |
+| 58 | Sicherheitsgrenzen in Hosts und Modellaufruf verdrahten (Log, Budget, Formularziel) | Cloud + M4 | offen | 48 ✓, vor Modellintegration | [58](58-sicherheitsgrenzen-im-host.md) |
 | 64 | DOM-Fakten für iframes in anderem Prozess, ID-Bereich im Shadow DOM | Cloud | offen | 55 ✓ | [64](64-dom-fakten-fremde-frames.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |

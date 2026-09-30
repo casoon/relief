@@ -33,7 +33,8 @@ crates/
 │   │   ├── resolve.rs        # Zielbeschreibung → Bedienelement oder Abschnitt/Bereich; Schritte vom Fokus; was sich schließen lässt
 │   │   ├── validate.rs       # Bedienelement + Aktion → ActionPlan mit Risikoklasse; Seitentyp Anmeldung/Kasse erhöht (plan_on_page)
 │   │   ├── respond.rs        # Antworttexte (auch wo bin ich, Vorlesen, Scrollergebnis), Wirkung einer Aktion aus zwei Modellständen
-│   │   ├── session.rs        # Befehlsablauf beider Hosts: Eingabe → Antwort oder Plan (Outcome), Antwort nach der Aktion, Position; Aufgabendateien
+│   │   ├── session.rs        # Befehlsablauf beider Hosts: Eingabe → Antwort oder Plan (Outcome), Antwort nach der Aktion, Position, Rückfrage mit Token; Aufgabendateien
+│   │   ├── security.rs       # Bestätigungstoken (an Plan gebunden, einmalig, kurzlebig), Security-Log ohne Werte, Namen der Grenzen
 │   │   └── assertions.rs     # Formular-Zusicherungen (Feature `assertions`, nicht im Fork): Modell + DOM-Fakten (a11y-dom) + Tab-Folge → Befunde (a11y-report); accname für den Namensvergleich
 │   └── tests/                # browserfrei gegen spike/recordings (über den Konverter als Modell)
 │       ├── recordings.rs     # Graph-Zusammenfassung je Aufnahme ↔ erwartungen/, Graph-Stabilität
@@ -44,9 +45,11 @@ crates/
 │   └── src/
 │       ├── privacy.rs        # Privacy-Filter: SemanticGraph → FilteredInput (einziger Weg zur Modelleingabe); Ausschnitt um einen Knoten
 │       ├── provider.rs       # ModelProvider, Tier none/os/local/api, NoModel; resolve_missing, propose_intent
+│       ├── budget.rs         # Budget/Limits: Grenzen je Aufgabe (Baumgröße, Aufrufe, Wiederholungen, Zeit, Tokens), Abbruch ohne weitere Aufrufe
 │       ├── hypothesis.rs     # Hypothese zu fehlendem Namen/Beschreibung, strenge Prüfung; gemessene Schwellen je Modell (leer)
 │       ├── intent.rs         # Intent-Vorschlag aus einer Nutzeräußerung, strenge Prüfung
 │       └── risk.rs           # assess_risk: Hypothesen erhöhen die Risikoklasse nur
+│   (tests/missbrauch.rs: Sicherheits-Regressionsmatrix, je Missbrauchsfall ein fester Test)
 ├── relief-resolver/          # browserfrei, relief-ai-contract + a11y-perception; ureq nur mit Feature `anthropic`
 │   ├── src/
 │   │   ├── lib.rs            # resolve_node: Ausschnitt (40 Knoten + Vorfahren) → resolve_missing → Name des Knotens
@@ -107,6 +110,9 @@ nur Text; `resolve_missing`/`propose_intent` prüfen ihn gegen Schema und
 Eingabe und machen daraus `Hypothesis` oder `IntentProposal` — keine
 Aktion. Eine Hypothese ist `Uncertain`, außer für ihr Modell ist in
 `CALIBRATED_THRESHOLDS` eine gemessene Schwelle eingetragen (heute keine).
+`Budget` stellt dieselben Aufrufe unter feste Grenzen je Aufgabe; die erste
+Überschreitung beendet die Aufgabe mit verständlichem Grund
+(`ModelError::Limit`), danach ruft es keinen Anbieter mehr auf.
 
 `relief-resolver` benennt einzelne Controls ohne Namen: Es schneidet aus der
 gefilterten Eingabe einen Ausschnitt um den Knoten (`FilteredInput::excerpt`,
@@ -214,11 +220,22 @@ flowchart LR
   Upd --> M["perception::from_snapshot"] --> G["graph::Graph::build"]
   In --> Parse["command::parse"] --> Res["resolve / dismissal"]
   G --> Res --> Val["validate::plan_on_page (Graph::page)"]
-  Val -->|"HIGH oder unsicherer Name ohne !"| Ask["Rückfrage"]
+  Val -->|"HIGH oder unsicherer Name"| Ask["Rückfrage + Token"]
+  Ask -->|"nächste Eingabe: ! + derselbe Plan"| Act
   Val --> Act["act.rs: DOM/JS, Escape oder Pfeiltaste"] --> Settle["live.rs: Ruhe abwarten"]
   Settle --> Cap["capture.rs: Aufnahme → Modell"] --> Resp["respond::describe_diff(Modell vorher, nachher)"]
 ```
 
+- **Bestätigung**: Eine Rückfrage legt in `Session` ein Token ab, gebunden
+  an Aktion samt Wert, Zielknoten und DOM-ID, Risiko, Graph-Version,
+  Zieladresse, Seitenadresse und Ausschnitt (Bedienelement, Seitentyp). „!“
+  löst es nur als nächste Eingabe ein, höchstens 60 s nach der Rückfrage und
+  nur, wenn derselbe Plan wieder entsteht (neue Graph-Version bei gleichem
+  Ausschnitt genügt); jede andere Eingabe verwirft es. „!“ ohne offene
+  Rückfrage ergibt nur eine neue Rückfrage. Entscheidungen landen im
+  Security-Log (`Session::take_security_log`: Entscheidung, Plan-ID,
+  Aktionsart, Risiko, Grund; keine Werte, keine Namen). Beide Hosts holen
+  es noch nicht ab; es hält die letzten 256 Einträge.
 - **Modell**: Jede Aufnahme wird mit `relief_model::perception` zum
   `SemanticGraph`. Die Tree-ID des Hauptdokuments (`dokument-N`) wechselt bei
   Navigation und `DOM.documentUpdated`; über Dokumente hinweg wird kein Knoten

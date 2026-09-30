@@ -220,7 +220,9 @@ Zielknoten, Graph-Version, Wert und — sofern vorhanden — Ziel-URL oder
 Formularziel. Sie ist kurzlebig und nur einmal verwendbar. Ändert sich eines
 dieser Felder oder der relevante Graph-Ausschnitt, wird der Plan verworfen und
 neu bestätigt. Eine allgemeine Zustimmung wie „mach weiter“ gilt nie für
-spätere oder veränderte Aktionen.
+spätere oder veränderte Aktionen. Umgesetzt in `Session` (beide Hosts):
+„!“ löst nur die unmittelbar vorher gestellte Rückfrage ein (→ 07,
+„Bestätigungstoken“); das Formularziel ist noch nicht gebunden.
 
 ## Risikoklassen [Entscheidung: Prinzip]
 

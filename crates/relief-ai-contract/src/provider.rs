@@ -9,8 +9,8 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    validate_hypotheses, validate_intent, FilteredInput, Hypothesis, IntentProposal, UserUtterance,
-    ValidationError, HYPOTHESES_SCHEMA, INTENT_SCHEMA,
+    validate_hypotheses, validate_intent, FilteredInput, Hypothesis, IntentProposal, LimitExceeded,
+    UserUtterance, ValidationError, HYPOTHESES_SCHEMA, INTENT_SCHEMA,
 };
 
 /// Wie weit Relief für Modelle geht, von der Nutzerin gewählt.
@@ -166,11 +166,13 @@ impl ModelProvider for NoModel {
     }
 }
 
-/// Anbieter gescheitert oder Ausgabe verletzt den Vertrag.
+/// Anbieter gescheitert, Ausgabe verletzt den Vertrag oder die Aufgabe ist
+/// an einer Grenze beendet ([`crate::Budget`]).
 #[derive(Debug, Clone, PartialEq)]
 pub enum ModelError {
     Provider(ProviderError),
     Invalid(ValidationError),
+    Limit(LimitExceeded),
 }
 
 impl fmt::Display for ModelError {
@@ -178,6 +180,7 @@ impl fmt::Display for ModelError {
         match self {
             ModelError::Provider(e) => e.fmt(f),
             ModelError::Invalid(e) => e.fmt(f),
+            ModelError::Limit(e) => e.fmt(f),
         }
     }
 }

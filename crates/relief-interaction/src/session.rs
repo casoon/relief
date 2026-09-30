@@ -12,6 +12,15 @@
 //! Startpunkt der Tab-Reihenfolge und nimmt den Fokus weg (wie ein
 //! Screenreader mit eigenem Cursor). Diese Position gilt, bis der Fokus sich
 //! bewegt.
+//!
+//! **Bestätigung**: Verlangt ein Plan eine Bestätigung, antwortet die Sitzung
+//! mit einer Rückfrage und merkt sich ein Token, das an genau diesen Plan
+//! gebunden ist (→ [`crate::security`]). „!“ vor dem Befehl löst es ein, und
+//! nur dann, wenn es die unmittelbar folgende Eingabe ist, derselbe Plan
+//! wieder entsteht und die Rückfrage nicht abgelaufen ist. „!“ ohne offene
+//! Rückfrage bestätigt nichts; es gibt keine pauschale Zustimmung.
+
+use std::time::Duration;
 
 use relief_model::{NodeRef, SemanticGraph};
 
@@ -22,6 +31,10 @@ use crate::resolve::{
     Dismissal, Place, PlaceResolution, Resolution,
 };
 use crate::respond;
+use crate::security::{
+    action_name, Binding, Confirmation, Decision, PlanId, Reason, SecurityEvent, SecurityLog,
+    CONFIRMATION_TTL,
+};
 use crate::validate::{plan_navigation, plan_on_page, ActionKind, ActionPlan};
 
 /// Was der Host als Nächstes tun soll.
@@ -43,8 +56,8 @@ pub enum Outcome {
     Scroll(ScrollDirection),
 }
 
-/// Eingabe ohne Seitenstand zerlegen: `!` am Anfang bestätigt riskante
-/// Aktionen. Fehler: Antworttext (nicht verstanden).
+/// Eingabe ohne Seitenstand zerlegen: `!` am Anfang bestätigt die eben
+/// gestellte Rückfrage (→ Moduldoku). Fehler: Antworttext (nicht verstanden).
 pub fn parse_input(input: &str) -> Result<(bool, Command), String> {
     let (confirmed, input) = match input.trim().strip_prefix('!') {
         Some(rest) => (true, rest.trim()),
@@ -74,14 +87,63 @@ struct Position {
 }
 
 /// Zustand zwischen Befehlen einer Seite (eines Tabs).
-#[derive(Debug, Clone, Default)]
+///
+/// Nicht kopierbar: Eine Kopie trüge die offene Rückfrage mit, die nur
+/// einmal gelten darf.
+///
+/// ```compile_fail
+/// let session = relief_interaction::Session::new();
+/// let copy = session.clone();
+/// ```
+#[derive(Debug)]
 pub struct Session {
     position: Option<Position>,
+    /// Offene Rückfrage; gilt nur für die nächste Eingabe.
+    confirmation: Option<Confirmation>,
+    confirmation_ttl: Duration,
+    plans: u64,
+    log: SecurityLog,
+}
+
+impl Default for Session {
+    fn default() -> Self {
+        Session {
+            position: None,
+            confirmation: None,
+            confirmation_ttl: CONFIRMATION_TTL,
+            plans: 0,
+            log: SecurityLog::default(),
+        }
+    }
 }
 
 impl Session {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Wie [`Session::new`], mit anderer Gültigkeit der Rückfrage.
+    pub fn with_confirmation_ttl(ttl: Duration) -> Self {
+        Session {
+            confirmation_ttl: ttl,
+            ..Self::default()
+        }
+    }
+
+    /// Security-Log seit dem letzten Abholen (→ [`SecurityEvent`]).
+    pub fn take_security_log(&mut self) -> Vec<SecurityEvent> {
+        self.log.take()
+    }
+
+    /// Offene Rückfrage verwerfen, ohne einen Befehl zu verarbeiten (die
+    /// Nutzerin lehnt ab, → `spezifikation/05`, „Abbrechen“).
+    pub fn discard_confirmation(&mut self) {
+        self.confirmation = None;
+    }
+
+    fn next_plan(&mut self) -> PlanId {
+        self.plans += 1;
+        PlanId(self.plans)
     }
 
     /// Wo Relief steht, gegeben den Fokus der Seite (→ Moduldoku).
@@ -96,13 +158,15 @@ impl Session {
     /// einen geprüften Plan übersetzen. `focus`: Fokus der Seite, nur nötig,
     /// wenn [`uses_focus`] zutrifft.
     pub fn handle(
-        &self,
+        &mut self,
         graph: &Graph,
         model: &SemanticGraph,
         confirmed: bool,
         cmd: Command,
         focus: Option<&NodeRef>,
     ) -> Outcome {
+        // Jede Eingabe verbraucht die offene Rückfrage (einlösen oder verwerfen).
+        let offered = self.confirmation.take();
         let here = self.position(focus);
         let (target, kind) = match cmd {
             Command::Help => return Outcome::Answer(command::HELP.into()),
@@ -137,7 +201,7 @@ impl Session {
             Command::Scroll(direction) => return Outcome::Scroll(direction),
             Command::SectionStep(step) => {
                 return match step_heading(graph, here.as_ref(), step) {
-                    Some(h) => navigate(graph, Place::Heading(h)),
+                    Some(h) => self.navigate(graph, Place::Heading(h)),
                     None => Outcome::Answer(format!(
                         "Keine {} Überschrift.",
                         match step {
@@ -149,7 +213,7 @@ impl Session {
             }
             Command::GoToPlace(q) => {
                 return match pick_place(graph, &q) {
-                    Ok(place) => navigate(graph, place),
+                    Ok(place) => self.navigate(graph, place),
                     Err(msg) => Outcome::Answer(msg),
                 }
             }
@@ -189,18 +253,57 @@ impl Session {
         };
         let label = respond::control_line(&control);
 
+        let action = action_name(&kind);
         let plan = match plan_on_page(&graph.page, &control, kind) {
             Ok(p) => p,
-            Err(rejection) => return Outcome::Answer(format!("Abgelehnt: {rejection} ({label})")),
+            Err(rejection) => {
+                self.log.push(SecurityEvent::rejected(action));
+                return Outcome::Answer(format!("Abgelehnt: {rejection} ({label})"));
+            }
         };
-        if plan.requires_confirmation && !confirmed {
-            return Outcome::Answer(format!(
-                "Bestätigung nötig ({:?}): {} — Ziel: {label}. Mit „!“ davor bestätigen.",
-                plan.risk,
-                plan.notes.join("; ")
-            ));
+        if !plan.requires_confirmation {
+            let id = self.next_plan();
+            self.log
+                .push(SecurityEvent::plan(Decision::Perform, Some(id), &plan));
+            return Outcome::Perform { plan, label };
         }
-        Outcome::Perform { plan, label }
+
+        let binding = Binding::new(&plan, &control, &graph.page, model);
+        let mut refused = None;
+        if confirmed {
+            let (id, redeemed) = match offered {
+                Some(token) => (
+                    Some(token.id),
+                    token.redeem(&binding, self.confirmation_ttl),
+                ),
+                None => (None, Err(Reason::NoPrompt)),
+            };
+            match redeemed {
+                Ok(id) => {
+                    self.log.push(SecurityEvent::plan(
+                        Decision::PerformConfirmed,
+                        Some(id),
+                        &plan,
+                    ));
+                    return Outcome::Perform { plan, label };
+                }
+                Err(reason) => {
+                    self.log
+                        .push(SecurityEvent::plan(Decision::Reject, id, &plan).because(reason));
+                    refused = Some(reason);
+                }
+            }
+        }
+
+        let id = self.next_plan();
+        self.log.push(SecurityEvent::plan(
+            Decision::AskConfirmation,
+            Some(id),
+            &plan,
+        ));
+        let answer = confirmation_prompt(&plan, &label, binding.destination.as_deref(), refused);
+        self.confirmation = Some(Confirmation::new(id, binding));
+        Outcome::Answer(answer)
     }
 
     /// Antwort nach einem ausgeführten Plan: Stand vorher und nachher (nach
@@ -263,22 +366,53 @@ impl Session {
     }
 }
 
-/// Zu einer Überschrift oder einem Bereich (LOW, ohne Rückfrage).
-fn navigate(graph: &Graph, place: Place) -> Outcome {
-    let (node, dom_node_id) = match place {
-        Place::Heading(h) => {
-            let h = &graph.headings[h];
-            (h.node.clone(), h.dom_node_id)
+/// Rückfrage aus dem validierten Plan und den lokalen Daten, nicht aus einer
+/// freien Zusammenfassung: Risiko, Gründe, Aktion mit Wert, Ziel und
+/// Zieladresse (ohne Query und Fragment).
+fn confirmation_prompt(
+    plan: &ActionPlan,
+    label: &str,
+    destination: Option<&str>,
+    refused: Option<Reason>,
+) -> String {
+    let destination = destination
+        .map(|d| format!(", Adresse: {}", d.split(['?', '#']).next().unwrap_or(d)))
+        .unwrap_or_default();
+    let refused = refused
+        .map(|r| format!(" Die Bestätigung galt nicht: {r}."))
+        .unwrap_or_default();
+    format!(
+        "Bestätigung nötig ({:?}): {} — Aktion: {:?}, Ziel: {label}{destination}. \
+         Mit „!“ davor bestätigen; gilt einmal und nur für genau diese Aktion.{refused}",
+        plan.risk,
+        plan.notes.join("; "),
+        plan.kind,
+    )
+}
+
+impl Session {
+    /// Zu einer Überschrift oder einem Bereich (LOW, ohne Rückfrage).
+    fn navigate(&mut self, graph: &Graph, place: Place) -> Outcome {
+        let (node, dom_node_id) = match place {
+            Place::Heading(h) => {
+                let h = &graph.headings[h];
+                (h.node.clone(), h.dom_node_id)
+            }
+            Place::Region(r) => {
+                let r = &graph.regions[r];
+                (r.node.clone(), r.dom_node_id)
+            }
+        };
+        let label = respond::place_label(graph, place);
+        match plan_navigation(&node, dom_node_id) {
+            Ok(plan) => {
+                let id = self.next_plan();
+                self.log
+                    .push(SecurityEvent::plan(Decision::Perform, Some(id), &plan));
+                Outcome::Perform { plan, label }
+            }
+            Err(rejection) => Outcome::Answer(format!("Abgelehnt: {rejection} ({label})")),
         }
-        Place::Region(r) => {
-            let r = &graph.regions[r];
-            (r.node.clone(), r.dom_node_id)
-        }
-    };
-    let label = respond::place_label(graph, place);
-    match plan_navigation(&node, dom_node_id) {
-        Ok(plan) => Outcome::Perform { plan, label },
-        Err(rejection) => Outcome::Answer(format!("Abgelehnt: {rejection} ({label})")),
     }
 }
 
@@ -428,5 +562,138 @@ mod tests {
             (true, Command::Activate("Senden".into()))
         );
         assert!(!parse_input("klicke Senden").unwrap().0);
+    }
+
+    // Bestätigung (→ `crate::security`), auf der Testseite: „Bestellen“ ist
+    // HIGH, „Menge“ ein Zahlenfeld (Ausfüllen MEDIUM).
+
+    fn order() -> Command {
+        Command::Activate("Bestellen".into())
+    }
+
+    /// Eingabe gegen `model`; Antworttext oder `None` bei einem Plan.
+    fn run(
+        session: &mut Session,
+        model: &SemanticGraph,
+        confirmed: bool,
+        cmd: Command,
+    ) -> Option<String> {
+        match session.handle(&Graph::build(model), model, confirmed, cmd, None) {
+            Outcome::Answer(text) => Some(text),
+            Outcome::Perform { .. } => None,
+            other => panic!("{other:?}"),
+        }
+    }
+
+    fn decisions(session: &mut Session) -> Vec<Decision> {
+        session
+            .take_security_log()
+            .into_iter()
+            .map(|e| e.decision)
+            .collect()
+    }
+
+    #[test]
+    fn ausrufezeichen_ohne_rueckfrage_bestaetigt_nichts() {
+        let model = crate::graph::sample_tree();
+        let mut s = Session::new();
+        let text = run(&mut s, &model, true, order()).unwrap();
+        assert!(text.starts_with("Bestätigung nötig (High)"), "{text}");
+        assert!(
+            text.contains("Aktion: Activate, Ziel: [button] Bestellen"),
+            "{text}"
+        );
+        assert!(text.contains("keine offene Rückfrage"), "{text}");
+        assert_eq!(
+            decisions(&mut s),
+            vec![Decision::Reject, Decision::AskConfirmation]
+        );
+    }
+
+    #[test]
+    fn rueckfrage_gilt_genau_einmal() {
+        let model = crate::graph::sample_tree();
+        let mut s = Session::new();
+        assert!(run(&mut s, &model, false, order()).is_some());
+        assert_eq!(run(&mut s, &model, true, order()), None);
+        let again = run(&mut s, &model, true, order()).unwrap();
+        assert!(again.contains("keine offene Rückfrage"), "{again}");
+    }
+
+    #[test]
+    fn andere_eingabe_verwirft_die_rueckfrage() {
+        let model = crate::graph::sample_tree();
+        let mut s = Session::new();
+        assert!(run(&mut s, &model, false, order()).is_some());
+        assert!(run(&mut s, &model, false, Command::Describe).is_some());
+        let text = run(&mut s, &model, true, order()).unwrap();
+        assert!(text.contains("keine offene Rückfrage"), "{text}");
+
+        // Ablehnen („nein“ in der Befehlsleiste) verwirft sie ebenso.
+        assert!(run(&mut s, &model, false, order()).is_some());
+        s.discard_confirmation();
+        let text = run(&mut s, &model, true, order()).unwrap();
+        assert!(text.contains("keine offene Rückfrage"), "{text}");
+    }
+
+    #[test]
+    fn abgelaufene_rueckfrage_gilt_nicht() {
+        let model = crate::graph::sample_tree();
+        let mut s = Session::with_confirmation_ttl(Duration::ZERO);
+        assert!(run(&mut s, &model, false, order()).is_some());
+        let text = run(&mut s, &model, true, order()).unwrap();
+        assert!(text.contains("Rückfrage abgelaufen"), "{text}");
+    }
+
+    #[test]
+    fn veraenderter_ausschnitt_verlangt_neue_bestaetigung() {
+        let model = crate::graph::sample_tree();
+        let mut s = Session::new();
+        assert!(run(&mut s, &model, false, order()).is_some());
+
+        // Nur die Version ist neu: Bestätigung gilt.
+        let mut same = model.clone();
+        same.version.0 += 1;
+        assert_eq!(run(&mut s, &same, true, order()), None);
+
+        // Zwischen Rückfrage und „!“ klappt der Button etwas auf.
+        assert!(run(&mut s, &model, false, order()).is_some());
+        let mut changed = model.clone();
+        changed.version.0 += 1;
+        let button = crate::graph::at(21);
+        changed
+            .trees
+            .get_mut(&button.tree)
+            .unwrap()
+            .nodes
+            .get_mut(&button.node)
+            .unwrap()
+            .states
+            .expanded = Some(true);
+        let text = run(&mut s, &changed, true, order()).unwrap();
+        assert!(text.contains("Ziel oder Seite hat sich geändert"), "{text}");
+        // Die neue Rückfrage gilt für den neuen Stand.
+        assert_eq!(run(&mut s, &changed, true, order()), None);
+    }
+
+    #[test]
+    fn security_log_ohne_werte_und_namen() {
+        let model = crate::graph::sample_tree();
+        let mut s = Session::new();
+        let fill = Command::SetValue("Menge".into(), "geheim123".into());
+        assert_eq!(run(&mut s, &model, false, fill), None);
+        assert!(run(&mut s, &model, false, order()).is_some());
+        assert_eq!(run(&mut s, &model, true, order()), None);
+        assert!(run(&mut s, &model, false, Command::Activate("Menge".into())).is_some());
+
+        let log = s.take_security_log();
+        let json = serde_json::to_string(&log).unwrap();
+        for secret in ["geheim123", "Menge", "Bestellen", "klicke"] {
+            assert!(!json.contains(secret), "„{secret}“ im Log: {json}");
+        }
+        assert_eq!(
+            json,
+            r#"[{"decision":"perform","plan":1,"action":"set_value","risk":"Medium"},{"decision":"ask_confirmation","plan":2,"action":"activate","risk":"High"},{"decision":"perform_confirmed","plan":2,"action":"activate","risk":"High"},{"decision":"reject","action":"activate","reason":"invalid"}]"#
+        );
     }
 }
