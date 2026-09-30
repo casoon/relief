@@ -4,6 +4,7 @@ use std::collections::HashSet;
 
 use crate::command::ScrollDirection;
 use crate::graph::{focused, invalid_name, Anchor, Control, Graph};
+use crate::overlay::{ButtonKind, Overlay, OverlayKind};
 use crate::page::PageType;
 use crate::resolve::Place;
 use relief_model::{Certainty, NodeRef, Role, SemanticGraph, SemanticNode, TreeData, TreeDelta};
@@ -54,6 +55,15 @@ pub fn describe(graph: &Graph) -> String {
         out.push_str(&format!(", davon {unsure} ohne gesicherten Namen"));
     }
     out.push('.');
+    // Cookie- und Newsletter-Dialoge ansagen; andere Dialoge stehen schon
+    // unter den Bereichen.
+    for o in crate::overlay::overlays(graph)
+        .iter()
+        .filter(|o| o.kind.value != Some(OverlayKind::Dialog))
+    {
+        out.push(' ');
+        out.push_str(&overlay(graph, o));
+    }
     out
 }
 
@@ -291,6 +301,149 @@ pub fn inspect(c: &Control) -> String {
         out.push_str(" Deaktiviert.");
     }
     out
+}
+
+/// Ansage eines Overlays: Art (immer als Vermutung, mit Evidence), Buttons
+/// nach ihrer Einordnung und ob es ein kostenloses Ablehnen gibt.
+pub fn overlay(graph: &Graph, o: &Overlay) -> String {
+    let region = &graph.regions[o.region];
+    let kind = o.kind.value.unwrap_or(OverlayKind::Dialog);
+    let mut out = match (kind, o.kind.certainty) {
+        (OverlayKind::Dialog, _) => format!("{}.", capitalize(&region.label())),
+        (_, Certainty::Uncertain) => format!(
+            "{} möglicherweise {}, unsicher (Hinweise: {}).",
+            capitalize(&region.label()),
+            kind.label(),
+            o.kind.evidence.join(", ")
+        ),
+        _ => format!(
+            "{} vermutlich {} (erschlossen: {}).",
+            capitalize(&region.label()),
+            kind.label(),
+            o.kind.evidence.join(", ")
+        ),
+    };
+    if region.modal {
+        out.push_str(" Modal: Bedienung nur im Dialog.");
+    }
+    let mut parts = Vec::new();
+    for k in [
+        ButtonKind::Accept,
+        ButtonKind::Reject,
+        ButtonKind::Settings,
+        ButtonKind::Pay,
+        ButtonKind::Close,
+    ] {
+        let names: Vec<String> = o
+            .of_kind(k)
+            .map(|i| format!("„{}“", graph.controls[i].display_name()))
+            .collect();
+        if !names.is_empty() {
+            parts.push(format!("{} {}", k.label(), names.join(", ")));
+        }
+    }
+    let others = o.of_kind(ButtonKind::Other).count();
+    if others > 0 {
+        parts.push(format!("{others} weitere"));
+    }
+    if parts.is_empty() {
+        out.push_str(" Keine Buttons.");
+    } else {
+        out.push_str(&format!(
+            " Buttons nach Beschriftung: {}.",
+            parts.join(", ")
+        ));
+    }
+    if kind == OverlayKind::Consent {
+        out.push(' ');
+        out.push_str(&if o.of_kind(ButtonKind::Reject).next().is_some() {
+            "„Cookies ablehnen“ lehnt ab. Relief stimmt nie selbst zu.".to_string()
+        } else {
+            no_reject(o)
+        });
+    }
+    out
+}
+
+/// Kein Button, der ablehnt: das ansagen, nicht umgehen.
+pub fn no_reject(o: &Overlay) -> String {
+    let mut out = String::from(if o.of_kind(ButtonKind::Pay).next().is_some() {
+        "Kein Ablehnen ohne Bezahlung."
+    } else {
+        "Kein Ablehnen."
+    });
+    if o.of_kind(ButtonKind::Settings).next().is_some() {
+        out.push_str(" Vielleicht unter den Einstellungen; die wählt Relief nicht selbst.");
+    }
+    out.push_str(" Relief stimmt nie selbst zu und umgeht keine Bezahlschranke.");
+    out
+}
+
+/// Alle erreichbaren Overlays (Befehl „welcher Dialog ist offen“).
+pub fn overlays(graph: &Graph) -> String {
+    let all = crate::overlay::overlays(graph);
+    if all.is_empty() {
+        return "Kein Dialog und kein Cookie-Hinweis erkannt.".into();
+    }
+    all.iter()
+        .map(|o| overlay(graph, o))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Was hinter dem modalen Dialog liegt, soweit der Baum es enthält: nur
+/// Auskunft. Die Antwort bietet keine Auswahl an, und die Auflösung von
+/// Zielen bleibt auf den Dialog beschränkt (→ [`Graph::is_reachable`]).
+pub fn background(graph: &Graph) -> String {
+    let Some(m) = graph.active_modal() else {
+        return "Kein modaler Dialog offen; die ganze Seite ist bedienbar.".into();
+    };
+    let dialog = graph.regions[m].label();
+    let headings: Vec<String> = graph
+        .headings
+        .iter()
+        .filter(|h| !graph.is_reachable(h.region, &h.node))
+        .map(|h| format!("H{} „{}“", h.level, h.text))
+        .collect();
+    let controls: Vec<String> = graph
+        .controls
+        .iter()
+        .filter(|c| !graph.is_reachable(c.region, &c.node))
+        .map(|c| format!("[{}] {}", c.role, c.display_name()))
+        .collect();
+    if headings.is_empty() && controls.is_empty() {
+        return format!(
+            "Hinter {dialog} enthält der Baum nichts. Vermutlich nimmt Chromium den Rest \
+             der Seite heraus, solange der Dialog offen ist."
+        );
+    }
+    let list = |items: &[String]| {
+        let shown: Vec<&str> = items.iter().take(10).map(String::as_str).collect();
+        match items.len() - shown.len() {
+            0 => shown.join(", "),
+            more => format!("{} und {more} weitere", shown.join(", ")),
+        }
+    };
+    let mut out = format!("Hinter {dialog}, nur zur Auskunft, gesperrt solange er offen ist:");
+    if !headings.is_empty() {
+        out.push_str(&format!(" Überschriften: {}.", list(&headings)));
+    }
+    if !controls.is_empty() {
+        out.push_str(&format!(
+            " {} Bedienelemente: {}.",
+            controls.len(),
+            list(&controls)
+        ));
+    }
+    out
+}
+
+fn capitalize(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) => c.to_uppercase().chain(chars).collect(),
+        None => String::new(),
+    }
 }
 
 /// Ergebnis eines Scrollbefehls aus Position vorher/nachher und größter

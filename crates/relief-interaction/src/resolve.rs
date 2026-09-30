@@ -337,6 +337,11 @@ pub fn dismissal<'g>(
         graph.within(c.region, idx)
             && c.role == Role::Button
             && c.name.value.as_deref().is_some_and(|raw| {
+                // Relief stimmt nie selbst zu: „Akzeptieren und schließen“
+                // ist kein Schließen-Button (→ `crate::overlay`).
+                if crate::overlay::blocks_dismissal(raw) {
+                    return false;
+                }
                 // Symbole wie „×“ fallen bei `normalize` weg.
                 if ["×", "✕"].contains(&raw.trim()) {
                     return true;

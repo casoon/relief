@@ -33,6 +33,13 @@ pub enum Command {
     Inspect(String),
     Increment(String),
     Decrement(String),
+    /// Offene Dialoge und Cookie-Hinweise mit eingeordneten Buttons.
+    Overlays,
+    /// Im Cookie-Dialog den Button wählen, der ablehnt (nur auf diesen
+    /// ausdrücklichen Befehl; nie zustimmen).
+    RejectConsent,
+    /// Was hinter dem modalen Dialog liegt, nur Auskunft.
+    Background,
     Help,
 }
 
@@ -336,6 +343,47 @@ fn parse_fixed(lower: &str) -> Option<Command> {
         ),
         (
             &[
+                "welcher dialog ist offen",
+                "was ist das für ein dialog",
+                "beschreibe den dialog",
+                "cookie-dialog",
+                "cookie dialog",
+                "cookies",
+                "which dialog is open",
+                "describe dialog",
+            ],
+            Command::Overlays,
+        ),
+        (
+            &[
+                "cookies ablehnen",
+                "lehne cookies ab",
+                "lehne die cookies ab",
+                "lehne ab",
+                "ablehnen",
+                "alle ablehnen",
+                "einwilligung ablehnen",
+                "lehne die einwilligung ab",
+                "reject cookies",
+                "reject all",
+                "decline cookies",
+            ],
+            Command::RejectConsent,
+        ),
+        (
+            &[
+                "was ist hinter dem dialog",
+                "was liegt hinter dem dialog",
+                "was steht hinter dem dialog",
+                "was ist im hintergrund",
+                "beschreibe den hintergrund",
+                "hintergrund",
+                "what is behind the dialog",
+            ],
+            Command::Background,
+        ),
+        (
+            &[
                 "lies den abschnitt",
                 "lies diesen abschnitt",
                 "lies vor",
@@ -355,7 +403,8 @@ pub const HELP: &str = "Befehle: was ist hier · wo bin ich · was kann ich tun 
 gehe zu <Ziel> · gehe zur Überschrift <Name> · nächster/vorheriger Abschnitt · \
 nächstes/vorheriges Formularfeld · lies den Abschnitt [<Name>] · welche <Optionen> gibt es · \
 öffne <Ziel> · schließe den Dialog · fülle <Feld> mit <Wert> · wähle <Option> [bei <Feld>] · \
-erhöhe/verringere <Feld> · scrolle nach unten/oben/zum Anfang/zum Ende";
+erhöhe/verringere <Feld> · scrolle nach unten/oben/zum Anfang/zum Ende · \
+welcher Dialog ist offen · cookies ablehnen · was ist hinter dem Dialog";
 
 fn strip_any<'a>(text: &'a str, prefixes: &[&str]) -> Option<&'a str> {
     let lower = text.to_lowercase();
@@ -554,6 +603,19 @@ mod tests {
             parse("Welche Überschriften gibt es?"),
             Ok(Command::ListHeadings)
         );
+    }
+
+    #[test]
+    fn parses_overlay_commands() {
+        assert_eq!(parse("Welcher Dialog ist offen?"), Ok(Command::Overlays));
+        assert_eq!(parse("Cookie-Dialog"), Ok(Command::Overlays));
+        assert_eq!(parse("Cookies ablehnen."), Ok(Command::RejectConsent));
+        assert_eq!(parse("Lehne die Cookies ab"), Ok(Command::RejectConsent));
+        assert_eq!(parse("reject all"), Ok(Command::RejectConsent));
+        assert_eq!(parse("Was ist hinter dem Dialog?"), Ok(Command::Background));
+        // Zustimmen ist kein eigener Befehl; „klicke …“ bleibt ein Klick der
+        // Nutzerin auf einen genannten Button.
+        assert!(parse("cookies akzeptieren").is_err());
     }
 
     #[test]

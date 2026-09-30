@@ -27,6 +27,7 @@ use relief_model::{NodeRef, SemanticGraph};
 use crate::command::{self, parse, Command, ScrollDirection, Step};
 use crate::graph::{focused, Control, Graph};
 use crate::marks::{marks, Mark};
+use crate::overlay::{self, ButtonKind};
 use crate::resolve::{
     current_place, dismissal, resolve, resolve_inflected, resolve_place, step_field, step_heading,
     Dismissal, Place, PlaceResolution, Resolution,
@@ -376,6 +377,11 @@ impl Session {
             Command::Describe => return Outcome::Answer(respond::describe(graph)),
             Command::ListActions => return Outcome::Answer(respond::list_actions(graph)),
             Command::ListHeadings => return Outcome::Answer(respond::list_headings(graph)),
+            Command::Overlays => return Outcome::Answer(respond::overlays(graph)),
+            // Nur Auskunft: keine Auswahl merken, damit keine Nummer und kein
+            // Name danach ein gesperrtes Element trifft.
+            Command::Background => return Outcome::Answer(respond::background(graph)),
+            Command::RejectConsent => (reject_consent(graph), ActionKind::Activate),
             Command::Focus(q) => (pick(graph, &q, |_| true), ActionKind::Focus),
             Command::Activate(q) => (pick(graph, &q, |_| true), ActionKind::Activate),
             Command::SetValue(q, v) => (pick(graph, &q, is_editable), ActionKind::SetValue(v)),
@@ -757,6 +763,38 @@ fn pick_from(graph: &Graph, query: &str, found: Resolution) -> Result<Control, M
     }
 }
 
+/// Der Button im Cookie-Dialog, der ablehnt, ohne zu bezahlen (→
+/// [`crate::overlay`]). Keiner: Das wird angesagt, nicht umgangen; Relief
+/// wählt dann weder Zustimmen noch Einstellungen noch Abo.
+fn reject_consent(graph: &Graph) -> Result<Control, Miss<Control>> {
+    let Some(consent) = overlay::consent(graph) else {
+        return Err(Miss::Text(
+            "Kein Cookie-Dialog erkannt; nichts abgelehnt. „welcher Dialog ist offen“ zeigt, \
+             was offen ist."
+                .into(),
+        ));
+    };
+    let mut rejects: Vec<&Control> = consent
+        .of_kind(ButtonKind::Reject)
+        .map(|i| &graph.controls[i])
+        .collect();
+    rejects.dedup_by_key(|c| c.dom_node_id);
+    match rejects.as_slice() {
+        [one] => Ok((*one).clone()),
+        [] => Err(Miss::Text(format!(
+            "Nicht abgelehnt: {}",
+            respond::overlay(graph, &consent)
+        ))),
+        many => Err(Miss::Many(
+            numbered(
+                "Mehrere Buttons lehnen vermutlich ab:".into(),
+                many.iter().map(|c| respond::control_line(c)),
+            ),
+            many.iter().map(|c| (*c).clone()).collect(),
+        )),
+    }
+}
+
 fn pick_by_option(graph: &Graph, option: &str) -> Result<Control, Miss<Control>> {
     // Wie `resolve`: bei offenem modalem Dialog nur dessen Inhalt.
     let hits: Vec<&Control> = graph
@@ -1041,6 +1079,81 @@ mod tests {
             let refused = run(&mut s, &model, true, other).unwrap();
             assert!(refused.contains("anderer Wert"), "{refused}");
         }
+    }
+
+    // Overlay- und Consent-Dialoge (→ `crate::overlay`): Consent-iframe im
+    // modalen Dialog, Buttons ab Knoten 20.
+
+    fn target(outcome: Outcome) -> NodeRef {
+        match outcome {
+            Outcome::Perform { plan, .. } => plan.target,
+            other => panic!("{other:?}"),
+        }
+    }
+
+    fn frame_node(id: i32) -> NodeRef {
+        NodeRef::new(
+            relief_model::TreeId("frame".into()),
+            relief_model::NodeId(id),
+        )
+    }
+
+    #[test]
+    fn cookies_ablehnen_nur_ueber_den_ablehnen_button() {
+        let model = crate::overlay::consent_page(&["Alle akzeptieren", "Alle ablehnen"]);
+        let g = Graph::build(&model);
+        let mut s = Session::new();
+        let out = s.handle(&g, &model, false, Command::RejectConsent, None);
+        assert_eq!(target(out), frame_node(21));
+    }
+
+    #[test]
+    fn ohne_ablehnen_wird_nichts_geklickt() {
+        let model = crate::overlay::consent_page(&[
+            "Einwilligen und weiter",
+            "Jetzt abonnieren",
+            "Einstellungen",
+        ]);
+        let mut s = Session::new();
+        let text = run(&mut s, &model, false, Command::RejectConsent).unwrap();
+        assert!(text.starts_with("Nicht abgelehnt:"), "{text}");
+        assert!(text.contains("vermutlich Cookie-Dialog"), "{text}");
+        assert!(text.contains("Kein Ablehnen ohne Bezahlung"), "{text}");
+        assert!(s.take_security_log().is_empty());
+    }
+
+    #[test]
+    fn schliessen_waehlt_keinen_zustimmen_button() {
+        let model = crate::overlay::consent_page(&["Akzeptieren und schließen"]);
+        let g = Graph::build(&model);
+        let mut s = Session::new();
+        let out = s.handle(&g, &model, false, Command::Dismiss, None);
+        assert!(matches!(out, Outcome::Escape { .. }), "{out:?}");
+        // Ein echter Schließen-Button bleibt einer.
+        let model = crate::overlay::consent_page(&["Akzeptieren", "Schließen"]);
+        let g = Graph::build(&model);
+        let out = s.handle(&g, &model, false, Command::Dismiss, None);
+        assert_eq!(target(out), frame_node(21));
+    }
+
+    #[test]
+    fn hintergrund_ist_nur_auskunft() {
+        let model = crate::overlay::consent_page(&["Alle ablehnen"]);
+        let g = Graph::build(&model);
+        let mut s = Session::new();
+        let text = run(&mut s, &model, false, Command::Background).unwrap();
+        assert!(text.contains("H2 „Nachrichten“"), "{text}");
+        assert!(text.contains("[link] Zum Artikel"), "{text}");
+        // Keine Auswahl entsteht: „1“ ist danach ein neuer Befehl.
+        assert!(matches!(s.pending_reply(&g, &model, "1"), Pending::Command));
+        let text = run(
+            &mut s,
+            &model,
+            false,
+            Command::Activate("Zum Artikel".into()),
+        )
+        .unwrap();
+        assert!(text.contains("gesperrt"), "{text}");
     }
 
     #[test]

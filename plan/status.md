@@ -89,6 +89,13 @@ Relief ersetzt in barrierlab den Reader-Host als Konsument
 (casoon/barrierlab#29, zum Merge offen); Kandidaten zum Ablegen in
 [spezifikation/12](spezifikation/12-produktumfang.md#kandidaten-zum-ablegen-stand-2026-09-30).
 
+Overlay- und Consent-Dialoge erkannt, angesagt (Art und Buttons als
+Vermutung mit Evidence) und auf Befehl abgelehnt, nie zugestimmt; kein
+Ablehnen ohne Bezahlung wird angesagt, nicht umgangen; auf spiegel.de,
+bild.de, welt.de, faz.net, t-online.de, heise.de erkannt, Ablehnen auf
+google.de, zdf.de, ikea.com ausgeführt, beschrieben in
+[spezifikation/05](spezifikation/05-intents-und-aktionen.md#overlay--und-consent-dialoge-paket-40-belegt).
+
 Sicherheits-Regressionsmatrix umgesetzt (Missbrauchsfälle als
 Tests, Bestätigungstoken, Grenzen je Aufgabe, Security-Log), beschrieben in
 [spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#sicherheits-regressionsmatrix-entscheidung-umgesetzt-im-fork-belegt);
@@ -99,12 +106,12 @@ sensible Werte (Paket 58, im Fork belegt).
 
 **Sofort startbar:**
 - Cloud: 70 (CDP-Host mit Site Isolation), 76 (Werte außerhalb der Rückfrage)
-- Cloud + M4: 26 (Sprache), 29 (Semantic View), 39 (Formular-Assistent), 21 (Befunde im Inspector), 40 (Overlay und Consent), 36 (Branding), 45 (Playwright)
+- Cloud + M4: 26 (Sprache), 29 (Semantic View), 39 (Formular-Assistent), 21 (Befunde im Inspector), 36 (Branding), 45 (Playwright), 80 (Consent-Nachtrag)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
-- Linie A: 26, 29, 39, 40 parallel → 41;
+- Linie A: 26, 29, 39 parallel → 41 (40 erledigt, Nachtrag 80);
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 (44 erledigt), 43 zurückgestellt; 70 jederzeit.
 - Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
@@ -123,7 +130,6 @@ sensible Werte (Paket 58, im Fork belegt).
 | 36 | Name und Branding „Relief“ | Cloud + M4 | offen | 19 ✓ | [36](36-branding.md) |
 | 37 | Updates und Auslieferung (Signatur, Notarisierung) | M4 + Entscheidung | zurückgestellt (Nutzer, 2026-09-30) | 36 | [37](37-updates-und-auslieferung.md) |
 | 39 | Formular-Assistent | Cloud + M4 | offen | 24 ✓, 25 ✓ (26) | [39](39-formular-assistent.md) |
-| 40 | Overlay- und Consent-Dialoge | Cloud + M4 | offen | 24 ✓ | [40](40-overlay-und-consent.md) |
 | 41 | Fähigkeitsprofile | Cloud + M4 | offen | 25 ✓, 26, 29 | [41](41-faehigkeitsprofile.md) |
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
 | 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 ✓ | [45](45-playwright-anbindung.md) |
@@ -131,4 +137,5 @@ sensible Werte (Paket 58, im Fork belegt).
 | 70 | CDP-Host mit Site Isolation: Frames in anderem Prozess (Aufnahme, DOM-Fakten, Aktionen) | Cloud | offen | 64 ✓ | [70](70-cdp-host-site-isolation.md) |
 | 75 | Formularziel und HTML-`autocomplete` im Fork | Cloud + M4 | offen, Weg (b) entschieden | 58 ✓ | [75](75-formularziel-im-fork.md) |
 | 76 | Sensible Werte außerhalb der Rückfrage (Antwort, Protokolle) | Cloud + M4 | offen | 58 ✓ | [76](76-werte-ausserhalb-der-rueckfrage.md) |
+| 80 | Consent: Einwilligungsseiten ohne Dialog, Abo ohne Signalwort, zweite Ebene | Cloud + M4 | offen | 40 ✓ | [80](80-consent-nachtrag.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |

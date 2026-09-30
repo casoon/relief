@@ -43,6 +43,7 @@ rust_static_library("relief_interaction_rs") {
     "crates/relief-interaction/src/graph.rs",
     "crates/relief-interaction/src/lib.rs",
     "crates/relief-interaction/src/marks.rs",
+    "crates/relief-interaction/src/overlay.rs",
     "crates/relief-interaction/src/page.rs",
     "crates/relief-interaction/src/resolve.rs",
     "crates/relief-interaction/src/respond.rs",

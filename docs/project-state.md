@@ -53,8 +53,9 @@ Befehle im REPL: „was ist hier", „wo bin ich", „was kann ich tun",
 „nächster/vorheriger Abschnitt", „nächstes/vorheriges Formularfeld",
 „lies den Abschnitt [ …]", „welche … gibt es", „öffne …", „fülle … mit …",
 „wähle …", „erhöhe/verringere …", „scrolle nach unten/oben/zum Anfang/zum
-Ende", „schließe den Dialog" (vollständig: „hilfe"); `url …` lädt eine
-andere Seite. Riskante Aktionen fragen zurück; `!` vor demselben Befehl als
+Ende", „schließe den Dialog", „welcher Dialog ist offen", „cookies
+ablehnen", „was ist hinter dem Dialog" (vollständig: „hilfe"); `url …` lädt
+eine andere Seite. Riskante Aktionen fragen zurück; `!` vor demselben Befehl als
 nächste Eingabe bestätigt genau diese Rückfrage, einmal. `!` ohne offene
 Rückfrage bestätigt nichts. Die Rückfrage zu einem Absenden-Button nennt im
 CDP-Host das Formularziel; Werte von Passwortfeldern und Feldern mit
@@ -62,6 +63,14 @@ CDP-Host das Formularziel; Werte von Passwortfeldern und Feldern mit
 Mit `RELIEF_LOG=<datei>` schreibt `run`/`repl` die Entscheidungen jeder
 Eingabe als JSON-Zeilen (`{"t":…,"security":{…}}`: Entscheidung, Plan-ID,
 Aktionsart, Risiko, Grund; keine Werte, keine Namen).
+
+Cookie- und Newsletter-Dialoge sagt „was ist hier" mit an: Art als
+Vermutung mit Evidence, Buttons nach Beschriftung (Zustimmen, Ablehnen,
+Einstellungen, Abo, Schließen). Relief stimmt nie selbst zu; „cookies
+ablehnen" klickt nur einen Button, der ablehnt, ohne zu bezahlen, sonst sagt
+es „kein Ablehnen (ohne Bezahlung)". Die Auskunft über den Hintergrund eines
+modalen Dialogs ist nur lesend. `spike/tasks/09-consent.txt` prüft das auf
+Testseiten, `12-consent-real.txt` auf echten Seiten (Netz, nur lokal).
 
 In Aufgabendateien prüft `assert: <Zusicherung>` den aktuellen Stand eines
 Formulars und antwortet mit Befunden (Regel-IDs `form/…`) oder „Keine
@@ -185,7 +194,7 @@ scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurüc
 |---|---|
 | `crates/relief-model` | browserfrei: semantisches Datenmodell, Delta-Format, Konverter aus `a11y-perception` |
 | `crates/relief-bridge` | browserfrei: Rust-Seite der Grenze zum Fork (`cxx`-Bridge, Mojo-Entwurf), Benchmarks (`cargo bench -p relief-bridge`) |
-| `crates/relief-interaction` | browserfrei, auf `relief-model`: Interaction Graph, Befehle, Zielauflösung, Validierung, Bestätigungstoken und Security-Log, Antworttexte, Formular-Zusicherungen (Befunde im Format von `a11y-report`) |
+| `crates/relief-interaction` | browserfrei, auf `relief-model`: Interaction Graph, Overlay- und Consent-Erkennung, Befehle, Zielauflösung, Validierung, Bestätigungstoken und Security-Log, Antworttexte, Formular-Zusicherungen (Befunde im Format von `a11y-report`) |
 | `crates/relief-ai-contract` | browserfrei: KI-Vertrag (Hypothesen, Intent-Vorschläge, JSON-Schemas), `ModelProvider` mit Stufen, Privacy-Filter, Grenzen je Aufgabe (`Budget`); Sicherheits-Regressionsmatrix in `tests/missbrauch.rs` |
 | `crates/relief-resolver` | browserfrei: Resolver fehlender Namen (Ausschnitt, Anthropic-Adapter hinter Feature `anthropic`, Kalibrierung) |
 | `crates/relief-cdp` | Spike-Host: steuert Chrome über CDP, führt Aktionen aus |

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Nachrichten mit Cookie-Dialog</title></head>
+<body>
+<main>
+  <h1>Nachrichten</h1>
+  <p>Heute im Überblick.</p>
+  <a href="#artikel">Zum Artikel</a>
+  <p role="status" id="s"></p>
+</main>
+<!-- Cookie-Dialog mit kostenlosem Ablehnen. „Akzeptieren und schließen“
+     stimmt zu und darf deshalb nicht als Schließen-Button gelten. -->
+<div role="dialog" aria-modal="true" aria-labelledby="t" id="d">
+  <h2 id="t">Wir verwenden Cookies</h2>
+  <p>Wir und unsere Partner nutzen Cookies für Werbung und Tracking.</p>
+  <button id="accept">Alle akzeptieren</button>
+  <button id="settings">Einstellungen</button>
+  <button id="reject">Alle ablehnen</button>
+  <button id="close">Akzeptieren und schließen</button>
+</div>
+<script>
+  const decide = (text) => () => {
+    document.getElementById('d').hidden = true;
+    document.getElementById('s').textContent = text;
+  };
+  document.getElementById('accept').onclick = decide('Zustimmung gespeichert.');
+  document.getElementById('close').onclick = decide('Zustimmung gespeichert.');
+  document.getElementById('reject').onclick = decide('Ablehnung gespeichert.');
+</script>
+</body></html>
