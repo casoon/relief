@@ -40,6 +40,9 @@ function listLabel(item, focusKey) {
   if (!item.reachable) {
     label += ' [gesperrt]';
   }
+  if (item.findings.length > 0) {
+    label += ` [${item.findings.length} ${item.findings.length === 1 ? 'Befund' : 'Befunde'}]`;
+  }
   if (item.key === focusKey) {
     label += ' ← Position';
   }
@@ -100,6 +103,39 @@ function renderDetails() {
   if (!item.reachable) {
     addDetail('Erreichbar', 'nein, ein modaler Dialog ist offen');
   }
+  for (const finding of item.findings) {
+    addDetail('Befund', findingText(finding));
+  }
+}
+
+// Ergebnis und Schwere aus a11y-report in Worte.
+const ERGEBNIS = {fail: 'Fehler', review: 'prüfen', untested: 'nicht geprüft'};
+
+function findingText(f) {
+  return `${f.message} (${ERGEBNIS[f.outcome] || f.outcome}, ${f.severity}, ${f.rule})`;
+}
+
+function renderChecks(checks) {
+  const findings =
+      [...view.regions, ...view.headings, ...view.controls]
+          .reduce((n, item) => n + item.findings.length, 0) +
+      checks.page.length;
+  document.getElementById('checks-summary').textContent =
+      `${checks.ran} Regeln auf dem Accessibility-Tree gelaufen, ${findings} ` +
+      `Befunde; ${checks.not_run.length} Regeln nicht geprüft (brauchen ` +
+      'Markup oder berechnete Stile).';
+  const page = document.getElementById('checks-page');
+  page.replaceChildren(...checks.page.map((f) => {
+    const li = document.createElement('li');
+    li.textContent = findingText(f);
+    return li;
+  }));
+  const notRun = document.getElementById('checks-not-run');
+  notRun.replaceChildren(...checks.not_run.map(([rule, reason]) => {
+    const li = document.createElement('li');
+    li.textContent = `${rule}: ${reason}`;
+    return li;
+  }));
 }
 
 function counts(v) {
@@ -164,6 +200,7 @@ function render(json) {
     nodes.value = selected;
   }
   renderDetails();
+  renderChecks(view.checks);
   scheduleAnnouncement(counts(view));
 }
 
@@ -231,8 +268,6 @@ function addLog(input, answer) {
   entry.scrollIntoView({block: 'nearest'});
 }
 
-let lastInput = '';
-
 // Schickt die Eingabe; false, wenn noch ein Befehl läuft (die Eingabe
 // bleibt dann stehen).
 function send(text) {
@@ -244,9 +279,8 @@ function send(text) {
     return false;
   }
   busy = true;
-  lastInput = text.trim();
   setState('Führe aus …');
-  chrome.send('command', [lastInput]);
+  chrome.send('command', [text.trim()]);
   return true;
 }
 
@@ -264,7 +298,6 @@ function cancel() {
   if (!busy) {
     // Offene Rückfrage: die Runtime verwirft sie und antwortet.
     busy = true;
-    lastInput = 'abbrechen';
     setState('Breche ab …');
   }
   chrome.send('cancel');
@@ -285,9 +318,11 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
-addWebUiListener('answer', (answer, acted) => {
+// `input`: die Eingabe, wie der Host sie fürs Log liefert (Wert eines
+// Ausfüll- oder Auswahlbefehls verdeckt).
+addWebUiListener('answer', (answer, acted, input) => {
   busy = false;
-  addLog(lastInput || 'abbrechen', answer);
+  addLog(input, answer);
   setState(stateAfter(answer) + (acted ? ' Fokus liegt auf der Seite.' : ''));
 });
 addWebUiListener('focusCommand', () => cmdInput.focus());

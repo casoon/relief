@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Zeitung mit Zwecken</title></head>
+<body>
+<main>
+  <h1>Zeitung</h1>
+  <a href="#artikel">Zum Artikel</a>
+  <p role="status" id="s"></p>
+</main>
+<!-- Erste Ebene wie heise.de: „Einstellungen“ als Link im Text und als
+     Button. Kein Ablehnen. -->
+<div role="dialog" aria-modal="true" aria-label="Cookies und Datenschutz" id="d1">
+  <p>Wir setzen Cookies ein. Ihre Wahl ändern Sie jederzeit in den
+    <a href="#einstellungen" id="settings-link">Einstellungen</a>.</p>
+  <button id="accept">Alle akzeptieren</button>
+  <button id="settings">Einstellungen</button>
+</div>
+<!-- Zweite Ebene wie spiegel.de: Zustimmen je Zweck, Ablehnen nur bei
+     manchen Zwecken, kein Ablehnen für alle zusammen. -->
+<div role="dialog" aria-modal="true" aria-label="Privacy Einstellungen" id="d2" hidden>
+  <p>Wählen Sie je Zweck, ob wir Cookies verwenden dürfen.</p>
+  <h3>Personalisierte Werbung</h3>
+  <button>Zustimmen</button>
+  <h3>Soziale Netzwerke</h3>
+  <button>Zustimmen</button>
+  <button>Ablehnen</button>
+  <h3>Politische Werbung</h3>
+  <button>Zustimmen</button>
+  <button>Ablehnen</button>
+  <button id="apply">Einstellungen anwenden</button>
+  <button id="all">Allen zustimmen</button>
+</div>
+<script>
+  const d1 = document.getElementById('d1'), d2 = document.getElementById('d2');
+  const say = (text) => { document.getElementById('s').textContent = text; };
+  document.getElementById('accept').onclick = () => { d1.hidden = true; say('Zustimmung gespeichert.'); };
+  document.getElementById('settings').onclick = () => { d1.hidden = true; d2.hidden = false; };
+  document.getElementById('apply').onclick = () => { d2.hidden = true; say('Auswahl gespeichert.'); };
+  document.getElementById('all').onclick = () => { d2.hidden = true; say('Zustimmung gespeichert.'); };
+</script>
+</body></html>

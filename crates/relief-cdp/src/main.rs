@@ -618,7 +618,7 @@ fn test_fork(files: &[&String], junit: Option<PathBuf>) -> Result<()> {
         .map(PathBuf::from)
         .unwrap_or_else(|| {
             PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
-                .join("chromium/src/out/Relief/Chromium.app/Contents/MacOS/Chromium")
+                .join("chromium/src/out/Relief/Relief.app/Contents/MacOS/Relief")
         });
     let profile = std::env::temp_dir().join(format!("relief-test-{}", std::process::id()));
     let files: Vec<String> = files

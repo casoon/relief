@@ -92,7 +92,8 @@ Fehlaktion (z. B. „alle akzeptieren“ bei Aufgabe 1), Abbruchregel (10 min).
 | Beobachtungen | wörtlich, ohne Deutung |
 
 Relief protokolliert im Prototyp Eingaben, Antworten, Rückfragen und
-Bestätigungen mit Zeitstempel, lokal, ohne Seiteninhalte.
+Bestätigungen mit Zeitstempel, lokal, ohne Seiteninhalte; der Wert eines
+Ausfüll- oder Auswahlbefehls steht verdeckt darin (→ 07).
 
 ## Auswertung
 

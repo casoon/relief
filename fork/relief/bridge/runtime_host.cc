@@ -63,7 +63,8 @@ void RuntimeHost::Log(const std::string& line) {
 }
 
 bridge::Reply RuntimeHost::RunCommand(const std::string& input) {
-  Log("command\t" + input);
+  // Wert eines Ausfüll- oder Auswahlbefehls verdeckt (Paket 76).
+  Log("command\t" + std::string(bridge::redact_input(input)));
   bridge::Reply reply = bridge::run_command(*runtime_, input);
   LogSecurity();
   return reply;

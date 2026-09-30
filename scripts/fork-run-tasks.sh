@@ -10,7 +10,7 @@
 # `security`-Zeilen des Security-Logs).
 set -euo pipefail
 
-CHROMIUM="${RELIEF_CHROMIUM:-$HOME/chromium/src/out/Relief/Chromium.app/Contents/MacOS/Chromium}"
+CHROMIUM="${RELIEF_CHROMIUM:-$HOME/chromium/src/out/Relief/Relief.app/Contents/MacOS/Relief}"
 if [[ $# -eq 0 ]]; then
   echo "Aufruf: $0 <aufgaben.txt>..." >&2
   exit 2

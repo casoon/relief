@@ -150,17 +150,20 @@ class InspectorHandler : public content::WebUIMessageHandler,
     if (!helper || args.empty() || !args[0].is_string()) {
       return;
     }
-    helper->Interact(args[0].GetString(),
+    const std::string& input = args[0].GetString();
+    helper->Interact(input,
                      base::BindOnce(&InspectorHandler::SendAnswer,
-                                    weak_factory_.GetWeakPtr()));
+                                    weak_factory_.GetWeakPtr(),
+                                    std::string(bridge::redact_input(input))));
   }
 
   // Nach einer Aktion auf der Seite bekommt die Seite den Tastaturfokus:
   // dort steht das Ziel (Fokus bleibt beim Ziel). Abfragen lassen ihn im
-  // Panel.
-  void SendAnswer(ReliefExecutor::Result result) {
+  // Panel. `shown`: die Eingabe fürs Log der Leiste, Wert verdeckt
+  // (Paket 76).
+  void SendAnswer(std::string shown, ReliefExecutor::Result result) {
     FireWebUIListener("answer", base::Value(std::move(result.text)),
-                      base::Value(result.acted));
+                      base::Value(result.acted), base::Value(std::move(shown)));
     if (result.acted) {
       if (ReliefTabHelper* helper = Helper()) {
         helper->web_contents()->Focus();
@@ -177,7 +180,8 @@ class InspectorHandler : public content::WebUIMessageHandler,
     }
     helper->Interact("abbrechen",
                      base::BindOnce(&InspectorHandler::SendAnswer,
-                                    weak_factory_.GetWeakPtr()));
+                                    weak_factory_.GetWeakPtr(),
+                                    std::string("abbrechen")));
   }
 
   // Schließen gibt den Fokus an die Seite zurück (Side Panel).

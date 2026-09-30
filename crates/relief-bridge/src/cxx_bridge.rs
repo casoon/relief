@@ -385,6 +385,9 @@ pub mod ffi {
 
         /// Eingabe in Sprache gegen den aktuellen Graphen (`Runtime::command`).
         fn run_command(runtime: &mut Runtime, input: &str) -> Reply;
+        /// Eingabe für Protokoll und Log der Befehlsleiste, Wert verdeckt
+        /// (`relief_interaction::redact_input`).
+        fn redact_input(input: &str) -> String;
         /// Antwort auf die ausgeführten Schritte bzw. Escape, gegen den
         /// jetzigen Graphen (`Runtime::finish`).
         fn finish_command(runtime: &mut Runtime) -> String;
@@ -541,6 +544,10 @@ fn show_node(runtime: &mut Runtime, key: &str) -> ffi::Reply {
 
 fn run_command(runtime: &mut Runtime, input: &str) -> ffi::Reply {
     reply_to_ffi(runtime.command(input))
+}
+
+fn redact_input(input: &str) -> String {
+    relief_interaction::redact_input(input)
 }
 
 fn reply_to_ffi(reply: Reply) -> ffi::Reply {

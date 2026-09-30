@@ -146,7 +146,7 @@ flowchart LR
 ```
 fork/
 ├── UPSTREAM                  # 154.0.8037.58
-├── patches/                  # series + 3 Patches: tabs/BUILD.gn (deps), tab_features.cc (eine Zeile + Include), Side-Panel-/Aktions-ID des Inspectors
+├── patches/                  # series + 4 Patches: tabs/BUILD.gn (deps), tab_features.cc (eine Zeile + Include), Side-Panel-/Aktions-ID des Inspectors, Produktname „Relief“
 └── relief/                   # → src/relief/ (scripts/fork-apply.sh)
     ├── BUILD.gn              # rust_static_library relief_model_rs, relief_bridge_rs (cxx_bindings); source_set relief; group relief_tests
     ├── relief_attach.h       # AttachToTab: einziger Header, den Chromium einbindet
@@ -207,7 +207,9 @@ flowchart LR
   Inspector“.
 - **Security-Log**: nach jeder Eingabe (`RuntimeHost::RunCommand`) holt der
   Host das Log der Sitzung ab (`take_security_log`) und schreibt je Eintrag
-  `security\t<JSON>` ins Protokoll (`--relief-log`, sonst `LOG(INFO)`).
+  `security\t<JSON>` ins Protokoll (`--relief-log`, sonst `LOG(INFO)`). Die
+  Eingabe selbst steht davor als `command\t…` mit verdecktem Wert
+  (`bridge::redact_input`), ebenso im Log der Befehlsleiste des Panels.
 - **Feldangaben**: der Mirror legt HTML-`type` eines `<input>` (`kInputType`)
   als `extra["inputType"]` ab; HTML-`autocomplete` und das Formularziel
   serialisiert Blink nicht in `AXNodeData`.
@@ -261,7 +263,8 @@ flowchart LR
   Security-Log (`Session::take_security_log`: Entscheidung, Plan-ID,
   Aktionsart, Risiko, Grund; keine Werte, keine Namen). Der Host holt es
   nach jeder Eingabe ab und schreibt es mit `RELIEF_LOG` als JSON-Zeilen
-  (`palette`: in ihr Protokoll); ungeholt hält es die letzten 256 Einträge.
+  (`palette`: in ihr Protokoll, die Eingabe dort mit verdecktem Wert,
+  `redact_input`); ungeholt hält es die letzten 256 Einträge.
 - **Formularziel und Feldangaben** (`facts.rs`): nach jeder Aufnahme ein
   `DOM.getDocument` (Tiefe -1, `pierce`); Absenden-Buttons bekommen
   `extra["formAction"]` (`formaction`, sonst `action` des Formulars über
@@ -334,9 +337,12 @@ flowchart LR
   Cookie-Hinweis (`region: None`, Zustimmen-Button unter einer
   Einwilligungs-Überschrift). Art und Buttons nach Wörtern eingeordnet,
   Buttons ohne Signalwort unter einer Abo-Überschrift als Abo (Inferenz mit
-  Evidence). „cookies ablehnen“ und „cookie-einstellungen öffnen“ werden ein
-  gewöhnlicher `ActionPlan` (`Activate`) auf den einen Button dieser Art;
-  Links und Buttons mit Abo-Wörtern lehnen nicht ab.
+  Evidence); mehrfach gleich benannte Zustimmen-/Ablehnen-Buttons gelten
+  als „je Zweck“, Einstellungswort mit Speichern-Wort als Speichern.
+  „cookies ablehnen“ und „cookie-einstellungen öffnen“ werden ein
+  gewöhnlicher `ActionPlan` (`Activate`) auf den einen Button dieser Art
+  (ein gleichnamiger Link daneben zählt nicht); Links, Buttons je Zweck und
+  Buttons mit Abo-Wörtern lehnen nicht ab.
   „was ist hinter dem Dialog“ liest gesperrte Überschriften und
   Bedienelemente, merkt aber keine Auswahl.
 - **Befehlsleiste** (`palette`): `palette.js` kommt per
