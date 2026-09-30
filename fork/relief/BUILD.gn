@@ -40,6 +40,7 @@ rust_static_library("relief_interaction_rs") {
   edition = "2021"
   sources = [
     "crates/relief-interaction/src/command.rs",
+    "crates/relief-interaction/src/form.rs",
     "crates/relief-interaction/src/graph.rs",
     "crates/relief-interaction/src/lib.rs",
     "crates/relief-interaction/src/marks.rs",

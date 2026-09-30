@@ -25,6 +25,7 @@ use std::time::Duration;
 use relief_model::{NodeRef, SemanticGraph};
 
 use crate::command::{self, parse, Command, ScrollDirection, Step};
+use crate::form;
 use crate::graph::{focused, Control, Graph};
 use crate::marks::{marks, Mark};
 use crate::overlay::{self, ButtonKind};
@@ -78,6 +79,9 @@ pub fn uses_focus(cmd: &Command) -> bool {
             | Command::SectionStep(_)
             | Command::Read(None)
             | Command::Dismiss
+            | Command::MissingFields
+            | Command::ReadErrors
+            | Command::FirstError
     )
 }
 
@@ -112,6 +116,8 @@ pub struct Session {
     confirm_target: Option<(Control, ActionKind)>,
     /// Sprungmarken des zuletzt gezeigten Stands (→ `marks`).
     marks: Vec<Mark>,
+    /// Ort vor dem Sprung zum ersten Fehler („zurück“).
+    return_to: Option<NodeRef>,
     /// Letzte Eingabe als Befehl (ohne „!“): „ja“ bestätigt sie.
     last_input: Option<String>,
 }
@@ -166,6 +172,7 @@ impl Default for Session {
             last_input: None,
             confirm_target: None,
             marks: Vec::new(),
+            return_to: None,
             confirmation: None,
             confirmation_ttl: CONFIRMATION_TTL,
             plans: 0,
@@ -381,6 +388,47 @@ impl Session {
             // Nur Auskunft: keine Auswahl merken, damit keine Nummer und kein
             // Name danach ein gesperrtes Element trifft.
             Command::Background => return Outcome::Answer(respond::background(graph)),
+            Command::MissingFields => {
+                return Outcome::Answer(match form::current_form(graph, here.as_ref()) {
+                    Ok(g) => form::missing(graph, model, g),
+                    Err(msg) => msg,
+                })
+            }
+            Command::ReadErrors => {
+                return Outcome::Answer(match form::current_form(graph, here.as_ref()) {
+                    Ok(g) => form::errors(graph, model, g),
+                    Err(msg) => msg,
+                })
+            }
+            Command::FirstError => {
+                let group = match form::current_form(graph, here.as_ref()) {
+                    Ok(g) => g,
+                    Err(msg) => return Outcome::Answer(msg),
+                };
+                match form::first_error(graph, model, group) {
+                    Some(i) => {
+                        self.return_to = here.clone();
+                        (Ok(graph.controls[i].clone()), ActionKind::Focus)
+                    }
+                    None => {
+                        return Outcome::Answer(form::errors(graph, model, group));
+                    }
+                }
+            }
+            Command::Back => {
+                let Some(at) = self.return_to.take() else {
+                    return Outcome::Answer("Kein vorheriger Ort gemerkt.".into());
+                };
+                if let Some(c) = graph.controls.iter().find(|c| c.node == at) {
+                    (Ok(c.clone()), ActionKind::Focus)
+                } else if let Some(h) = graph.headings.iter().position(|h| h.node == at) {
+                    return self.navigate(graph, Place::Heading(h));
+                } else {
+                    return Outcome::Answer(
+                        "Der vorherige Ort ist nicht mehr auf der Seite.".into(),
+                    );
+                }
+            }
             Command::RejectConsent => (reject_consent(graph), ActionKind::Activate),
             Command::ConsentSettings => (consent_settings(graph), ActionKind::Activate),
             Command::Focus(q) => (pick(graph, &q, |_| true), ActionKind::Focus),
@@ -492,7 +540,18 @@ impl Session {
             return Outcome::Perform { plan, label };
         }
 
-        let binding = Binding::new(&plan, &control, &graph.page, model);
+        // Im Formular: die Werte seiner Felder gehören zur Bestätigung;
+        // ändert sich einer, gilt sie nicht mehr (→ Paket 39).
+        let group = graph
+            .controls
+            .iter()
+            .position(|c| c.node == control.node)
+            .and_then(|i| form::form_of(graph, i));
+        let binding = Binding::new(&plan, &control, &graph.page, model).with_form(
+            group
+                .map(|g| form::values(graph, model, g))
+                .unwrap_or_default(),
+        );
         let mut refused = None;
         if confirmed {
             let (id, redeemed) = match offered {
@@ -525,7 +584,13 @@ impl Session {
             Some(id),
             &plan,
         ));
-        let answer = confirmation_prompt(&plan, &control, model, &binding, refused);
+        let mut answer = confirmation_prompt(&plan, &control, model, &binding, refused);
+        if let Some(g) = group.filter(|_| matches!(plan.kind, ActionKind::Activate)) {
+            answer.push_str(&format!(
+                "\n{}. Werte lassen sich vorher ändern („fülle …“); dann gilt diese Bestätigung nicht mehr.",
+                form::summary(graph, model, g)
+            ));
+        }
         self.confirmation = Some(Confirmation::new(id, binding));
         self.confirm_target = Some((control, kind_for_confirm));
         Outcome::Answer(answer)
@@ -555,8 +620,14 @@ impl Session {
         let target = respond::target_change(before.1, after.1, &plan.target)
             .map(|t| format!("{t}. "))
             .unwrap_or_default();
+        // Nach dem Absenden eines Formulars: Fehler ansagen und hinführen.
+        let errors = (plan.kind == ActionKind::Activate)
+            .then(|| form::errors_after(after.1, after.0, &plan.target))
+            .flatten()
+            .map(|e| format!(" {e}"))
+            .unwrap_or_default();
         format!(
-            "{:?} auf {label}. {target}{}",
+            "{:?} auf {label}. {target}{}{errors}",
             plan.kind,
             respond::describe_diff_at(
                 before.0,

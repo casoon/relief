@@ -69,6 +69,9 @@ der VoiceOver-Durchgang durch das Panel steht mit 47 aus.
 Bericht für CI (`relief-cdp test`: JUnit, a11y-report mit zusammengefassten
 Befunden, `--fork` ohne Fenster über den AX-Weg), beschrieben in
 [spezifikation/12](spezifikation/12-produktumfang.md#bericht-für-ci-umgesetzt-2026-09-30-paket-44).
+Formular-Assistent (was fehlt noch, Fehler vorlesen, zum ersten Fehler,
+Zusammenfassung und Bindung vor dem Absenden) für beide Hosts, beschrieben in
+[spezifikation/12](spezifikation/12-produktumfang.md#formular-assistent-umgesetzt-2026-09-30-paket-39).
 Tastatur-Sprungmarken im Fork (Overlay, Auswahl über die Sitzung, auch
 Klick-`<div>`s; spiegel.de- und bild.de-Consent), beschrieben in
 [spezifikation/12](spezifikation/12-produktumfang.md#tastatur-sprungmarken-umgesetzt-2026-09-30-paket-38).
@@ -111,12 +114,12 @@ sensible Werte (Paket 58, im Fork belegt).
 
 **Sofort startbar:**
 - Cloud: 76 (Werte außerhalb der Rückfrage), 85 (Frames anderer Prozesse, Nachtrag)
-- Cloud + M4: 26 (Sprache), 29 (Semantic View), 39 (Formular-Assistent), 21 (Befunde im Inspector), 36 (Branding), 45 (Playwright), 91 (Consent: zweite Ebene)
+- Cloud + M4: 26 (Sprache), 29 (Semantic View), 21 (Befunde im Inspector), 36 (Branding), 45 (Playwright), 91 (Consent: zweite Ebene)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
-- Linie A: 26, 29, 39 parallel → 41 (40 und 80 erledigt, Nachtrag 91);
+- Linie A: 26, 29 parallel → 41 (40 und 80 erledigt, Nachtrag 91);
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 (44 erledigt), 43 zurückgestellt; 85 jederzeit (70 erledigt).
 - Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
@@ -134,7 +137,6 @@ sensible Werte (Paket 58, im Fork belegt).
 | 34 | Bridge-Variante B (Utility-Prozess) bauen und messen | Cloud + M4 | später | 19 ✓, vor KI-Code in der Runtime | [34](34-bridge-utility-prozess.md) |
 | 36 | Name und Branding „Relief“ | Cloud + M4 | offen | 19 ✓ | [36](36-branding.md) |
 | 37 | Updates und Auslieferung (Signatur, Notarisierung) | M4 + Entscheidung | zurückgestellt (Nutzer, 2026-09-30) | 36 | [37](37-updates-und-auslieferung.md) |
-| 39 | Formular-Assistent | Cloud + M4 | offen | 24 ✓, 25 ✓ (26) | [39](39-formular-assistent.md) |
 | 41 | Fähigkeitsprofile | Cloud + M4 | offen | 25 ✓, 26, 29 | [41](41-faehigkeitsprofile.md) |
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
 | 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 ✓ | [45](45-playwright-anbindung.md) |
@@ -142,5 +144,6 @@ sensible Werte (Paket 58, im Fork belegt).
 | 75 | Formularziel und HTML-`autocomplete` im Fork | Cloud + M4 | offen, Weg (b) entschieden | 58 ✓ | [75](75-formularziel-im-fork.md) |
 | 76 | Sensible Werte außerhalb der Rückfrage (Antwort, Protokolle) | Cloud + M4 | offen | 58 ✓ | [76](76-werte-ausserhalb-der-rueckfrage.md) |
 | 85 | CDP-Host: Frames anderer Prozesse, Nachtrag (Änderungssignal, Verschachtelung, Zählung) | Cloud | offen | 70 ✓ | [85](85-cdp-host-frames-nachtrag.md) |
+| 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
 | 91 | Consent: zweite Ebene auf echten Seiten | Cloud + M4 | offen | 80 ✓ | [91](91-consent-zweite-ebene.md) |

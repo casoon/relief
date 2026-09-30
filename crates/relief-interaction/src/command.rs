@@ -43,6 +43,14 @@ pub enum Command {
     ConsentSettings,
     /// Was hinter dem modalen Dialog liegt, nur Auskunft.
     Background,
+    /// Formular: leere Pflichtfelder und Fehler (Paket 39).
+    MissingFields,
+    /// Formular: Fehlermeldungen vorlesen.
+    ReadErrors,
+    /// Zum ersten fehlerhaften Feld.
+    FirstError,
+    /// Zurück an den Ort vor dem Sprung zum Fehler.
+    Back,
     Help,
 }
 
@@ -402,6 +410,47 @@ fn parse_fixed(lower: &str) -> Option<Command> {
         ),
         (
             &[
+                "was fehlt noch",
+                "was fehlt",
+                "was muss ich noch ausfüllen",
+                "welche pflichtfelder",
+                "welche pflichtfelder fehlen",
+                "what is missing",
+            ],
+            Command::MissingFields,
+        ),
+        (
+            &[
+                "fehler vorlesen",
+                "lies die fehler",
+                "lies die fehler vor",
+                "welche fehler gibt es",
+                "welche fehler",
+                "read errors",
+            ],
+            Command::ReadErrors,
+        ),
+        (
+            &[
+                "zum ersten fehler",
+                "gehe zum ersten fehler",
+                "zum fehler",
+                "gehe zum fehler",
+                "first error",
+            ],
+            Command::FirstError,
+        ),
+        (
+            &[
+                "zurück",
+                "gehe zurück",
+                "zurück zum vorherigen ort",
+                "go back",
+            ],
+            Command::Back,
+        ),
+        (
+            &[
                 "lies den abschnitt",
                 "lies diesen abschnitt",
                 "lies vor",
@@ -423,7 +472,7 @@ nächstes/vorheriges Formularfeld · lies den Abschnitt [<Name>] · welche <Opti
 öffne <Ziel> · schließe den Dialog · fülle <Feld> mit <Wert> · wähle <Option> [bei <Feld>] · \
 erhöhe/verringere <Feld> · scrolle nach unten/oben/zum Anfang/zum Ende · \
 welcher Dialog ist offen · cookies ablehnen · cookie-einstellungen öffnen · \
-was ist hinter dem Dialog";
+was ist hinter dem Dialog · was fehlt noch · fehler vorlesen · zum ersten fehler · zurück";
 
 fn strip_any<'a>(text: &'a str, prefixes: &[&str]) -> Option<&'a str> {
     let lower = text.to_lowercase();

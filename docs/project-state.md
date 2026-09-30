@@ -76,6 +76,13 @@ Relief nur auf „cookie-einstellungen öffnen", nie beim Ablehnen. Die
 Auskunft über den Hintergrund eines modalen Dialogs ist nur lesend. `spike/tasks/09-consent.txt` prüft das auf
 Testseiten, `12-consent-real.txt` auf echten Seiten (Netz, nur lokal).
 
+Formulare: „was fehlt noch“ nennt leere Pflichtfelder und fehlerhafte,
+„fehler vorlesen“ die verknüpften Meldungen, „zum ersten fehler“ führt hin,
+„zurück“ an den Ort davor. Vor dem Absenden nennt die Rückfrage alle
+Feldwerte (sensible verdeckt) und gilt nur, solange sie gleich bleiben; nach
+dem Absenden sagt die Antwort fehlerhafte Felder an.
+`spike/tasks/15-formular-assistent.txt` (beide Hosts).
+
 In Aufgabendateien prüft `assert: <Zusicherung>` den aktuellen Stand eines
 Formulars und antwortet mit Befunden (Regel-IDs `form/…`) oder „Keine
 Befunde.“: `feldnamen`, `namen-wie-accname`, `fehler-verknüpft [Feld]`,
