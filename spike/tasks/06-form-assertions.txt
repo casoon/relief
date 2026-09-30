@@ -1,6 +1,7 @@
-# Formular-Zusicherungen (Pakete 42, 49): richtiges Formular ohne Befund,
+# Formular-Zusicherungen (Pakete 42, 49, 55): richtiges Formular ohne Befund,
 # kaputtes Gegenstück mit einem Befund je Zusicherung, dazu eine
-# Statusregion, die erst mit ihrem Text entsteht.
+# Statusregion, die erst mit ihrem Text entsteht, und der Namensvergleich mit
+# Rendering, iframe und Shadow DOM.
 # `assert: …` prüft den aktuellen Stand; die Antwort sind die Befunde
 # (Regel-ID im Format von a11y-report), `expect:` prüft sie wie sonst.
 # „Rückruf anfordern“ enthält „order“ und ist HIGH: Erst die Rückfrage, dann
@@ -38,8 +39,8 @@ assert: feldnamen
 expect: form/field-name
 assert: namen-wie-accname
 expect: form/name-accname
-expect: laut accname „PLZ (intern: Feld 7)“
-assert: tabfolge Name, Telefon, PLZ, Anliegen, Rückruf anfordern
+expect: laut Chromium „PLZ (intern: Feld 7)“, laut accname „PLZ“
+assert: tabfolge Name, Telefon, PLZ (intern: Feld 7), Anliegen, Rückruf anfordern
 expect: „Anliegen“ wird per Tab nicht erreicht
 do: klicke Rückruf anfordern
 expect: Bestätigung nötig
@@ -69,3 +70,14 @@ do: klicke Speichern
 assert: statusmeldung Einstellungen gespeichert
 expect: form/status-message
 expect: neu eingefügt
+
+# Per CSS verborgener Label-Inhalt ist keine Abweichung; Felder im iframe und
+# im Shadow DOM werden verglichen (sonst `untested`). Nach „Zusatz zeigen“
+# trägt je ein Label dort CSS-Inhalt, den nur Chromium mitzählt.
+url: ../fixtures/form-embedded.html
+assert: namen-wie-accname
+expect: Keine Befunde
+do: klicke Zusatz zeigen
+assert: namen-wie-accname
+expect: laut Chromium „Telefon (Rückfrage)“, laut accname „Telefon“
+expect: laut Chromium „Postleitzahl (Zusatz)“, laut accname „Postleitzahl“

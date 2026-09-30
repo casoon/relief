@@ -64,7 +64,7 @@ crates/
         ├── capture.rs        # getFullAXTree je Frame, iframes eingehängt, Fokus → AXSnapshot
         ├── live.rs           # DOM-Mutationen + Netzwerk → „Seite ruht“; „geändert seit letzter Aufnahme“
         ├── act.rs            # ActionPlan → DOM/JS am Element (Backend-ID); Escape/Pfeiltasten/Tab als Taste; Scrollen
-        ├── assertions.rs     # `assert:`-Zeilen: DOM-Fakten aus DOM.getDocument, Tab-Folge beobachten, Fokus → relief_interaction::assertions
+        ├── assertions.rs     # `assert:`-Zeilen: DOM-Fakten aus DOM.getDocument + DOMSnapshot, Tab-Folge beobachten, Fokus → relief_interaction::assertions
         ├── palette.rs        # Befehlsleiste: Binding, Bestätigung, Protokoll, Selbsttest
         ├── record.rs         # Aufgaben abspielen, AXSnapshots vorher/nachher speichern
         ├── palette.js        # in jedes Dokument eingefügte Leiste (modaler <dialog>, Status-Popover)
@@ -306,7 +306,7 @@ flowchart LR
 flowchart LR
   L["assert: …"] --> P["Assertion::parse"]
   P --> U["Session::update (wie vor do:)"]
-  P -->|"namen-wie-accname"| D["DOM.getDocument → DomFacts (a11y-dom-Arena, DOM-ID → Knoten)"]
+  P -->|"namen-wie-accname"| D["DOM.getDocument (pierce) + DOMSnapshot → DomFacts (a11y-dom-Arena je Dokument, display/visibility, DOM-ID → Knoten)"]
   P -->|"tabfolge"| T["Tab-Tasten ab Dokumentanfang, Fokus je Schritt → NodeRef"]
   U --> C["assertions::check(Modell, Modell vor dem letzten do:, DOM-Fakten, Fokus, Tab-Folge)"]
   D --> C
@@ -315,11 +315,17 @@ flowchart LR
 ```
 
 - **Aufteilung**: `relief-cdp/src/assertions.rs` erhebt, `relief-interaction`
-  wertet aus. DOM-Fakten nur für `namen-wie-accname`: Hauptdokument, Tag,
-  Text und die Attribute aus `dom_attribute_needed`; ohne `script`, `style`,
-  `template`, `noscript`, ohne iframes und Shadow DOM, ohne Rendering.
-  `accname::name` rechnet darauf; eine Abweichung zu Chromiums Namen ist ein
-  `review`-Befund mit beiden Werten.
+  wertet aus. DOM-Fakten nur für `namen-wie-accname`: Tag, Text und die
+  Attribute aus `dom_attribute_needed`, ohne `script`, `style`, `template`,
+  `noscript`; je Dokument eine Arena (Hauptdokument und jedes iframe im
+  selben Renderer-Prozess, eigene IDs), Shadow DOM des Autors flach unter dem
+  Host (Slots aufgelöst, Shadow DOM des Browsers weggelassen). Aus
+  `DOMSnapshot.captureSnapshot` kommen `display`/`visibility` je Element
+  (ohne Layout-Objekt: `none` bzw. `contents`) und die Leerraum-Textknoten,
+  die `DOM.getDocument` auslässt. `DomDocument` erfüllt `a11y_dom::Rendering`
+  (ohne Geometrie), `accname::name_rendered` rechnet darauf; eine Abweichung
+  zu Chromiums Namen ist ein `review`-Befund mit beiden Werten. iframes in
+  einem anderen Prozess fehlen, Felder dort sind `untested`.
 - **Statusmeldung als Änderung**: Der Host merkt sich vor jeder
   `do:`-Zeile das Modell (`before_action`). `TreeDelta::between` davon zum
   aktuellen Modell: Ist die Live-Region mit dem Text dort `created`, ihr

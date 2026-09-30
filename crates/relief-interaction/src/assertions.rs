@@ -26,7 +26,7 @@
 
 use std::collections::HashMap;
 
-use a11y_dom::{Arena, ArenaBuilder, ArenaNode, Document};
+use a11y_dom::{Arena, ArenaBuilder, ArenaNode, ComputedStyle, Document, Node, Rect, Rendering};
 use a11y_report::{Evidence, Finding, Location, Severity};
 use accname::IdIndex;
 use relief_model::{NodeRef, Role, SemanticGraph, SemanticNode, TreeDelta};
@@ -102,75 +102,202 @@ impl Assertion {
     }
 }
 
-/// DOM-Fakten eines Dokuments in browserneutraler Form: der Baum als
-/// `a11y-dom`-Arena mit Tag, Text und den Attributen, die die Prüfungen
-/// brauchen ([`dom_attribute_needed`]), dazu die Zuordnung DOM-ID →
-/// Arena-Knoten. Der Host erhebt sie; hier werden sie nur gelesen.
+/// DOM-Fakten einer Seite in browserneutraler Form: je Dokument
+/// (Hauptdokument, jedes erreichbare iframe) eine `a11y-dom`-Arena mit Tag,
+/// Text und den Attributen, die die Prüfungen brauchen
+/// ([`dom_attribute_needed`]), dazu `display`/`visibility` je Element und die
+/// Zuordnung DOM-ID → Arena-Knoten. Shadow DOM hängt der Host flach unter
+/// sein Host-Element, wie Browser und Assistenztechnik den Baum sehen. Der
+/// Host erhebt die Fakten; hier werden sie nur gelesen.
 #[derive(Debug)]
 pub struct DomFacts {
-    arena: Arena,
-    by_dom_node: HashMap<i64, a11y_dom::NodeId>,
+    documents: Vec<DomDocument>,
+    by_dom_node: HashMap<i64, (usize, a11y_dom::NodeId)>,
 }
 
 impl DomFacts {
-    /// Aufbau in Dokumentreihenfolge; das erste Element ist die Wurzel.
+    /// Aufbau in Dokumentreihenfolge; das erste Element ist die Wurzel des
+    /// Hauptdokuments.
     pub fn builder() -> DomFactsBuilder {
         DomFactsBuilder {
-            arena: Arena::builder(),
-            next: 0,
+            current: PendingDocument::new(0),
+            outer: Vec::new(),
+            documents: vec![None],
             by_dom_node: HashMap::new(),
         }
     }
 
-    pub fn document(&self) -> &Arena {
-        &self.arena
+    /// Hauptdokument zuerst, danach die iframes in der Reihenfolge ihres
+    /// Aufbaus.
+    pub fn documents(&self) -> &[DomDocument] {
+        &self.documents
     }
 
-    /// Element zur DOM-ID des Modells ([`SemanticNode::dom_node_id`]).
-    pub fn node(&self, dom_node_id: i64) -> Option<ArenaNode<'_>> {
-        self.arena.get(*self.by_dom_node.get(&dom_node_id)?)
+    /// Element zur DOM-ID des Modells ([`SemanticNode::dom_node_id`]) samt
+    /// Index seines Dokuments in [`DomFacts::documents`].
+    pub fn node(&self, dom_node_id: i64) -> Option<(usize, ArenaNode<'_>)> {
+        let &(document, id) = self.by_dom_node.get(&dom_node_id)?;
+        Some((document, self.documents[document].arena.get(id)?))
+    }
+}
+
+/// Ein Dokument der DOM-Fakten. Erfüllt [`Rendering`] mit dem, was der Host
+/// erhebt: `display` und `visibility`, keine Geometrie und keine Farben.
+#[derive(Debug)]
+pub struct DomDocument {
+    arena: Arena,
+    styles: HashMap<a11y_dom::NodeId, ComputedStyle>,
+}
+
+impl Document for DomDocument {
+    type N<'a>
+        = ArenaNode<'a>
+    where
+        Self: 'a;
+
+    fn root(&self) -> Self::N<'_> {
+        self.arena.root()
+    }
+
+    fn node_count(&self) -> Option<usize> {
+        self.arena.node_count()
+    }
+}
+
+impl Rendering for DomDocument {
+    fn computed_style<'n>(&'n self, node: Self::N<'n>) -> Option<ComputedStyle> {
+        self.styles.get(&node.id()).cloned()
+    }
+
+    /// Keine Geometrie erhoben.
+    fn bounds<'n>(&'n self, _node: Self::N<'n>) -> Option<Rect> {
+        None
     }
 }
 
 /// Baut [`DomFacts`] auf wie [`ArenaBuilder`], merkt sich dabei die DOM-ID
-/// jedes Elements.
+/// jedes Elements. [`DomFactsBuilder::frame`] beginnt das Dokument eines
+/// iframes, [`DomFactsBuilder::end_frame`] kehrt ins umgebende zurück.
 pub struct DomFactsBuilder {
+    current: PendingDocument,
+    /// Umgebende Dokumente, solange ein iframe-Dokument im Bau ist.
+    outer: Vec<PendingDocument>,
+    documents: Vec<Option<DomDocument>>,
+    by_dom_node: HashMap<i64, (usize, a11y_dom::NodeId)>,
+}
+
+struct PendingDocument {
+    /// Index in [`DomFacts::documents`].
+    index: usize,
     arena: ArenaBuilder,
     /// Index des nächsten Arena-Knotens (die Arena zählt in Einfügefolge).
     next: u32,
-    by_dom_node: HashMap<i64, a11y_dom::NodeId>,
+    /// Offene Elemente, das innerste zuletzt.
+    open: Vec<a11y_dom::NodeId>,
+    styles: HashMap<a11y_dom::NodeId, ComputedStyle>,
+}
+
+impl PendingDocument {
+    fn new(index: usize) -> Self {
+        Self {
+            index,
+            arena: Arena::builder(),
+            next: 0,
+            open: Vec::new(),
+            styles: HashMap::new(),
+        }
+    }
+
+    fn with(&mut self, f: impl FnOnce(ArenaBuilder) -> ArenaBuilder) {
+        self.arena = f(std::mem::replace(&mut self.arena, Arena::builder()));
+    }
+
+    fn finish(self) -> DomDocument {
+        DomDocument {
+            arena: self.arena.build(),
+            styles: self.styles,
+        }
+    }
 }
 
 impl DomFactsBuilder {
     /// Element öffnen; `dom_node_id` wie im Modell.
     pub fn open(mut self, local_name: &str, dom_node_id: i64) -> Self {
-        self.by_dom_node
-            .insert(dom_node_id, a11y_dom::NodeId(self.next));
-        self.next += 1;
-        self.arena = self.arena.open(local_name);
+        let doc = &mut self.current;
+        let id = a11y_dom::NodeId(doc.next);
+        self.by_dom_node.insert(dom_node_id, (doc.index, id));
+        doc.next += 1;
+        doc.open.push(id);
+        doc.with(|a| a.open(local_name));
         self
     }
 
     /// Attribut am offenen Element; nur, was [`dom_attribute_needed`] nennt.
     pub fn attr(mut self, name: &str, value: &str) -> Self {
-        self.arena = self.arena.attr(name, value);
+        self.current.with(|a| a.attr(name, value));
+        self
+    }
+
+    /// Berechnetes `display` und `visibility` des offenen Elements. Ohne
+    /// Angabe rechnet `accname` für dieses Element wie ohne Rendering.
+    pub fn style(mut self, display: &str, visibility: Option<&str>) -> Self {
+        let doc = &mut self.current;
+        if let Some(&id) = doc.open.last() {
+            doc.styles.insert(
+                id,
+                ComputedStyle {
+                    color: None,
+                    background_color: None,
+                    font_size_px: None,
+                    font_weight: None,
+                    display: Some(display.to_string()),
+                    visibility: visibility.map(str::to_string),
+                },
+            );
+        }
         self
     }
 
     pub fn text(mut self, text: &str) -> Self {
-        self.next += 1;
-        self.arena = self.arena.text(text);
+        self.current.next += 1;
+        self.current.with(|a| a.text(text));
         self
     }
 
     pub fn close(mut self) -> Self {
-        self.arena = self.arena.close();
+        self.current.open.pop();
+        self.current.with(ArenaBuilder::close);
         self
     }
 
-    pub fn build(self) -> DomFacts {
+    /// Eigenes Dokument für den Inhalt eines iframes beginnen: eigene IDs,
+    /// eigene `<label for>`-Zuordnung.
+    pub fn frame(mut self) -> Self {
+        let index = self.documents.len();
+        self.documents.push(None);
+        let outer = std::mem::replace(&mut self.current, PendingDocument::new(index));
+        self.outer.push(outer);
+        self
+    }
+
+    /// iframe-Dokument abschließen, zurück ins umgebende.
+    pub fn end_frame(mut self) -> Self {
+        let outer = self.outer.pop().expect("end_frame ohne vorheriges frame");
+        let done = std::mem::replace(&mut self.current, outer);
+        let index = done.index;
+        self.documents[index] = Some(done.finish());
+        self
+    }
+
+    pub fn build(mut self) -> DomFacts {
+        let index = self.current.index;
+        self.documents[index] = Some(self.current.finish());
         DomFacts {
-            arena: self.arena.build(),
+            documents: self
+                .documents
+                .into_iter()
+                .map(|d| d.expect("jedes frame mit end_frame abgeschlossen"))
+                .collect(),
             by_dom_node: self.by_dom_node,
         }
     }
@@ -392,11 +519,15 @@ fn field_names(model: &SemanticGraph) -> Vec<Finding> {
 }
 
 fn names_match_dom(model: &SemanticGraph, dom: &DomFacts) -> Vec<Finding> {
-    let doc = dom.document();
-    let ids = IdIndex::build(doc.root());
+    // IDs gelten je Dokument: `<label for>` in einem iframe meint dessen IDs.
+    let ids: Vec<_> = dom
+        .documents()
+        .iter()
+        .map(|d| IdIndex::build(d.root()))
+        .collect();
     let mut out = Vec::new();
     for (at, node) in fields(model) {
-        let Some(element) = node.dom_node_id.and_then(|d| dom.node(d)) else {
+        let Some((document, element)) = node.dom_node_id.and_then(|d| dom.node(d)) else {
             out.push(at_node(
                 Finding::untested(
                     "form/name-accname",
@@ -408,18 +539,23 @@ fn names_match_dom(model: &SemanticGraph, dom: &DomFacts) -> Vec<Finding> {
             continue;
         };
         let chromium = name_of(node);
-        let computed = norm(&accname::name(element, &ids).unwrap_or_default());
+        let computed = norm(
+            &accname::name_rendered(&dom.documents()[document], element, &ids[document])
+                .unwrap_or_default(),
+        );
         if chromium == computed {
             continue;
         }
-        let why = if !chromium.is_empty() && computed.contains(&chromium) {
-            "accname zählt Inhalt mit, den Chromium auslässt — meist per CSS verborgen \
-             (die DOM-Fakten tragen kein Rendering, display: none sieht accname nicht)."
+        let why = if !computed.is_empty() && chromium.contains(&computed) {
+            "Chromium zählt Inhalt mit, den die DOM-Berechnung nicht sieht — meist \
+             CSS-Inhalt (::before/::after); Text gehört ins Markup."
+        } else if !chromium.is_empty() && computed.contains(&chromium) {
+            "accname zählt Inhalt mit, den Chromium auslässt; Markup und Stile prüfen."
         } else if chromium.is_empty() {
             "Chromium findet keinen Namen, die DOM-Berechnung schon; Markup prüfen."
         } else if computed.is_empty() {
             "Chromium bildet einen Namen, den die DOM-Berechnung nicht findet \
-             (z. B. aus CSS-Inhalt oder Shadow DOM)."
+             (z. B. aus CSS-Inhalt)."
         } else {
             "Ursache aus den Daten nicht bestimmbar; Markup prüfen."
         };
@@ -1074,18 +1210,22 @@ mod tests {
         assert_eq!(f[0].message, "„E-Mail“ wird per Tab nicht erreicht.");
     }
 
-    #[test]
-    fn abweichung_zu_accname_ist_ein_eigener_befund() {
-        let g = form();
-        // <form><label for=name>Name <span>intern</span></label><input id=name>
-        //       <label for=mail>E-Mail</label><input id=mail>…
-        let dom = DomFacts::builder()
+    /// `<form><label for=name>Name <span>intern</span></label><input id=name>
+    /// <label for=mail>E-Mail</label><input id=mail></form>`; `span_style`
+    /// ist `display`/`visibility` des `<span>`, `None` = ohne Stil.
+    fn form_dom(span_style: Option<(&str, Option<&str>)>) -> DomFacts {
+        let mut b = DomFacts::builder()
             .open("form", 2)
+            .style("block", Some("visible"))
             .open("label", 10)
+            .style("inline", Some("visible"))
             .attr("for", "name")
             .text("Name ")
-            .open("span", 11)
-            .text("intern")
+            .open("span", 11);
+        if let Some((display, visibility)) = span_style {
+            b = b.style(display, visibility);
+        }
+        b.text("intern")
             .close()
             .close()
             .open("input", 3)
@@ -1099,15 +1239,76 @@ mod tests {
             .attr("id", "mail")
             .close()
             .close()
-            .build();
+            .build()
+    }
+
+    fn names(g: &SemanticGraph, dom: &DomFacts) -> Vec<Finding> {
         let o = Observed {
-            dom: Some(&dom),
-            ..observed(&g)
+            dom: Some(dom),
+            ..observed(g)
         };
-        let f = check(&Assertion::NamesMatchDom, &o);
+        check(&Assertion::NamesMatchDom, &o)
+    }
+
+    #[test]
+    fn abweichung_zu_accname_ist_ein_eigener_befund() {
+        let g = form();
+        let f = names(&g, &form_dom(Some(("inline", Some("visible")))));
         assert_eq!(f.len(), 1, "{f:?}");
         assert_eq!(f[0].rule_id, "form/name-accname");
+        assert_eq!(f[0].outcome, a11y_report::Outcome::Review);
         assert!(f[0].message.contains("laut accname „Name intern“"));
-        assert!(f[0].help.as_deref().unwrap().contains("CSS"));
+        assert!(f[0].help.as_deref().unwrap().contains("Chromium auslässt"));
+        // Ohne Stil rechnet accname für das Element wie ohne Rendering.
+        assert_eq!(names(&g, &form_dom(None)).len(), 1);
+    }
+
+    #[test]
+    fn per_css_verborgener_inhalt_ist_keine_abweichung() {
+        let g = form();
+        assert!(names(&g, &form_dom(Some(("none", None)))).is_empty());
+        assert!(names(&g, &form_dom(Some(("inline", Some("hidden"))))).is_empty());
+    }
+
+    #[test]
+    fn css_inhalt_bei_chromium_hat_eine_eigene_ursache() {
+        let mut g = form();
+        node(&mut g, 4).name.value = Some("E-Mail *".into());
+        let f = names(&g, &form_dom(Some(("none", None))));
+        assert_eq!(f.len(), 1, "{f:?}");
+        assert!(f[0].help.as_deref().unwrap().contains("::before"));
+    }
+
+    #[test]
+    fn iframe_ist_ein_eigenes_dokument_mit_eigenen_ids() {
+        let g = form();
+        // Beide Dokumente nutzen die ID `f`; jedes Label meint sein Feld.
+        let dom = DomFacts::builder()
+            .open("html", 1)
+            .open("label", 10)
+            .attr("for", "f")
+            .text("Name")
+            .close()
+            .open("input", 3)
+            .attr("id", "f")
+            .close()
+            .open("iframe", 20)
+            .frame()
+            .open("html", 21)
+            .open("label", 22)
+            .attr("for", "f")
+            .text("E-Mail")
+            .close()
+            .open("input", 4)
+            .attr("id", "f")
+            .close()
+            .close()
+            .end_frame()
+            .close()
+            .close()
+            .build();
+        assert_eq!(dom.documents().len(), 2);
+        assert_eq!(dom.node(4).map(|(d, _)| d), Some(1));
+        assert!(names(&g, &dom).is_empty(), "{:?}", names(&g, &dom));
     }
 }

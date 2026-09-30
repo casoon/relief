@@ -176,7 +176,7 @@ scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurüc
 | `crates/relief-ai-contract` | browserfrei: KI-Vertrag (Hypothesen, Intent-Vorschläge, JSON-Schemas), `ModelProvider` mit Stufen, Privacy-Filter, Grenzen je Aufgabe (`Budget`); Sicherheits-Regressionsmatrix in `tests/missbrauch.rs` |
 | `crates/relief-resolver` | browserfrei: Resolver fehlender Namen (Ausschnitt, Anthropic-Adapter hinter Feature `anthropic`, Kalibrierung) |
 | `crates/relief-cdp` | Spike-Host: steuert Chrome über CDP, führt Aktionen aus |
-| `spike/fixtures`, `spike/tasks` | Testseiten und Aufgabendateien (`url:`/`do:`/`assert:`/`expect:`); `06-form-assertions.txt` mit `form-clean.html`/`form-broken.html`/`status-inserted.html` prüft die Formular-Zusicherungen |
+| `spike/fixtures`, `spike/tasks` | Testseiten und Aufgabendateien (`url:`/`do:`/`assert:`/`expect:`); `06-form-assertions.txt` mit `form-clean.html`/`form-broken.html`/`status-inserted.html`/`form-embedded.html` prüft die Formular-Zusicherungen |
 | `spike/recordings` | AXTree-Aufnahmen als Fixtures für browserfreie Tests |
 | `spike/kalibrierung` | von Hand beschriftete Stichprobe unbenannter Controls mit Soll-Namen und Begründung |
 | `crates/relief-interaction/tests` | Snapshot- und Aufgabentests gegen die Aufnahmen; Erwartungen neu setzen mit `RELIEF_ERWARTUNGEN=neu` |
