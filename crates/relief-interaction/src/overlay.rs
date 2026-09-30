@@ -47,6 +47,14 @@ pub enum ButtonKind {
     Accept,
     Reject,
     Settings,
+    /// Speichert die Auswahl auf der zweiten Ebene („Auswahl speichern“,
+    /// „Einstellungen anwenden“): öffnet keine Einstellungen.
+    Save,
+    /// Zustimmen oder Ablehnen **je Zweck** auf der zweiten Ebene: derselbe
+    /// Name steht mehrfach im Overlay (spiegel.de dreimal „Ablehnen“,
+    /// bild.de „Einwilligen“ je Zweck). Weder Ablehnen noch Zustimmen des
+    /// Ganzen; Relief wählt ihn nie selbst.
+    Purpose,
     /// Abo oder Bezahlen (z. B. „pur“): kein kostenloses Ablehnen.
     Pay,
     Close,
@@ -59,6 +67,8 @@ impl ButtonKind {
             ButtonKind::Accept => "Zustimmen",
             ButtonKind::Reject => "Ablehnen",
             ButtonKind::Settings => "Einstellungen",
+            ButtonKind::Save => "Speichern",
+            ButtonKind::Purpose => "vermutlich je Zweck",
             ButtonKind::Pay => "Abo",
             ButtonKind::Close => "Schließen",
             ButtonKind::Other => "weitere",
@@ -176,6 +186,18 @@ const SETTINGS: &[&str] = &[
     "manage",
     "options",
 ];
+/// Zusammen mit einem Einstellungswort: speichert die Auswahl, statt
+/// Einstellungen zu öffnen. Allein nicht („Speichern von oder Zugriff auf
+/// Informationen“ ist ein Zweck auf bild.de).
+const SAVE: &[&str] = &[
+    "speicher",
+    "anwenden",
+    "übernehm",
+    "bestätig",
+    "save",
+    "apply",
+    "confirm",
+];
 const CLOSE: &[&str] = &["schließen", "close", "abbrechen", "cancel", "zurück"];
 const CLOSE_EXACT: &[&str] = &["x", "×", "✕"];
 
@@ -196,6 +218,11 @@ pub fn button_kind(name: &str) -> (ButtonKind, Option<&'static str>) {
         (ButtonKind::Close, CLOSE),
     ] {
         if let Some(word) = hit(&n, list) {
+            if kind == ButtonKind::Settings {
+                if let Some(save) = hit(&n, SAVE) {
+                    return (ButtonKind::Save, Some(save));
+                }
+            }
             return (kind, Some(word));
         }
     }
@@ -235,9 +262,12 @@ pub fn overlays(graph: &Graph) -> Vec<Overlay> {
         .filter(|o| {
             o.region
                 .is_some_and(|r| matches!(graph.regions[r].role, Role::Dialog | Role::AlertDialog))
-                || o.buttons
-                    .iter()
-                    .any(|(_, k)| matches!(k.value, Some(ButtonKind::Accept | ButtonKind::Reject)))
+                || o.buttons.iter().any(|(_, k)| {
+                    matches!(
+                        k.value,
+                        Some(ButtonKind::Accept | ButtonKind::Reject | ButtonKind::Purpose)
+                    )
+                })
         })
         .collect();
     let consent = |o: &Overlay| o.kind.value == Some(OverlayKind::Consent);
@@ -297,6 +327,7 @@ pub fn consent_page_overlay(graph: &Graph) -> Option<Overlay> {
         })
         .map(|(i, c)| (i, button_fact(graph, c, None)))
         .collect();
+    let buttons = mark_purposes(graph, buttons);
     Some(Overlay {
         region: None,
         kind: rule(
@@ -339,6 +370,7 @@ fn classify(graph: &Graph, region: usize) -> Overlay {
         })
         .map(|(i, c)| (i, button_fact(graph, c, Some(region))))
         .collect();
+    let buttons = mark_purposes(graph, buttons);
 
     let r = &graph.regions[region];
     let texts = graph
@@ -366,9 +398,12 @@ fn classify(graph: &Graph, region: usize) -> Overlay {
 
     let mut consent = signal(CONSENT);
     let kind = if !consent.is_empty() {
-        let decision = buttons
-            .iter()
-            .find(|(_, k)| matches!(k.value, Some(ButtonKind::Accept | ButtonKind::Reject)));
+        let decision = buttons.iter().find(|(_, k)| {
+            matches!(
+                k.value,
+                Some(ButtonKind::Accept | ButtonKind::Reject | ButtonKind::Purpose)
+            )
+        });
         if let Some((i, _)) = decision {
             consent.push(format!("Button „{}“", graph.controls[*i].display_name()));
         }
@@ -435,6 +470,46 @@ fn button_fact(graph: &Graph, c: &Control, region: Option<usize>) -> Fact<Button
         confidence: None,
         evidence: vec![evidence],
     }
+}
+
+/// Zweck-Buttons der zweiten Ebene: Ein **Button**, der zustimmt oder
+/// ablehnt, gilt als „je Zweck“, wenn ein anderer Button im selben Overlay
+/// genauso heißt (spiegel.de: sechsmal „Zustimmen“, dreimal „Ablehnen“
+/// unter je einem Zweck; bild.de: „Einwilligen“ und „Ablehnen“ je Zweck).
+/// Wer das Ganze ablehnt oder zustimmt, steht einmal da („Allen
+/// zustimmen“). Das nimmt Buttons nur aus Ablehnen und Zustimmen heraus und
+/// macht nichts wählbar; deshalb `Uncertain`, und lieber einmal zu oft
+/// (zwei gleiche „Alle ablehnen“ auf einer Ebene werden ebenfalls nicht
+/// von selbst geklickt).
+fn mark_purposes(
+    graph: &Graph,
+    mut buttons: Vec<(usize, Fact<ButtonKind>)>,
+) -> Vec<(usize, Fact<ButtonKind>)> {
+    let key = |i: usize| {
+        let c = &graph.controls[i];
+        (c.role == Role::Button)
+            .then(|| normalize(c.name.value.as_deref().unwrap_or_default()))
+            .filter(|n| !n.is_empty())
+    };
+    let decisions: Vec<(usize, String)> = buttons
+        .iter()
+        .filter(|(_, k)| matches!(k.value, Some(ButtonKind::Accept | ButtonKind::Reject)))
+        .filter_map(|(i, _)| Some((*i, key(*i)?)))
+        .collect();
+    for (i, fact) in &mut buttons {
+        let Some((_, name)) = decisions.iter().find(|(j, _)| j == i) else {
+            continue;
+        };
+        let count = decisions.iter().filter(|(_, n)| n == name).count();
+        if count >= 2 {
+            fact.value = Some(ButtonKind::Purpose);
+            fact.certainty = Certainty::Uncertain;
+            fact.evidence[0].push_str(&format!(
+                ", aber {count}-mal gleich benannt: vermutlich je Zweck"
+            ));
+        }
+    }
+    buttons
 }
 
 /// Ab zwei Hinweisen erschlossen, mit einem unsicher.
@@ -580,6 +655,13 @@ mod tests {
         assert_eq!(kind("Einwilligung verwalten"), Settings);
         assert_eq!(kind("×"), Close);
         assert_eq!(kind("Purpose details"), Settings);
+        assert_eq!(kind("Auswahl speichern"), Save);
+        assert_eq!(kind("Einstellungen anwenden"), Save);
+        // Ohne Einstellungswort kein Speichern (Zweck auf bild.de).
+        assert_eq!(
+            kind("Speichern von oder Zugriff auf Informationen auf einem Endgerät"),
+            Other
+        );
         assert_eq!(kind("Datenschutzerklärung"), Other);
         assert!(blocks_dismissal("Akzeptieren und schließen"));
         assert!(blocks_dismissal("Einstellungen akzeptieren und schließen"));
@@ -614,6 +696,37 @@ mod tests {
         );
         assert_eq!(o.of_kind(ButtonKind::Reject).count(), 0);
         assert_eq!(o.of_kind(ButtonKind::Pay).count(), 1);
+    }
+
+    #[test]
+    fn purpose_buttons_on_the_second_level() {
+        // Wie spiegel.de: Zustimmen je Zweck, Ablehnen nur bei manchen.
+        let g = Graph::build(&consent_page(&[
+            "Zustimmen",
+            "Zustimmen",
+            "Ablehnen",
+            "Zustimmen",
+            "Ablehnen",
+            "Einstellungen anwenden",
+            "Allen zustimmen",
+        ]));
+        let o = consent(&g).unwrap();
+        assert_eq!(o.of_kind(ButtonKind::Purpose).count(), 5);
+        assert_eq!(o.of_kind(ButtonKind::Reject).count(), 0);
+        assert_eq!(o.of_kind(ButtonKind::Accept).count(), 1);
+        assert_eq!(o.of_kind(ButtonKind::Save).count(), 1);
+        let (_, fact) = &o.buttons[2];
+        assert_eq!(fact.value, Some(ButtonKind::Purpose));
+        assert_eq!(fact.certainty, Certainty::Uncertain);
+        assert_eq!(
+            fact.evidence,
+            ["Name enthält „ablehnen“, aber 2-mal gleich benannt: vermutlich je Zweck"]
+        );
+        // Ein einzelnes „Ablehnen“ bleibt Ablehnen.
+        let g = Graph::build(&consent_page(&["Zustimmen", "Ablehnen"]));
+        let o = consent(&g).unwrap();
+        assert_eq!(o.of_kind(ButtonKind::Reject).count(), 1);
+        assert_eq!(o.of_kind(ButtonKind::Purpose).count(), 0);
     }
 
     #[test]

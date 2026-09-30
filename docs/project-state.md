@@ -67,12 +67,16 @@ Aktionsart, Risiko, Grund; keine Werte, keine Namen).
 
 Cookie- und Newsletter-Dialoge sagt „was ist hier" mit an: Art als
 Vermutung mit Evidence, Buttons nach Beschriftung (Zustimmen, Ablehnen,
-Einstellungen, Abo, Schließen). Eine Einwilligungsseite ohne Dialog gilt als
+Einstellungen, Speichern, Abo, Schließen; Zustimmen und Ablehnen je Zweck
+auf der zweiten Ebene zusammengefasst als „vermutlich je Zweck „Ablehnen“
+3-mal“). Eine Einwilligungsseite ohne Dialog gilt als
 „Seite ohne Dialog vermutlich Cookie-Hinweis", wenn ein Zustimmen-Button unter
 einer Überschrift mit Einwilligungswort steht. Relief stimmt nie selbst zu;
 „cookies ablehnen" klickt nur einen Button, der ablehnt, ohne zu bezahlen, sonst sagt
 es „kein Ablehnen (ohne Bezahlung)". Die Einstellungen (zweite Ebene) öffnet
-Relief nur auf „cookie-einstellungen öffnen", nie beim Ablehnen. Die
+Relief nur auf „cookie-einstellungen öffnen", nie beim Ablehnen; ein
+gleichnamiger Link neben dem Button zählt dabei nicht. Buttons je Zweck
+und „Auswahl speichern“ wählt Relief nie selbst. Die
 Auskunft über den Hintergrund eines modalen Dialogs ist nur lesend. `spike/tasks/09-consent.txt` prüft das auf
 Testseiten, `12-consent-real.txt` auf echten Seiten (Netz, nur lokal).
 

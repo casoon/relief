@@ -328,9 +328,12 @@ flowchart LR
   Cookie-Hinweis (`region: None`, Zustimmen-Button unter einer
   Einwilligungs-Überschrift). Art und Buttons nach Wörtern eingeordnet,
   Buttons ohne Signalwort unter einer Abo-Überschrift als Abo (Inferenz mit
-  Evidence). „cookies ablehnen“ und „cookie-einstellungen öffnen“ werden ein
-  gewöhnlicher `ActionPlan` (`Activate`) auf den einen Button dieser Art;
-  Links und Buttons mit Abo-Wörtern lehnen nicht ab.
+  Evidence); mehrfach gleich benannte Zustimmen-/Ablehnen-Buttons gelten
+  als „je Zweck“, Einstellungswort mit Speichern-Wort als Speichern.
+  „cookies ablehnen“ und „cookie-einstellungen öffnen“ werden ein
+  gewöhnlicher `ActionPlan` (`Activate`) auf den einen Button dieser Art
+  (ein gleichnamiger Link daneben zählt nicht); Links, Buttons je Zweck und
+  Buttons mit Abo-Wörtern lehnen nicht ab.
   „was ist hinter dem Dialog“ liest gesperrte Überschriften und
   Bedienelemente, merkt aber keine Auswahl.
 - **Befehlsleiste** (`palette`): `palette.js` kommt per
