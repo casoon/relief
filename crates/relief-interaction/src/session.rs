@@ -430,6 +430,7 @@ impl Session {
                 }
             }
             Command::RejectConsent => (reject_consent(graph), ActionKind::Activate),
+            Command::ConsentSettings => (consent_settings(graph), ActionKind::Activate),
             Command::Focus(q) => (pick(graph, &q, |_| true), ActionKind::Focus),
             Command::Activate(q) => (pick(graph, &q, |_| true), ActionKind::Activate),
             Command::SetValue(q, v) => (pick(graph, &q, is_editable), ActionKind::SetValue(v)),
@@ -838,30 +839,56 @@ fn pick_from(graph: &Graph, query: &str, found: Resolution) -> Result<Control, M
 /// [`crate::overlay`]). Keiner: Das wird angesagt, nicht umgangen; Relief
 /// wählt dann weder Zustimmen noch Einstellungen noch Abo.
 fn reject_consent(graph: &Graph) -> Result<Control, Miss<Control>> {
+    consent_button(
+        graph,
+        ButtonKind::Reject,
+        "nichts abgelehnt",
+        "Nicht abgelehnt",
+        "Mehrere Buttons lehnen vermutlich ab:",
+    )
+}
+
+/// Der Button im Cookie-Dialog, der die Einstellungen öffnet (zweite
+/// Ebene, dort kann ein Ablehnen liegen). Nur auf den ausdrücklichen Befehl
+/// „Cookie-Einstellungen öffnen“; „cookies ablehnen“ wählt ihn nie.
+fn consent_settings(graph: &Graph) -> Result<Control, Miss<Control>> {
+    consent_button(
+        graph,
+        ButtonKind::Settings,
+        "nichts geöffnet",
+        "Keine Einstellungen gefunden, nichts geöffnet",
+        "Mehrere Buttons öffnen vermutlich Einstellungen:",
+    )
+}
+
+/// Genau ein Button dieser Art im Cookie-Dialog; mehrere → Rückfrage,
+/// keiner → Ansage des Dialogs.
+fn consent_button(
+    graph: &Graph,
+    kind: ButtonKind,
+    nothing: &str,
+    none: &str,
+    many: &str,
+) -> Result<Control, Miss<Control>> {
     let Some(consent) = overlay::consent(graph) else {
-        return Err(Miss::Text(
-            "Kein Cookie-Dialog erkannt; nichts abgelehnt. „welcher Dialog ist offen“ zeigt, \
-             was offen ist."
-                .into(),
-        ));
+        return Err(Miss::Text(format!(
+            "Kein Cookie-Dialog erkannt; {nothing}. „welcher Dialog ist offen“ zeigt, was offen ist."
+        )));
     };
-    let mut rejects: Vec<&Control> = consent
-        .of_kind(ButtonKind::Reject)
-        .map(|i| &graph.controls[i])
-        .collect();
-    rejects.dedup_by_key(|c| c.dom_node_id);
-    match rejects.as_slice() {
+    let mut found: Vec<&Control> = consent.of_kind(kind).map(|i| &graph.controls[i]).collect();
+    found.dedup_by_key(|c| c.dom_node_id);
+    match found.as_slice() {
         [one] => Ok((*one).clone()),
         [] => Err(Miss::Text(format!(
-            "Nicht abgelehnt: {}",
+            "{none}: {}",
             respond::overlay(graph, &consent)
         ))),
-        many => Err(Miss::Many(
+        several => Err(Miss::Many(
             numbered(
-                "Mehrere Buttons lehnen vermutlich ab:".into(),
-                many.iter().map(|c| respond::control_line(c)),
+                many.into(),
+                several.iter().map(|c| respond::control_line(c)),
             ),
-            many.iter().map(|c| (*c).clone()).collect(),
+            several.iter().map(|c| (*c).clone()).collect(),
         )),
     }
 }
@@ -1191,6 +1218,23 @@ mod tests {
         assert!(text.contains("vermutlich Cookie-Dialog"), "{text}");
         assert!(text.contains("Kein Ablehnen ohne Bezahlung"), "{text}");
         assert!(s.take_security_log().is_empty());
+    }
+
+    #[test]
+    fn einstellungen_nur_auf_ausdruecklichen_befehl() {
+        let model = crate::overlay::consent_page(&["Alle akzeptieren", "Einstellungen"]);
+        let g = Graph::build(&model);
+        let mut s = Session::new();
+        // „cookies ablehnen“ öffnet die Einstellungen nicht, sagt sie an.
+        let text = run(&mut s, &model, false, Command::RejectConsent).unwrap();
+        assert!(text.starts_with("Nicht abgelehnt:"), "{text}");
+        assert!(text.contains("„Cookie-Einstellungen öffnen“"), "{text}");
+        let out = s.handle(&g, &model, false, Command::ConsentSettings, None);
+        assert_eq!(target(out), frame_node(21));
+        // Ohne Einstellungen-Button wird nichts geöffnet.
+        let model = crate::overlay::consent_page(&["Alle akzeptieren"]);
+        let text = run(&mut s, &model, false, Command::ConsentSettings).unwrap();
+        assert!(text.starts_with("Keine Einstellungen gefunden"), "{text}");
     }
 
     #[test]

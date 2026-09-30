@@ -306,24 +306,25 @@ pub fn inspect(c: &Control) -> String {
 /// Ansage eines Overlays: Art (immer als Vermutung, mit Evidence), Buttons
 /// nach ihrer Einordnung und ob es ein kostenloses Ablehnen gibt.
 pub fn overlay(graph: &Graph, o: &Overlay) -> String {
-    let region = &graph.regions[o.region];
+    let region = o.region.map(|r| &graph.regions[r]);
     let kind = o.kind.value.unwrap_or(OverlayKind::Dialog);
+    // Ohne Bereich ist die Seite selbst der Hinweis (Einwilligungsseite).
+    let (place, label) = match region {
+        Some(r) => (capitalize(&r.label()), kind.label()),
+        None => ("Seite ohne Dialog".to_string(), "Cookie-Hinweis"),
+    };
     let mut out = match (kind, o.kind.certainty) {
-        (OverlayKind::Dialog, _) => format!("{}.", capitalize(&region.label())),
+        (OverlayKind::Dialog, _) => format!("{place}."),
         (_, Certainty::Uncertain) => format!(
-            "{} möglicherweise {}, unsicher (Hinweise: {}).",
-            capitalize(&region.label()),
-            kind.label(),
+            "{place} möglicherweise {label}, unsicher (Hinweise: {}).",
             o.kind.evidence.join(", ")
         ),
         _ => format!(
-            "{} vermutlich {} (erschlossen: {}).",
-            capitalize(&region.label()),
-            kind.label(),
+            "{place} vermutlich {label} (erschlossen: {}).",
             o.kind.evidence.join(", ")
         ),
     };
-    if region.modal {
+    if region.is_some_and(|r| r.modal) {
         out.push_str(" Modal: Bedienung nur im Dialog.");
     }
     let mut parts = Vec::new();
@@ -372,8 +373,12 @@ pub fn no_reject(o: &Overlay) -> String {
     } else {
         "Kein Ablehnen."
     });
+    // Zweite Ebene: nur ansagen; öffnen erst auf ausdrücklichen Befehl.
     if o.of_kind(ButtonKind::Settings).next().is_some() {
-        out.push_str(" Vielleicht unter den Einstellungen; die wählt Relief nicht selbst.");
+        out.push_str(
+            " Vielleicht unter den Einstellungen; die wählt Relief nicht selbst, \
+             „Cookie-Einstellungen öffnen“ öffnet sie.",
+        );
     }
     out.push_str(" Relief stimmt nie selbst zu und umgeht keine Bezahlschranke.");
     out

@@ -38,6 +38,9 @@ pub enum Command {
     /// Im Cookie-Dialog den Button wählen, der ablehnt (nur auf diesen
     /// ausdrücklichen Befehl; nie zustimmen).
     RejectConsent,
+    /// Im Cookie-Dialog die Einstellungen öffnen, hinter denen ein Ablehnen
+    /// liegen kann (nur auf diesen ausdrücklichen Befehl).
+    ConsentSettings,
     /// Was hinter dem modalen Dialog liegt, nur Auskunft.
     Background,
     /// Formular: leere Pflichtfelder und Fehler (Paket 39).
@@ -380,6 +383,21 @@ fn parse_fixed(lower: &str) -> Option<Command> {
         ),
         (
             &[
+                "cookie-einstellungen öffnen",
+                "cookie-einstellungen",
+                "öffne die cookie-einstellungen",
+                "zu den cookie-einstellungen",
+                "gehe zu den cookie-einstellungen",
+                "cookie einstellungen öffnen",
+                "cookie einstellungen",
+                "öffne die cookie einstellungen",
+                "open cookie settings",
+                "cookie settings",
+            ],
+            Command::ConsentSettings,
+        ),
+        (
+            &[
                 "was ist hinter dem dialog",
                 "was liegt hinter dem dialog",
                 "was steht hinter dem dialog",
@@ -453,8 +471,8 @@ gehe zu <Ziel> · gehe zur Überschrift <Name> · nächster/vorheriger Abschnitt
 nächstes/vorheriges Formularfeld · lies den Abschnitt [<Name>] · welche <Optionen> gibt es · \
 öffne <Ziel> · schließe den Dialog · fülle <Feld> mit <Wert> · wähle <Option> [bei <Feld>] · \
 erhöhe/verringere <Feld> · scrolle nach unten/oben/zum Anfang/zum Ende · \
-welcher Dialog ist offen · cookies ablehnen · was ist hinter dem Dialog · \
-was fehlt noch · fehler vorlesen · zum ersten fehler · zurück";
+welcher Dialog ist offen · cookies ablehnen · cookie-einstellungen öffnen · \
+was ist hinter dem Dialog · was fehlt noch · fehler vorlesen · zum ersten fehler · zurück";
 
 fn strip_any<'a>(text: &'a str, prefixes: &[&str]) -> Option<&'a str> {
     let lower = text.to_lowercase();
@@ -662,6 +680,11 @@ mod tests {
         assert_eq!(parse("Cookies ablehnen."), Ok(Command::RejectConsent));
         assert_eq!(parse("Lehne die Cookies ab"), Ok(Command::RejectConsent));
         assert_eq!(parse("reject all"), Ok(Command::RejectConsent));
+        assert_eq!(
+            parse("Cookie-Einstellungen öffnen"),
+            Ok(Command::ConsentSettings)
+        );
+        assert_eq!(parse("cookie settings"), Ok(Command::ConsentSettings));
         assert_eq!(parse("Was ist hinter dem Dialog?"), Ok(Command::Background));
         // Zustimmen ist kein eigener Befehl; „klicke …“ bleibt ein Klick der
         // Nutzerin auf einen genannten Button.

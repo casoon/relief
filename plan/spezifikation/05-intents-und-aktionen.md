@@ -235,7 +235,7 @@ Offen: deiktische Ziele („dieses Feld“, „hier“) kennt der Parser noch
 nicht; Ausgabe pausieren fehlt (die Leiste bündelt nur); manueller
 Tastatur- und VoiceOver-Durchgang (→ 47).
 
-## Overlay- und Consent-Dialoge (Paket 40) [belegt]
+## Overlay- und Consent-Dialoge (Pakete 40, 80) [belegt]
 
 Browserfrei in `relief-interaction` (`overlay.rs`, Befehle in `command.rs`,
 Ablauf in `session.rs`, Texte in `respond.rs`); beide Hosts nutzen es ohne
@@ -256,6 +256,19 @@ Regeln [Entscheidung]:
   keiner → Antwort „Nicht abgelehnt: … Kein Ablehnen ohne Bezahlung“ bzw.
   „Kein Ablehnen“, Hinweis auf Einstellungen, die Relief nicht selbst
   wählt. Keine Umgehung von Bezahlschranken oder Bot-Erkennung.
+- **Zweite Ebene nur auf Befehl** (Paket 80): Liegt das Ablehnen erst
+  hinter „Einstellungen“, sagt Relief das an („Vielleicht unter den
+  Einstellungen; die wählt Relief nicht selbst, „Cookie-Einstellungen
+  öffnen“ öffnet sie“). „cookies ablehnen“ öffnet sie nie. Erst der
+  ausdrückliche Befehl „cookie-einstellungen öffnen“ (`ConsentSettings`)
+  aktiviert den einen Button der Art Einstellungen, gleich gebaut wie das
+  Ablehnen (genau einer → `Activate`, mehrere → nummerierte Rückfrage,
+  keiner → Ansage). Danach gilt die zweite Ebene als neues Overlay:
+  „cookies ablehnen“ wirkt dort nur, wenn es genau einen Ablehnen-Button
+  gibt. Warum Aktivieren statt nur Fokus: Die Nutzerin verlangt das Öffnen
+  ausdrücklich, und Einstellungen öffnen stimmt nicht zu; „klicke
+  Einstellungen“ ging schon vorher, der Befehl findet nur den richtigen
+  Button, wenn er „Cookie-Manager“ oder „Anpassen“ heißt.
 - **Modalität bleibt:** Erkennung und Buttons nur unter erreichbaren
   Elementen (`Graph::is_reachable`). „was ist hinter dem Dialog“ nennt
   gesperrte Überschriften und Bedienelemente (höchstens je 10), **merkt aber
@@ -267,9 +280,23 @@ Erkennung [Annahme: Wortlisten, nicht kalibriert]:
 
 - **Kandidaten:** erreichbare `dialog`/`alertdialog` und benannte Bereiche,
   deren Name nach Einwilligung klingt; Buttons und Links darin, auch im
-  iframe darunter (der Bereichsstapel reicht über Frame-Grenzen). Von
-  verschachtelten Cookie-Dialogen gilt der innerste (spiegel.de-Aufbau:
-  modaler Dialog im Hauptdokument, Dialog im Consent-iframe).
+  iframe darunter (der Bereichsstapel reicht über Frame-Grenzen). Ein
+  benannter Bereich ohne Dialog-Rolle zählt nur mit einem Zustimmen- oder
+  Ablehnen-Button (Paket 80: Wikipedia-Abschnitte „Session cookie“,
+  „Tracking“ waren sonst Cookie-Dialoge; gov.uk „Cookies on GOV.UK“ bleibt
+  einer). Von verschachtelten Cookie-Dialogen gilt der innerste
+  (spiegel.de-Aufbau: modaler Dialog im Hauptdokument, Dialog im
+  Consent-iframe).
+- **Einwilligungsseite ohne Dialog** (Paket 80, golem.de): Gibt es keinen
+  Cookie-Dialog, ist die Seite selbst ein Cookie-Hinweis (`Overlay::region`
+  `None`), wenn ein erreichbarer **Button**, der zustimmt, in einem
+  Abschnitt steht, dessen **Überschrift** ein Einwilligungswort trägt
+  (golem.de: „Zustimmen und weiter“ unter „Cookies zustimmen“). Bewusst
+  eng: Datenschutz-Links, Fließtext oder ein Artikel über Cookies ohne
+  Zustimmen-Button reichen nicht. Evidence: Überschrift und Button, also
+  `Inferred`. Buttons des Hinweises sind die erreichbaren Buttons und Links
+  im selben Bereich wie der Zustimmen-Button. Ansage: „Seite ohne Dialog
+  vermutlich Cookie-Hinweis (erschlossen: …)“.
 - **Art** (`Fact<OverlayKind>`, Quelle `Rule`): Cookie-Dialog, wenn Name oder
   Text ein Einwilligungswort trägt (cookie, einwilligung, datenschutz,
   privacy, tracking …), Newsletter-Dialog über „newsletter“, sonst Dialog.
@@ -285,6 +312,17 @@ Erkennung [Annahme: Wortlisten, nicht kalibriert]:
   „Consenthub“). Ein **Link**, der nach Ablehnen klingt, lehnt nicht ab
   (bild.de, welt.de: „für Utiq jetzt ablehnen“ führt zu einem
   Drittanbieter).
+- **Abo ohne Signalwort** (Paket 80) [Entscheidung]: Ein **Button** ohne
+  Signalwort oder mit Ablehnen-Wort gilt als Abo, wenn die Überschrift
+  seines Abschnitts innerhalb des Overlays ein Abo-Wort trägt
+  (sueddeutsche.de: „Jetzt testen“ unter „Weiter mit SZ Plus-Abo“), mit
+  `Uncertain` und Evidence „…, aber Abschnitt „…“ enthält „abo““. Grund:
+  Die Einordnung als Abo macht nichts wählbar, sie nimmt einen Button nur
+  aus Ablehnen und Schließen heraus; lieber einmal zu oft. Links bleiben
+  unberührt (sonst wären auf golem.de Impressum und Datenschutz unter
+  „… oder Golem pur bestellen“ Abo). Nebenfolge: „Login“ im selben
+  Abschnitt zählt auch als Abo (wie faz.net „Pur-Abonnent? Hier
+  anmelden“).
 - **Ansage** in „was ist hier“ (CDP-Host auch beim Laden) und auf „welcher
   Dialog ist offen“: „Dialog „Privacy Center“ vermutlich Cookie-Dialog
   (erschlossen: …). Modal: Bedienung nur im Dialog. Buttons nach
@@ -296,10 +334,12 @@ Belege: Unit-Tests in `overlay.rs` und `session.rs`;
 `spike/tasks/09-consent.txt` auf `consent-ablehnen.html` (Ablehnen
 kostenlos, „Akzeptieren und schließen“ → Escape, Hintergrund nur lesend),
 `consent-abo.html` (kein Ablehnen ohne Abo), `consent-iframe.html` (Buttons
-im iframe eines modalen Dialogs) → 19/19 über CDP.
+im iframe eines modalen Dialogs), `consent-seite.html` (Einwilligungsseite
+ohne Dialog), `consent-einstellungen.html` (Abo „Jetzt testen“, Ablehnen
+erst nach „cookie-einstellungen öffnen“) → 33/33 über CDP.
 
 Echte Seiten (`spike/tasks/12-consent-real.txt`, CDP-Host, 2026-09-30,
-Netz; 20/20; keine Einwilligung erteilt):
+Netz; 29/29; keine Einwilligung erteilt):
 
 | Seite | erkannt | Beschreibung (Auszug) | Ablehnen |
 |---|---|---|---|
@@ -309,22 +349,38 @@ Netz; 20/20; keine Einwilligung erteilt):
 | faz.net | „Cookiebanner“, vermutlich | Zustimmen „Einverstanden“, Einstellungen „Cookie-Manager“, Abo „F.A.Z. Pur-Abonnent? Hier anmelden“, „Abo“ | keins, nichts geklickt |
 | t-online.de | „Iframe title“ (Name der Seite), vermutlich | Zustimmen „ZUSTIMMEN“, Einstellungen, Abo „Datenschutzhinweise (PUR)“ | keins, nichts geklickt |
 | heise.de | „Cookie- und Datenverarbeitung“, vermutlich | Zustimmen, Einstellungen, Abo „Pur-Abo“ | keins, nichts geklickt |
+| golem.de | Seite ohne Dialog, vermutlich Cookie-Hinweis (Überschrift „Cookies zustimmen“) | Zustimmen „Zustimmen und weiter“, Abo „Zu Golem pur“, „Golem pur AGB“, 7 weitere | keins, nichts geklickt |
+| sueddeutsche.de | „Vertrag mit Werbung abschließen“, vermutlich | Zustimmen „Ich bin einverstanden“, Abo „Jetzt testen“, „Login“, 13 weitere | keins, nichts geklickt |
 | google.de | „Bevor Sie zur Google Suche weitergehen“ | Zustimmen „Alle akzeptieren“, Ablehnen „Alle ablehnen“ | ausgeführt, Dialog geschlossen |
 | zdf.de | „cmp-dialog-description“ | Zustimmen, Ablehnen „Ablehnen“ | ausgeführt, Dialog geschlossen |
 | ikea.com/de | nicht modaler Dialog „Hej! …“ | Ablehnen „Optionale Cookies ablehnen“ | ausgeführt, Dialog geschlossen |
 
+Zweite Ebene auf spiegel.de: „cookie-einstellungen öffnen“ → `Activate`
+auf „Einstellungen“, der „privacy manager“ öffnet sich; dort lehnen drei
+Buttons je Zweck ab („Ablehnen“), „cookies ablehnen“ fragt deshalb
+nummeriert nach und klickt nichts (in der Datei). Nur gelesen, nicht in der
+Datei: bild.de (zweite Ebene nur „Einwilligen“ je Zweck, kein Ablehnen),
+faz.net (Einstellungen ist der Link „Cookie-Manager“; auf der zweiten Ebene
+gelten Zweck-Buttons wie „Verwendung … zur Auswahl von Werbeanzeigen“ über
+„auswahl“ als Einstellungen), heise.de (zwei „Einstellungen“-Buttons →
+nummerierte Rückfrage).
+
+Korpus ohne Fehltreffer (`spike/tasks/11-korpus.txt`: casoon.de,
+insights.casoon.de → „Kein Dialog und kein Cookie-Hinweis erkannt“), dazu
+nur gelesen gdpr.eu/cookies, w3.org (APG-Dialog-Beispiel), en/de.wikipedia
+„HTTP cookie“ (ohne Fehltreffer erst mit der Button-Bedingung für benannte
+Bereiche); gov.uk bleibt Cookie-Hinweis mit Ablehnen.
+
 Nur gelesen: stern.de (Abo „Zum PUR-Abo“, kein Ablehnen), otto.de (Ablehnen
-„Einwilligung ablehnen“), sueddeutsche.de (kein Ablehnen; das Abo heißt dort
-„Jetzt testen“ und bleibt „weitere“). **zeit.de** blockiert den
+„Einwilligung ablehnen“). **zeit.de** blockiert den
 automatisierten Browser („Ihre Anfrage wurde blockiert“); nicht umgangen,
-deshalb nicht in der Datei. **golem.de** zeigt eine Einwilligungs*seite*
-ohne Dialog-Rolle — nicht erkannt (→ 80).
+deshalb nicht in der Datei.
 
 Befund: Über CDP enthält der Baum den Seiteninhalt hinter `aria-modal`
 (spiegel.de, bild.de: „was ist hinter dem Dialog“ nennt die Überschriften
 der Startseite). Im Fork nimmt Blink ihn heraus (→ 09, Nachtrag Paket 35);
-dort antwortet Relief, dass der Baum nichts enthält [Annahme, im Fork nicht
-gemessen → 80].
+dort antwortet Relief, dass der Baum nichts enthält (im Fork gemessen,
+unten).
 
 **Im Fork** (M4, 2026-09-30): `scripts/fork-run-tasks.sh` mit
 `09-consent.txt` ohne Ausfall (mit 01–05, 07, 14: 104/104). Auf spiegel.de
@@ -333,6 +389,10 @@ vermutlich Cookie-Dialog mit Zustimmen, Einstellungen, Abo; „cookies
 ablehnen“ → „Nicht abgelehnt“, nichts geklickt; „was ist hinter dem Dialog“
 → „enthält der Baum nichts“: Blink nimmt den Inhalt hinter `aria-modal`
 heraus (anders als CDP, das ihn liefert).
+Mit Paket 80 (M4, 2026-09-30): `09-consent.txt` samt Einwilligungsseite und
+zweiter Ebene im Fork ohne Ausfall (mit 01–05, 07, 14: 118/118); golem.de
+im eigenen Build „Seite ohne Dialog vermutlich Cookie-Hinweis“, Abo „Zu
+Golem pur“, kein Ablehnen ohne Bezahlung.
 
 ## Intent-Format [Annahme]
 

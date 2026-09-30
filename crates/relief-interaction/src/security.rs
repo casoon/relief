@@ -562,12 +562,17 @@ mod tests {
         let control = graph.controls[0].clone();
         let plan = plan(&control, ActionKind::Activate).unwrap();
         let field = crate::graph::at(20);
-        let before = Binding::new(&plan, &control, &graph.page, &model)
-            .with_form(vec![(field.clone(), Some("1".into()), None)]);
-        let after = Binding::new(&plan, &control, &graph.page, &model)
-            .with_form(vec![(field, Some("2".into()), None)]);
+        let before = Binding::new(&plan, &control, &graph.page, &model).with_form(vec![(
+            field.clone(),
+            Some("1".into()),
+            None,
+        )]);
+        let after = Binding::new(&plan, &control, &graph.page, &model).with_form(vec![(
+            field,
+            Some("2".into()),
+            None,
+        )]);
         assert_eq!(before.changed(&before.clone()), None);
         assert_eq!(before.changed(&after), Some(Changed::Form));
     }
-
 }

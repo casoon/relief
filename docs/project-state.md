@@ -54,7 +54,8 @@ Befehle im REPL: „was ist hier", „wo bin ich", „was kann ich tun",
 „lies den Abschnitt [ …]", „welche … gibt es", „öffne …", „fülle … mit …",
 „wähle …", „erhöhe/verringere …", „scrolle nach unten/oben/zum Anfang/zum
 Ende", „schließe den Dialog", „welcher Dialog ist offen", „cookies
-ablehnen", „was ist hinter dem Dialog" (vollständig: „hilfe"); `url …` lädt
+ablehnen", „cookie-einstellungen öffnen", „was ist hinter dem Dialog"
+(vollständig: „hilfe"); `url …` lädt
 eine andere Seite. Riskante Aktionen fragen zurück; `!` vor demselben Befehl als
 nächste Eingabe bestätigt genau diese Rückfrage, einmal. `!` ohne offene
 Rückfrage bestätigt nichts. Die Rückfrage zu einem Absenden-Button nennt im
@@ -66,10 +67,13 @@ Aktionsart, Risiko, Grund; keine Werte, keine Namen).
 
 Cookie- und Newsletter-Dialoge sagt „was ist hier" mit an: Art als
 Vermutung mit Evidence, Buttons nach Beschriftung (Zustimmen, Ablehnen,
-Einstellungen, Abo, Schließen). Relief stimmt nie selbst zu; „cookies
-ablehnen" klickt nur einen Button, der ablehnt, ohne zu bezahlen, sonst sagt
-es „kein Ablehnen (ohne Bezahlung)". Die Auskunft über den Hintergrund eines
-modalen Dialogs ist nur lesend. `spike/tasks/09-consent.txt` prüft das auf
+Einstellungen, Abo, Schließen). Eine Einwilligungsseite ohne Dialog gilt als
+„Seite ohne Dialog vermutlich Cookie-Hinweis", wenn ein Zustimmen-Button unter
+einer Überschrift mit Einwilligungswort steht. Relief stimmt nie selbst zu;
+„cookies ablehnen" klickt nur einen Button, der ablehnt, ohne zu bezahlen, sonst sagt
+es „kein Ablehnen (ohne Bezahlung)". Die Einstellungen (zweite Ebene) öffnet
+Relief nur auf „cookie-einstellungen öffnen", nie beim Ablehnen. Die
+Auskunft über den Hintergrund eines modalen Dialogs ist nur lesend. `spike/tasks/09-consent.txt` prüft das auf
 Testseiten, `12-consent-real.txt` auf echten Seiten (Netz, nur lokal).
 
 In Aufgabendateien prüft `assert: <Zusicherung>` den aktuellen Stand eines
