@@ -4,6 +4,10 @@
 //! am Element mit der Backend-ID. Deshalb erreicht der Spike z. B. keine
 //! ARIA-Widgets, die nur auf echte Tastatur-/Mausereignisse reagieren
 //! (→ `plan/spezifikation/09`, Phase 0a).
+//!
+//! Liegt das Element in einem Frame eines anderen Prozesses, geht der Befehl
+//! an dessen Sitzung (`Frames::resolve`); Tasten gehen immer an die Seite,
+//! der Browser leitet sie an den fokussierten Frame weiter.
 
 use anyhow::{anyhow, Result};
 use chromiumoxide::cdp::browser_protocol::dom::{BackendNodeId, FocusParams, ResolveNodeParams};
@@ -11,6 +15,8 @@ use chromiumoxide::cdp::browser_protocol::input::{DispatchKeyEventParams, Dispat
 use chromiumoxide::cdp::js_protocol::runtime::{CallArgument, CallFunctionOnParams};
 use chromiumoxide::Page;
 use relief_interaction::{ActionKind, ActionPlan, ScrollDirection};
+
+use crate::frames::{Doc, Frames};
 
 const ACTIVATE: &str =
     "function() { this.scrollIntoView({block: 'center'}); this.focus(); this.click(); }";
@@ -59,29 +65,31 @@ const SELECT: &str = "function(label) {
   this.dispatchEvent(new Event('change', {bubbles: true}));
 }";
 
-pub async fn execute(page: &Page, plan: &ActionPlan) -> Result<()> {
-    let backend = BackendNodeId::new(plan.dom_node_id);
+pub async fn execute(page: &Page, frames: &Frames, plan: &ActionPlan) -> Result<()> {
+    let (doc, backend) = frames.resolve(page, plan.dom_node_id)?;
+    let doc = &doc;
+    let backend = BackendNodeId::new(backend);
     match &plan.kind {
         ActionKind::Focus => {
-            page.execute(FocusParams::builder().backend_node_id(backend).build())
+            doc.execute(FocusParams::builder().backend_node_id(backend).build())
                 .await?;
             call(
-                page,
+                doc,
                 backend,
                 "function() { this.scrollIntoView({block: 'center'}); }",
                 None,
             )
             .await
         }
-        ActionKind::Activate => call(page, backend, ACTIVATE, None).await,
-        ActionKind::SetValue(v) => call(page, backend, SET_VALUE, Some(v)).await,
-        ActionKind::Select(label) => call(page, backend, SELECT, Some(label)).await,
-        ActionKind::NavigateTo => call(page, backend, NAVIGATE, None).await,
+        ActionKind::Activate => call(doc, backend, ACTIVATE, None).await,
+        ActionKind::SetValue(v) => call(doc, backend, SET_VALUE, Some(v)).await,
+        ActionKind::Select(label) => call(doc, backend, SELECT, Some(label)).await,
+        ActionKind::NavigateTo => call(doc, backend, NAVIGATE, None).await,
         // Echte Pfeiltasten am fokussierten Element: wirken auf native
         // Zahlen-/Bereichsfelder und auf ARIA-Widgets, die nur auf Tasten
         // hören (wie `Increment`/`Decrement` im Fork).
         ActionKind::Increment | ActionKind::Decrement => {
-            page.execute(FocusParams::builder().backend_node_id(backend).build())
+            doc.execute(FocusParams::builder().backend_node_id(backend).build())
                 .await?;
             if plan.kind == ActionKind::Increment {
                 press_key(page, "ArrowUp", 38).await
@@ -135,12 +143,12 @@ async fn press_key(page: &Page, key: &str, code: i64) -> Result<()> {
 }
 
 async fn call(
-    page: &Page,
+    doc: &Doc<'_>,
     backend: BackendNodeId,
     function: &str,
     arg: Option<&str>,
 ) -> Result<()> {
-    let resolved = page
+    let resolved = doc
         .execute(
             ResolveNodeParams::builder()
                 .backend_node_id(backend)
@@ -148,7 +156,6 @@ async fn call(
         )
         .await?;
     let object_id = resolved
-        .result
         .object
         .object_id
         .clone()
@@ -164,10 +171,8 @@ async fn call(
                 .build(),
         );
     }
-    let result = page
-        .execute(params.build().map_err(|e| anyhow!(e))?)
-        .await?;
-    if let Some(ex) = &result.result.exception_details {
+    let result = doc.execute(params.build().map_err(|e| anyhow!(e))?).await?;
+    if let Some(ex) = &result.exception_details {
         return Err(anyhow!("Fehler im Element: {}", ex.text));
     }
     Ok(())
