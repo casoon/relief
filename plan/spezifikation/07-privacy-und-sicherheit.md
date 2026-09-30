@@ -370,7 +370,7 @@ SetValue(verdeckt) auf [textbox] Passwort …“.
 Die Aufgaben-Runner (`relief-cdp run`/`test`, `--relief-run`) geben die
 Eingaben der Aufgabendatei aus; das sind Testausgaben, keine Protokolle.
 
-### Auskünfte und unverstandene Eingaben [umgesetzt, Paket 100; Fork offen]
+### Auskünfte und unverstandene Eingaben [umgesetzt, Paket 100; im Fork belegt]
 
 **Auskünfte**: `Control::sensitive` (gesetzt in `graph::control`, dieselbe
 Regel `is_sensitive_field` wie Rückfrage und Antwort). `respond::control_line`
@@ -420,9 +420,13 @@ Anzeigename mit Wert, Benutzername, Passwort und Kartennummer als
 „= (verdeckt)“, „wo bin ich“ ebenso, „details zu Kartennummer“ nennt
 „Wert: 5555555555554444“.
 
-Im Fork gilt die Regel nur für Passwortfelder, solange `autocomplete` nicht
-ankommt (→ 75). Im Fork erwartet: `16-sensible-werte.txt` verfehlt wie
-schon in 76 die Erwartungen zu Benutzername und Kartennummer (jetzt auch
-„= (verdeckt)“ in Liste und „wo bin ich“), Passwort und Anzeigename wie im
-CDP-Host. Nicht gebaut und nicht im Fork geprüft: `relief_browsertests`,
-Fork-Aufgaben und Inspector-Panel (→ Paket 120).
+Im Fork gilt die Regel außerhalb einer Rückfrage nur für Passwortfelder,
+weil `autocomplete` dort nur bei einer Rückfrage angefragt wird (→ 112).
+Im Fork (M4) belegt: `relief_browsertests` grün; Fork-Aufgaben 01–05, 07,
+15: 94 erfüllt, 0 nicht erfüllt; `16-sensible-werte.txt` mit
+`--relief-log`: 5 erfüllt, die 6 verfehlten sind Benutzername und
+Kartennummer (Antwort, Liste, „wo bin ich“, → 112), keine Protokollzeile
+mit einem der Werte. Inspector auf `login.html` nach „fülle Passwort mit
+geheim123“: Kurzzeile „[textbox] Passwort = (verdeckt)“, Details „Wert:
+(verdeckt)“; unverstanden „füle Passwort mit sommer123“ steht im
+Protokoll als `command	füle Passwort mit (verdeckt)`.

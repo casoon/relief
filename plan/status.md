@@ -122,7 +122,7 @@ Listen, „wo bin ich“ und Inspector zeigen bei sensiblen Feldern nur
 „= (verdeckt)“, „details zu …“ nennt den Wert; unverstandene Eingaben
 stehen ohne wertartige Teile im Protokoll (Paket 100, Fork-Teil offen:
 120), beschrieben in
-[spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#auskünfte-und-unverstandene-eingaben-umgesetzt-paket-100-fork-offen).
+[spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#auskünfte-und-unverstandene-eingaben-umgesetzt-paket-100-im-fork-belegt).
 
 Befunde aus `a11y-rules` im Inspector (Stufe `Semantics` auf dem AXTree,
 übrige Regeln als nicht geprüft), beschrieben in
@@ -168,7 +168,6 @@ nur bei einer Rückfrage), beschrieben in
 | 112 | HTML-`autocomplete` im Fork außerhalb einer Rückfrage | Cloud + M4 | offen | 75 ✓ | [112](112-autocomplete-im-fork.md) |
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
-| 120 | Sensible Werte in Auskünften: Fork-Teil prüfen | M4 | offen | 100 ✓ | [120](120-sensible-auskuenfte-im-fork.md) |
 | 105 | CDP-Host: Frames anderer Prozesse schon beim Laden anhängen (Ruhe nach dem Laden) | Cloud | offen | 85 ✓ | [105](105-cdp-host-frames-beim-laden.md) |
 | 106 | CDP-Host: `tabfolge` in einen fremden Frame sporadisch verfehlt | Cloud | offen | 85 ✓ | [106](106-tabfolge-fremder-frame-sporadisch.md) |
 | 110 | Consent: Zweck-Titel und Rückfrage je Zweck | Cloud + M4 | offen | 91 ✓ | [110](110-consent-zweck-titel.md) |

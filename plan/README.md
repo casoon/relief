@@ -36,7 +36,6 @@ Gültige Entscheidungen und Rahmenbedingungen stehen in `docs/decisions.md` und
 | 90 | zurückgestellt |
 | 105–106 | Linie Prüfen: CDP-Host, Nachträge zu 85 (Frames beim Laden, `tabfolge` sporadisch) |
 | 110 | Linie A: Nachtrag zu 91 (Consent, Zweck-Titel) |
-| 120 | Querschnitt: Nachtrag zu 100 (sensible Werte in Auskünften, Fork-Teil) |
 
 ## Jedes Paket hat
 
