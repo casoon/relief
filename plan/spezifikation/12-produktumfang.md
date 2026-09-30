@@ -66,7 +66,7 @@ dem Relief-Graphen.
 
 | Baustein | Paket |
 |---|---|
-| Formular-Zusicherungen: Beschriftung je Feld, Fehlermeldung mit dem Feld verknüpft, Fokus auf dem ersten Fehler, Bestätigung als Live-Region, Tab-Erreichbarkeit und -Reihenfolge | 42 ✓, 49 ✓, 55 ✓ (unten) |
+| Formular-Zusicherungen: Beschriftung je Feld, Fehlermeldung mit dem Feld verknüpft, Fokus auf dem ersten Fehler, Bestätigung als Live-Region, Tab-Erreichbarkeit und -Reihenfolge | 42 ✓, 49 ✓, 55 ✓, 64 ✓ (unten) |
 | Echte Screenreader-Ausgabe über gemeinsamen Treiber; zuerst VoiceOver, später NVDA | 43 |
 | Lauf ohne Fenster, Bericht als JUnit für CI | 44 |
 | Playwright-Anbindung: Relief über CDP steuern, Seitenmodell über eine eigene Domäne abfragen | 45 |
@@ -77,7 +77,7 @@ Für reine Funktionstests bleibt Playwright das bessere Werkzeug; Relief
 lohnt sich für den Ablauf aus Sicht von Screenreader- und
 Tastaturnutzenden.
 
-### Formular-Zusicherungen [umgesetzt 2026-09-30, Pakete 42, 49, 55]
+### Formular-Zusicherungen [umgesetzt 2026-09-30, Pakete 42, 49, 55, 64]
 
 Aufgabendateien kennen die Zeile `assert: <Zusicherung>`. Sie prüft den
 **aktuellen** Stand der Seite; der Ablauf davor (Absenden, Dialog öffnen)
@@ -89,9 +89,12 @@ Testseiten `spike/fixtures/form-clean.html` (keine Befunde) und
 `form-broken.html` (je Zusicherung mindestens ein Befund), dazu
 `status-inserted.html` (Statusregion entsteht mitsamt Text) und
 `form-embedded.html` (Namensvergleich mit per CSS verborgenem Label-Inhalt,
-Feld im iframe und im Shadow DOM, danach CSS-Inhalt dort). Die Datei
-läuft in den Prüfbefehlen (`CLAUDE.md`) und in der CI (Glob `0[1-6]`,
-Entscheidung des Nutzers, Paket 49).
+Feld im iframe und im Shadow DOM, danach CSS-Inhalt dort),
+`form-fremd.html` (Feld in einem iframe fremder Herkunft über den lokalen
+Server, `url: server:…`) und `form-shadow-ids.html` (gleiche IDs im
+Dokument und im Shadow-Root). Die Datei läuft in den Prüfbefehlen
+(`CLAUDE.md`) und in der CI (Glob `0[1-6]`, Entscheidung des Nutzers,
+Paket 49).
 
 | Zusicherung | Regel | prüft | Daten |
 |---|---|---|---|
@@ -131,7 +134,9 @@ Entscheidung des Nutzers, Paket 49).
   ID-Index, weil `<label for>` und `aria-labelledby` nur im eigenen Dokument
   gelten. Shadow DOM des Autors hängt flach unter dem Host, Light-DOM-Kinder
   nur dort, wo ein `<slot>` sie aufnimmt (`distributedNodes`); Shadow DOM des
-  Browsers (Innenleben von `<input>`) bleibt draußen.
+  Browsers (Innenleben von `<input>`) bleibt draußen. Die Slot-Zuordnung
+  (Backend-ID → Knoten) reicht auch in iframe-Dokumente [belegt im Code,
+  Paket 64; kein Slot im iframe an einer Seite gemessen].
 - **Outcome statt Certainty [Entscheidung]:** Befunde tragen ihre
   Belastbarkeit über `a11y-report`: `fail` ist aus AX-Daten belegt,
   `review` ist Heuristik (Abbruchweg an Wörtern erkannt, „verständlicher“
@@ -150,15 +155,52 @@ Entscheidung des Nutzers, Paket 49).
   auf dem DOM sieht ihn nicht. Der Befund nennt dann „meist CSS-Inhalt“ als
   Ursache; Text in CSS erreicht nicht jede Assistenztechnik gleich, deshalb
   `review` [Annahme, nicht gegen Screenreader gemessen].
-- **Grenzen [belegt im Code]:** iframes in einem anderen Renderer-Prozess
-  (Site Isolation, fremde Herkunft) liefert `DOM.getDocument` nicht mit;
-  Felder dort bleiben `untested`. Im Shadow DOM gilt ein gemeinsamer
-  ID-Index mit dem umgebenden Dokument; gleiche IDs in Shadow-Root und
-  Dokument können einen falschen Namen ergeben [Annahme: selten, nicht
-  gemessen]. Inhalt geschlossener `<details>` (`content-visibility`) meldet
-  der Snapshot mit normalem `display`, `accname` zählt ihn dann mit [laut
-  auditmysite-Kommentar, hier nicht gemessen]. Fremde Frames und ID-Bereich
-  → 64.
+- **iframes fremder Herkunft [belegt, Paket 64]:** Der CDP-Host startet
+  Chrome mit `--disable-site-isolation-trials` (für `getFullAXTree` mit
+  `frameId`, `capture.rs`). Damit liegt ein iframe von `127.0.0.1` in einer
+  Seite von `localhost` im selben Prozess, `DOM.getDocument` (`pierce`)
+  liefert sein Dokument mit, und sein Feld wird verglichen: In
+  `form-fremd.html` meldet `namen-wie-accname` die CSS-Abweichung im iframe
+  („Telefon (Rückfrage)“ gegen „Telefon“), per CSS verborgener Label-Inhalt
+  dort ist keine Abweichung. Gegenprobe mit Site Isolation (Schalter
+  entfernt): Das Feld fehlt schon im Modell (1 statt 2 Bedienelemente), weil
+  `getFullAXTree` den Frame in einem anderen Prozess nicht erreicht, und
+  deshalb auch in den Befunden, nicht als `untested`.
+- **Keine eigene CDP-Sitzung je Frame [Entscheidung, Paket 64]:** Solange der
+  Host ohne Site Isolation läuft, gibt es keinen Frame in einem anderen
+  Prozess; DOM-Fakten über `Target.attachToTarget` hätten kein Feld im
+  Modell, gegen das sie verglichen würden. Ein Host mit Site Isolation
+  braucht Aufnahme **und** DOM-Fakten über die Sitzung des Frames → 70.
+- **Lokaler Server für fremde Herkunft [Entscheidung, Paket 64]:**
+  `url: server:<Pfad>` in einer Aufgabendatei startet (einmal je
+  Verzeichnis und Lauf) einen HTTP-Server des Hosts auf `127.0.0.1` mit
+  freiem Port und öffnet die Seite als `http://localhost:<Port>/<Datei>`
+  (`relief-cdp/src/server.rs`, nur `GET`, nur Dateien darunter). Die Seite
+  setzt ihr iframe per Skript auf die jeweils andere Adresse und denselben
+  Port; `localhost` und `127.0.0.1` sind verschiedene Sites. Kein Netz,
+  läuft in Prüfbefehlen und CI mit.
+- **ID-Bereich im Shadow DOM [belegt, Entscheidung, Paket 64]:**
+  `accname::IdIndex` (0.13) kennt nur `build(root)` über alle Nachfahren im
+  flachen Baum, also einen Bereich je Dokument. Gemessen an
+  `form-shadow-ids.html` vor der Änderung: drei falsche `review`-Befunde
+  („Name“ und „Postleitzahl“ je als „Name Postleitzahl“, „Ort“ als
+  „Kundennummer“). Jetzt vermerkt der Host je Element seinen ID-Bereich
+  (Backend-ID des Shadow-Roots, `0` = Dokument; `DomFactsBuilder::scope`);
+  steht eine ID des Feldes (`id` für `<label for>`, `aria-labelledby`) als
+  `id` oder `label[for]` in mehr als einem Bereich, ist der Vergleich
+  `untested` mit Nennung der ID statt eines falschen Befunds. Richtig
+  rechnen statt auslassen braucht einen ID-Index je Baumbereich in
+  barrierlab (`accname`, `a11y-dom`), nicht in Relief nachgebaut;
+  Issue-Text im PR zu Paket 64.
+- **Grenzen [belegt im Code]:** Ein Verweis aus einem Shadow-Root auf eine
+  ID, die nur im Dokument steht (oder umgekehrt), löst `accname` auf,
+  Chromium nicht; das ergibt einen `review`-Befund mit unpassender
+  Ursache [Annahme, nicht gemessen]. Ebenso zählt ein umschließendes
+  `<label>` jenseits der Shadow-Grenze für `accname` mit. Inhalt
+  geschlossener `<details>` (`content-visibility`) meldet der Snapshot mit
+  normalem `display`, `accname` zählt ihn dann mit [laut
+  auditmysite-Kommentar, hier nicht gemessen]. Frames in einem anderen
+  Prozess → 70.
 - **Änderung über `TreeDelta` [Entscheidung, Paket 49]:** Der Vergleich
   „vorher/nachher“ nutzt `relief_model::TreeDelta::between`, nicht die
   Diff-Regeln aus `a11y-perception`: `relief-interaction` hängt außerhalb der
@@ -176,6 +218,36 @@ Entscheidung des Nutzers, Paket 49).
 - **Neu eingefügt = Befund [Annahme]:** Dass Screenreader eine mitsamt Text
   eingefügte Live-Region oft nicht ansagen, ist Praxiswissen, hier nicht
   gemessen; der Abgleich mit echter Ausgabe ist 43.
+
+### Bericht für CI [umgesetzt 2026-09-30, Paket 44]
+
+`relief-cdp test <aufgaben>… [--junit datei] [--report datei] [--fork]`
+läuft ohne Fenster und endet mit Fehler, sobald eine Erwartung verfehlt
+oder eine Seite nicht ladbar ist (anders als `run`, das immer mit 0 endet
+und nicht ladbare Seiten überspringt).
+
+- **JUnit:** eine `testsuite` je Aufgabendatei, ein `testcase` je
+  `expect:`-Zeile (Name: vorige Eingabe → Erwartung), `failure` mit der
+  letzten Antwort; nicht ladbare Seiten als `error`.
+- **a11y-report:** die Befunde aller `assert:`-Zeilen, zusammengefasst über
+  einen stabilen Schlüssel (Regel, Ergebnis, Seite, Knoten/Selektor,
+  Rolle, Name; die Meldung zählt nicht). Die Zustände, in denen ein Befund
+  auftrat, stehen als Evidence `{source: "state", field: "nach", value:
+  <letzte Eingabe bzw. „Laden“>}`. Belegt mit `spike/tasks/08-zustaende.txt`:
+  derselbe `form/field-name`-Befund vor und nach einer Eingabe → ein Befund
+  mit beiden Zuständen.
+- **`--fork`:** startet den eigenen Build mit `--headless=new
+  --enable-relief --relief-run=…` (Aktionen über `AXActionData`) und liest
+  dessen Ausgabe. Belegt: `spike/tasks/01`–`05`, `07` → 79/79, dieselbe Zahl
+  wie der CDP-Host auf denselben Dateien. Zusicherungen gibt es im Fork nicht
+  (Feature `assertions` aus); `--report` gilt nur für den CDP-Host.
+- **Beispiel für Projekte:** `examples/ci/relief-test.yml` (nicht aktiv im
+  Relief-Repository).
+
+Offen: Laufzeit je Datei im Fork-Bericht (die Ausgabe trägt sie nicht);
+Befunde tragen heute keine Knoten-ID (Schlüssel ist dann Regel, Seite,
+Rolle, Name) — zwei gleichnamige Felder mit demselben Befund fallen
+zusammen.
 
 ### Relief ersetzt den barrierlab-Reader [Entscheidung 2026-09-30]
 

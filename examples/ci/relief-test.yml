@@ -1,0 +1,50 @@
+# Beispiel (Linie B, Paket 44): Aufgabendateien eines Projekts in dessen CI
+# ohne Fenster prüfen und als JUnit-Bericht und a11y-report ablegen. Liegt
+# absichtlich nicht unter .github/workflows: Das Relief-Repository führt ihn
+# nicht selbst aus. In ein eigenes Projekt nach .github/workflows/ kopieren,
+# Aufgabenpfad anpassen und die Actions dort per Commit-SHA pinnen.
+#
+# Ohne Relief-Build (M4) läuft der CDP-Host gegen Chrome for Testing; das
+# prüft dieselben Erwartungen wie der Fork (belegt auf spike/tasks 01–05, 07:
+# 79/79 in beiden) und zusätzlich die Formular-Zusicherungen (`assert:`).
+name: Relief-Prüfung
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  relief:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: browser-actions/setup-chrome@v2
+        id: chrome
+        with:
+          install-dependencies: true
+      - name: Relief bauen
+        run: |
+          git clone --depth 1 https://github.com/casoon/relief.git relief
+          cargo build --release -p relief-cdp --manifest-path relief/Cargo.toml
+      - name: Aufgaben prüfen
+        env:
+          CHROME: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          # Ubuntu 24.04: Chromes Sandbox braucht unprivilegierte
+          # User-Namespaces (sonst FATAL in der Zygote).
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          # Endet mit Fehler, sobald eine Erwartung verfehlt oder eine Seite
+          # nicht ladbar ist.
+          relief/target/release/relief-cdp test a11y/aufgaben/*.txt \
+            --junit relief-junit.xml --report relief-befunde.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: relief-bericht
+          path: |
+            relief-junit.xml
+            relief-befunde.json

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><title>Kontakt – Feld in einem iframe fremder Herkunft</title></head>
+<body>
+<main>
+  <h1>Kontakt</h1>
+  <!-- Namensvergleich (spike/tasks/06-form-assertions.txt, Paket 64): ein
+       Feld im Hauptdokument, eines in einem iframe fremder Herkunft. Beide
+       Seiten kommen vom lokalen Server des CDP-Hosts; das iframe lädt von
+       der jeweils anderen Adresse (localhost ↔ 127.0.0.1), also von einer
+       anderen Site. Dieselbe ID in beiden Dokumenten. -->
+  <form aria-label="Kontaktformular">
+    <p><label for="name">Name</label> <input id="name"></p>
+  </form>
+  <script>
+    const fremd = location.hostname === 'localhost' ? '127.0.0.1' : 'localhost';
+    const frame = document.createElement('iframe');
+    frame.title = 'Rückfrage';
+    frame.width = 400;
+    frame.height = 80;
+    frame.src = `${location.protocol}//${fremd}:${location.port}/form-fremd-frame.html`;
+    document.currentScript.after(frame);
+  </script>
+</main>
+</body>
+</html>

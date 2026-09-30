@@ -66,6 +66,9 @@ Semantic Inspector im Fork (Side Panel, WebUI, live, Auswahl und
 Aktivierung getrennt), beschrieben in
 [spezifikation/01](spezifikation/01-chromium-integration.md#semantic-inspector-paket-20-belegt);
 der VoiceOver-Durchgang durch das Panel steht mit 47 aus.
+Bericht für CI (`relief-cdp test`: JUnit, a11y-report mit zusammengefassten
+Befunden, `--fork` ohne Fenster über den AX-Weg), beschrieben in
+[spezifikation/12](spezifikation/12-produktumfang.md#bericht-für-ci-umgesetzt-2026-09-30-paket-44).
 Befehlsleiste im Fork als Teil des Relief-Panels, Rückfragen (Nummer, „ja“,
 „abbrechen“) für alle Hosts, beschrieben in
 [spezifikation/05](spezifikation/05-intents-und-aktionen.md#rückfragen-und-befehlsleiste-im-fork-paket-25-belegt).
@@ -75,7 +78,10 @@ ausgewertet mit `a11y-dom`, `accname` und `a11y-report` (Feature
 Live-Region über `TreeDelta`, `namen-wie-accname` rechnet mit Rendering
 (`display`, `visibility`) und über iframes im selben Prozess und Shadow DOM,
 `06-form-assertions.txt` läuft in Prüfbefehlen und CI, beschrieben in
-[spezifikation/12](spezifikation/12-produktumfang.md#formular-zusicherungen-umgesetzt-2026-09-30-pakete-42-49-55).
+[spezifikation/12](spezifikation/12-produktumfang.md#formular-zusicherungen-umgesetzt-2026-09-30-pakete-42-49-55-64).
+Feld in einem iframe fremder Herkunft verglichen (lokaler Server,
+`url: server:…`; ohne Site Isolation im Host), gleiche IDs in Dokument und
+Shadow-Root ergeben `untested` statt falscher Befunde, ebd.
 Relief ersetzt in barrierlab den Reader-Host als Konsument
 (casoon/barrierlab#29, zum Merge offen); Kandidaten zum Ablegen in
 [spezifikation/12](spezifikation/12-produktumfang.md#kandidaten-zum-ablegen-stand-2026-09-30).
@@ -89,16 +95,15 @@ die Rückfrage nennt und bindet im CDP-Host das Formularziel und verdeckt
 sensible Werte (Paket 58; Fork-Teil geschrieben, nicht gebaut).
 
 **Sofort startbar:**
-- Cloud: 64 (DOM-Fakten für fremde Frames), 76 (Werte außerhalb der Rückfrage)
-- Cloud + M4: 26 (Sprache), 29 (Semantic View), 38 (Sprungmarken), 39 (Formular-Assistent), 21 (Befunde im Inspector), 40 (Overlay und Consent), 36 (Branding),
-  44 (Lauf ohne Fenster, JUnit)
-- M4: 43 (VoiceOver im Test), 58 (Fork-Teil bauen und prüfen)
+- Cloud: 70 (CDP-Host mit Site Isolation), 76 (Werte außerhalb der Rückfrage)
+- Cloud + M4: 26 (Sprache), 29 (Semantic View), 38 (Sprungmarken), 39 (Formular-Assistent), 21 (Befunde im Inspector), 40 (Overlay und Consent), 36 (Branding), 45 (Playwright)
+- M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
 - Linie A: 26, 29, 38, 39, 40 parallel → 41;
   47 läuft mit 20 und 25 als Abnahme mit.
-- Linie B: 43 und 44 parallel → 45; 64 jederzeit.
+- Linie B: 45 (44 erledigt), 43 zurückgestellt; 70 jederzeit.
 - Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
 - Vor jeder Modellintegration (28 im Fork, 34): 48 ✓, 58 (Fork-Teil); 75 entscheiden.
 
@@ -119,11 +124,10 @@ sensible Werte (Paket 58; Fork-Teil geschrieben, nicht gebaut).
 | 40 | Overlay- und Consent-Dialoge | Cloud + M4 | offen | 24 ✓ | [40](40-overlay-und-consent.md) |
 | 41 | Fähigkeitsprofile | Cloud + M4 | offen | 25 ✓, 26, 29 | [41](41-faehigkeitsprofile.md) |
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
-| 44 | Lauf ohne Fenster, JUnit-Bericht | Cloud + M4 | offen | 42 ✓ | [44](44-kopflos-und-junit.md) |
-| 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 | [45](45-playwright-anbindung.md) |
+| 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 ✓ | [45](45-playwright-anbindung.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 ✓ | [47](47-relief-ui-accessibility.md) |
 | 58 | Sicherheitsgrenzen im Fork bauen und prüfen (CDP-Host und Rust erledigt) | M4 | Fork-Teil zu bauen | 48 ✓ | [58](58-sicherheitsgrenzen-im-host.md) |
-| 64 | DOM-Fakten für iframes in anderem Prozess, ID-Bereich im Shadow DOM | Cloud | offen | 55 ✓ | [64](64-dom-fakten-fremde-frames.md) |
+| 70 | CDP-Host mit Site Isolation: Frames in anderem Prozess (Aufnahme, DOM-Fakten, Aktionen) | Cloud | offen | 64 ✓ | [70](70-cdp-host-site-isolation.md) |
 | 75 | Formularziel und HTML-`autocomplete` im Fork | Cloud + M4 | Entscheidung nötig | 58 | [75](75-formularziel-im-fork.md) |
 | 76 | Sensible Werte außerhalb der Rückfrage (Antwort, Protokolle) | Cloud + M4 | offen | 58 | [76](76-werte-ausserhalb-der-rueckfrage.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |

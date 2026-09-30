@@ -38,6 +38,8 @@ Google Chrome (Pfad über `CHROME` überschreibbar).
 cargo test --workspace      # browserfrei, auch gegen die Aufnahmen in spike/recordings
 cargo run -p relief-cdp -- run spike/tasks/0*.txt spike/tasks/10-real.txt   # Aufgaben mit Erwartungen
 cargo run -p relief-cdp -- run spike/tasks/11-korpus.txt --headful          # realer Korpus, sichtbarer Browser
+cargo run -p relief-cdp -- test spike/tasks/0*.txt --junit out.xml --report befunde.json   # ohne Fenster, Bericht für CI, Fehler bei verfehlter Erwartung
+cargo run -p relief-cdp -- test --fork spike/tasks/0[1-5]*.txt --junit out.xml             # dasselbe im eigenen Build (--headless=new, AX-Weg)
 cargo run -p relief-cdp -- repl https://www.gov.uk/     # interaktiv, --headful für sichtbares Fenster
 cargo run -p relief-cdp -- measure <url>... --repeat 5  # Zeiten und Graph-Stabilität
 cargo run -p relief-cdp -- record spike/tasks/0*.txt   # AX-Aufnahmen nach spike/recordings
@@ -67,6 +69,10 @@ Befunde.“: `feldnamen`, `namen-wie-accname`, `fehler-verknüpft [Feld]`,
 `tabfolge <Feld>, …`. `statusmeldung` verlangt zusätzlich, dass die letzte
 `do:`-Zeile eine vorhandene Live-Region geändert hat. `07-bestaetigung.txt`
 prüft, dass sich die Rückfrage nicht umgehen lässt (beide Hosts).
+`url: server:<Pfad>` lädt eine Testseite über einen lokalen HTTP-Server des
+Hosts (`127.0.0.1`, freier Port) als `http://localhost:<Port>/…`; so lädt
+ein iframe von `127.0.0.1` ohne Netz aus einer fremden Site
+(`form-fremd.html`).
 
 Im Palettenmodus öffnet Strg+Umschalt+Leertaste die Befehlsleiste; riskante
 Aktionen werden mit „ja“ bestätigt, „nein“ verwirft die Rückfrage. Jede
@@ -101,7 +107,7 @@ Release-Tags (`v*`) und per Hand (`workflow_dispatch`) auf `ubuntu-24.04`:
   -- -D warnings`, `cargo test --workspace`.
 - **browser:** Chrome for Testing 154.0.8037.57 (nächste zu `fork/UPSTREAM`) über
   `browser-actions/setup-chrome`, dann `relief-cdp run spike/tasks/01`–`06`
-  (nur `file://`-Seiten). Der Job schlägt fehl, wenn nicht alle
+  (`file://`-Seiten und der lokale Server des Hosts, kein Netz). Der Job schlägt fehl, wenn nicht alle
   `expect:`-Zeilen erfüllt sind (`run` selbst endet immer mit 0).
 
 Actions sind per Commit-SHA gepinnt.
