@@ -235,6 +235,97 @@ Offen: deiktische Ziele („dieses Feld“, „hier“) kennt der Parser noch
 nicht; Ausgabe pausieren fehlt (die Leiste bündelt nur); manueller
 Tastatur- und VoiceOver-Durchgang (→ 47).
 
+## Overlay- und Consent-Dialoge (Paket 40) [belegt]
+
+Browserfrei in `relief-interaction` (`overlay.rs`, Befehle in `command.rs`,
+Ablauf in `session.rs`, Texte in `respond.rs`); beide Hosts nutzen es ohne
+eigenen Code, weil nur `Outcome::Answer` und `Outcome::Perform` entstehen.
+
+Regeln [Entscheidung]:
+
+- **Relief stimmt nie selbst zu.** Es gibt keinen Befehl „zustimmen“;
+  „klicke Alle akzeptieren“ bleibt ein Klick, den die Nutzerin mit Namen
+  verlangt. Ein Button, dessen Name nach Zustimmung oder Abo klingt, gilt nie
+  als Schließen-Button (`overlay::blocks_dismissal` in
+  `resolve::dismissal`): „Akzeptieren und schließen“ führt zu Escape.
+- **Ablehnen nur auf ausdrücklichen Befehl** („cookies ablehnen“, „lehne
+  ab“, „reject all“ …) und nur über einen **Button**, der ablehnt und
+  nichts mit Abo oder Bezahlen zu tun hat. Genau einer → gewöhnlicher
+  `ActionPlan` `Activate` über `plan_on_page` (Risiko meist MEDIUM, ohne
+  Rückfrage); mehrere → nummerierte Rückfrage wie bei Mehrdeutigkeit;
+  keiner → Antwort „Nicht abgelehnt: … Kein Ablehnen ohne Bezahlung“ bzw.
+  „Kein Ablehnen“, Hinweis auf Einstellungen, die Relief nicht selbst
+  wählt. Keine Umgehung von Bezahlschranken oder Bot-Erkennung.
+- **Modalität bleibt:** Erkennung und Buttons nur unter erreichbaren
+  Elementen (`Graph::is_reachable`). „was ist hinter dem Dialog“ nennt
+  gesperrte Überschriften und Bedienelemente (höchstens je 10), **merkt aber
+  keine Auswahl**: Eine Zahl oder ein Name danach ist ein neuer Befehl, und
+  „klicke …“ auf ein Element dahinter bleibt „gesperrt“ (Test
+  `hintergrund_ist_nur_auskunft`).
+
+Erkennung [Annahme: Wortlisten, nicht kalibriert]:
+
+- **Kandidaten:** erreichbare `dialog`/`alertdialog` und benannte Bereiche,
+  deren Name nach Einwilligung klingt; Buttons und Links darin, auch im
+  iframe darunter (der Bereichsstapel reicht über Frame-Grenzen). Von
+  verschachtelten Cookie-Dialogen gilt der innerste (spiegel.de-Aufbau:
+  modaler Dialog im Hauptdokument, Dialog im Consent-iframe).
+- **Art** (`Fact<OverlayKind>`, Quelle `Rule`): Cookie-Dialog, wenn Name oder
+  Text ein Einwilligungswort trägt (cookie, einwilligung, datenschutz,
+  privacy, tracking …), Newsletter-Dialog über „newsletter“, sonst Dialog.
+  Ab zwei Hinweisen (Name, Text, Zustimmen-/Ablehnen-Button) `Inferred`
+  („vermutlich“), mit einem `Uncertain` („möglicherweise … unsicher“); nie
+  `Known`.
+- **Buttons** (`Fact<ButtonKind>`), Vorrang: Abo (abo, abonn…, pur,
+  werbefrei, bezahl…) vor Ablehnen (ablehnen, nur notwendige, ohne
+  Einwilligung, reject …) vor Einstellungen (einstellung, anpassen,
+  optionen, verwalten, details, auswahl …) vor Zustimmen (akzeptier…,
+  zustimmen, einwilligen, einverstanden, accept, „OK“ …) vor Schließen.
+  Wortanfänge, `$` für ganze Wörter („pur“ ≠ „purpose“, „consent“ ≠
+  „Consenthub“). Ein **Link**, der nach Ablehnen klingt, lehnt nicht ab
+  (bild.de, welt.de: „für Utiq jetzt ablehnen“ führt zu einem
+  Drittanbieter).
+- **Ansage** in „was ist hier“ (CDP-Host auch beim Laden) und auf „welcher
+  Dialog ist offen“: „Dialog „Privacy Center“ vermutlich Cookie-Dialog
+  (erschlossen: …). Modal: Bedienung nur im Dialog. Buttons nach
+  Beschriftung: Zustimmen „Einwilligen und weiter“, Einstellungen
+  „Einstellungen“, Abo „Jetzt abonnieren“, 9 weitere. Kein Ablehnen ohne
+  Bezahlung. …“
+
+Belege: Unit-Tests in `overlay.rs` und `session.rs`;
+`spike/tasks/09-consent.txt` auf `consent-ablehnen.html` (Ablehnen
+kostenlos, „Akzeptieren und schließen“ → Escape, Hintergrund nur lesend),
+`consent-abo.html` (kein Ablehnen ohne Abo), `consent-iframe.html` (Buttons
+im iframe eines modalen Dialogs) → 19/19 über CDP.
+
+Echte Seiten (`spike/tasks/12-consent-real.txt`, CDP-Host, 2026-09-30,
+Netz; 20/20; keine Einwilligung erteilt):
+
+| Seite | erkannt | Beschreibung (Auszug) | Ablehnen |
+|---|---|---|---|
+| spiegel.de | Cookie-Dialog „Privacy Center“, vermutlich | Zustimmen „Einwilligen und weiter“, Einstellungen, Abo „Jetzt abonnieren“, 9 weitere | kein Ablehnen ohne Bezahlung, nichts geklickt |
+| bild.de | „Cookie- und Einwilligungsbanner“, vermutlich | Zustimmen „Alle akzeptieren“, Einstellungen, Abo „Jetzt BILD PUR abonnieren“, 32 weitere | keins (Utiq-Link zählt nicht), nichts geklickt |
+| welt.de | wie bild.de (gleicher Anbieter) | Abo „JETZT WELT PUR ABONNIEREN“ | keins, nichts geklickt |
+| faz.net | „Cookiebanner“, vermutlich | Zustimmen „Einverstanden“, Einstellungen „Cookie-Manager“, Abo „F.A.Z. Pur-Abonnent? Hier anmelden“, „Abo“ | keins, nichts geklickt |
+| t-online.de | „Iframe title“ (Name der Seite), vermutlich | Zustimmen „ZUSTIMMEN“, Einstellungen, Abo „Datenschutzhinweise (PUR)“ | keins, nichts geklickt |
+| heise.de | „Cookie- und Datenverarbeitung“, vermutlich | Zustimmen, Einstellungen, Abo „Pur-Abo“ | keins, nichts geklickt |
+| google.de | „Bevor Sie zur Google Suche weitergehen“ | Zustimmen „Alle akzeptieren“, Ablehnen „Alle ablehnen“ | ausgeführt, Dialog geschlossen |
+| zdf.de | „cmp-dialog-description“ | Zustimmen, Ablehnen „Ablehnen“ | ausgeführt, Dialog geschlossen |
+| ikea.com/de | nicht modaler Dialog „Hej! …“ | Ablehnen „Optionale Cookies ablehnen“ | ausgeführt, Dialog geschlossen |
+
+Nur gelesen: stern.de (Abo „Zum PUR-Abo“, kein Ablehnen), otto.de (Ablehnen
+„Einwilligung ablehnen“), sueddeutsche.de (kein Ablehnen; das Abo heißt dort
+„Jetzt testen“ und bleibt „weitere“). **zeit.de** blockiert den
+automatisierten Browser („Ihre Anfrage wurde blockiert“); nicht umgangen,
+deshalb nicht in der Datei. **golem.de** zeigt eine Einwilligungs*seite*
+ohne Dialog-Rolle — nicht erkannt (→ 80).
+
+Befund: Über CDP enthält der Baum den Seiteninhalt hinter `aria-modal`
+(spiegel.de, bild.de: „was ist hinter dem Dialog“ nennt die Überschriften
+der Startseite). Im Fork nimmt Blink ihn heraus (→ 09, Nachtrag Paket 35);
+dort antwortet Relief, dass der Baum nichts enthält [Annahme, im Fork nicht
+gemessen → 80].
+
 ## Intent-Format [Annahme]
 
 ```json

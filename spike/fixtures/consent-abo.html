@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Magazin mit Abo-Dialog</title></head>
+<body>
+<main>
+  <h1>Magazin</h1>
+  <a href="#artikel">Zum Artikel</a>
+  <p role="status" id="s"></p>
+</main>
+<!-- Wie spiegel.de: Zustimmen, Abo („pur“) oder Einstellungen; kein
+     kostenloses Ablehnen. -->
+<div role="dialog" aria-modal="true" aria-label="Privacy Center" id="d">
+  <h2>Werbefrei lesen oder mit Werbung und Tracking</h2>
+  <p>Mit Ihrer Einwilligung verarbeiten wir personenbezogene Daten.</p>
+  <button id="accept">Einwilligen und weiter</button>
+  <button id="pay">Jetzt abonnieren</button>
+  <button id="settings">Einstellungen</button>
+</div>
+<script>
+  const say = (text) => () => { document.getElementById('s').textContent = text; };
+  document.getElementById('accept').onclick = say('Zustimmung gespeichert.');
+  document.getElementById('pay').onclick = say('Abo-Seite geöffnet.');
+  document.getElementById('settings').onclick = say('Einstellungen geöffnet.');
+</script>
+</body></html>

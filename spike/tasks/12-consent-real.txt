@@ -1,0 +1,65 @@
+# Consent-Dialoge auf echten Seiten (Paket 40). Greift auf das Netz zu,
+# nicht Teil der festen Prüfbefehle; nur lokal. Relief stimmt nie zu;
+# „Cookies ablehnen“ klickt nur einen Button, der ablehnt, ohne zu bezahlen.
+# Erwartungen bewusst grob: Seiten und Consent-Anbieter ändern sich.
+# Stand 2026-09-30. zeit.de blockiert den automatisierten Browser („Ihre
+# Anfrage wurde blockiert“) und fehlt deshalb; Relief umgeht das nicht.
+
+# Kein Ablehnen ohne Abo („pur“): ansagen, nichts klicken.
+url: https://www.spiegel.de/
+do: Welcher Dialog ist offen?
+expect: vermutlich Cookie-Dialog
+expect: Abo „Jetzt abonnieren“
+do: Cookies ablehnen
+expect: Nicht abgelehnt
+
+# „für Utiq jetzt ablehnen“ ist ein Link zu einem Drittanbieter, kein Ablehnen.
+url: https://www.bild.de/
+do: Welcher Dialog ist offen?
+expect: vermutlich Cookie-Dialog
+expect: Kein Ablehnen ohne Bezahlung
+do: Cookies ablehnen
+expect: Nicht abgelehnt
+
+url: https://www.welt.de/
+do: Welcher Dialog ist offen?
+expect: vermutlich Cookie-Dialog
+do: Cookies ablehnen
+expect: Nicht abgelehnt
+
+url: https://www.faz.net/
+do: Welcher Dialog ist offen?
+expect: vermutlich Cookie-Dialog
+do: Cookies ablehnen
+expect: Nicht abgelehnt
+
+url: https://www.t-online.de/
+do: Welcher Dialog ist offen?
+expect: vermutlich Cookie-Dialog
+do: Cookies ablehnen
+expect: Nicht abgelehnt
+
+url: https://www.heise.de/
+do: Welcher Dialog ist offen?
+expect: vermutlich Cookie-Dialog
+do: Cookies ablehnen
+expect: Nicht abgelehnt
+
+# Kostenloses Ablehnen: ausgeführt.
+url: https://www.google.de/
+do: Welcher Dialog ist offen?
+expect: Ablehnen „Alle ablehnen“
+do: Cookies ablehnen
+expect: Activate auf [button] Alle ablehnen
+
+url: https://www.zdf.de/
+do: Welcher Dialog ist offen?
+expect: Ablehnen „Ablehnen“
+do: Cookies ablehnen
+expect: Activate auf [button] Ablehnen
+
+url: https://www.ikea.com/de/de/
+do: Welcher Dialog ist offen?
+expect: Ablehnen „Optionale Cookies ablehnen“
+do: Cookies ablehnen
+expect: Activate auf [button] Optionale Cookies ablehnen

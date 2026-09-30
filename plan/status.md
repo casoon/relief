@@ -83,6 +83,13 @@ Relief ersetzt in barrierlab den Reader-Host als Konsument
 (casoon/barrierlab#29, zum Merge offen); Kandidaten zum Ablegen in
 [spezifikation/12](spezifikation/12-produktumfang.md#kandidaten-zum-ablegen-stand-2026-09-30).
 
+Overlay- und Consent-Dialoge erkannt, angesagt (Art und Buttons als
+Vermutung mit Evidence) und auf Befehl abgelehnt, nie zugestimmt; kein
+Ablehnen ohne Bezahlung wird angesagt, nicht umgangen; auf spiegel.de,
+bild.de, welt.de, faz.net, t-online.de, heise.de erkannt, Ablehnen auf
+google.de, zdf.de, ikea.com ausgeführt, beschrieben in
+[spezifikation/05](spezifikation/05-intents-und-aktionen.md#overlay--und-consent-dialoge-paket-40-belegt).
+
 Sicherheits-Regressionsmatrix umgesetzt (Missbrauchsfälle als
 Tests, Bestätigungstoken, Grenzen je Aufgabe, Security-Log), beschrieben in
 [spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#sicherheits-regressionsmatrix-entscheidung-umgesetzt-im-fork-belegt);
@@ -90,12 +97,12 @@ der Bestätigungs-Bypass ist auch im Fork getestet.
 
 **Sofort startbar:**
 - Cloud: 58 (Sicherheitsgrenzen im Host), 64 (DOM-Fakten für fremde Frames)
-- Cloud + M4: 26 (Sprache), 29 (Semantic View), 38 (Sprungmarken), 39 (Formular-Assistent), 21 (Befunde im Inspector), 40 (Overlay und Consent), 36 (Branding), 45 (Playwright)
+- Cloud + M4: 26 (Sprache), 29 (Semantic View), 38 (Sprungmarken), 39 (Formular-Assistent), 21 (Befunde im Inspector), 36 (Branding), 45 (Playwright), 80 (Consent-Nachtrag)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
-- Linie A: 26, 29, 38, 39, 40 parallel → 41;
+- Linie A: 26, 29, 38, 39 parallel → 41 (40 erledigt, Nachtrag 80);
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 (44 erledigt), 43 zurückgestellt; 64 jederzeit.
 - Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
@@ -115,11 +122,11 @@ der Bestätigungs-Bypass ist auch im Fork getestet.
 | 37 | Updates und Auslieferung (Signatur, Notarisierung) | M4 + Entscheidung | Entscheidung nötig | 36 | [37](37-updates-und-auslieferung.md) |
 | 38 | Tastatur-Sprungmarken aus dem Seitenmodell | Cloud + M4 | offen | 24 ✓, 25 ✓ | [38](38-tastatur-sprungmarken.md) |
 | 39 | Formular-Assistent | Cloud + M4 | offen | 24 ✓, 25 ✓ (26) | [39](39-formular-assistent.md) |
-| 40 | Overlay- und Consent-Dialoge | Cloud + M4 | offen | 24 ✓ | [40](40-overlay-und-consent.md) |
 | 41 | Fähigkeitsprofile | Cloud + M4 | offen | 25 ✓, 26, 29 | [41](41-faehigkeitsprofile.md) |
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
 | 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 ✓ | [45](45-playwright-anbindung.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 ✓ | [47](47-relief-ui-accessibility.md) |
 | 58 | Sicherheitsgrenzen in Hosts und Modellaufruf verdrahten (Log, Budget, Formularziel) | Cloud + M4 | offen | 48 ✓, vor Modellintegration | [58](58-sicherheitsgrenzen-im-host.md) |
+| 80 | Consent: Einwilligungsseiten ohne Dialog, Nachweis im Fork | Cloud + M4 | offen | 40 ✓ | [80](80-consent-nachtrag.md) |
 | 64 | DOM-Fakten für iframes in anderem Prozess, ID-Bereich im Shadow DOM | Cloud | offen | 55 ✓ | [64](64-dom-fakten-fremde-frames.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |

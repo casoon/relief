@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Seite mit Consent-iframe im Dialog</title></head>
+<body>
+<main>
+  <h1>Nachrichten</h1>
+  <a href="#artikel">Zum Artikel</a>
+</main>
+<!-- Wie spiegel.de und bild.de: modaler Dialog im Hauptdokument, die
+     Buttons im iframe darin. -->
+<div role="dialog" aria-modal="true" aria-label="Privacy Center">
+  <iframe src="consent-frame.html" title="Privacy Center" width="500" height="250"></iframe>
+</div>
+</body></html>

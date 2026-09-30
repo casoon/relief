@@ -1,0 +1,43 @@
+# Overlay- und Consent-Dialoge (Paket 40). Relief stimmt nie selbst zu;
+# Ablehnen nur auf ausdrücklichen Befehl und nur, wo es ohne Bezahlung geht.
+# Die Einordnung ist erschlossen und wird so angesagt („vermutlich“).
+
+# Cookie-Dialog mit kostenlosem Ablehnen.
+url: ../fixtures/consent-ablehnen.html
+do: Was ist hier?
+expect: vermutlich Cookie-Dialog
+expect: Zustimmen „Alle akzeptieren“, „Akzeptieren und schließen“
+expect: Ablehnen „Alle ablehnen“
+expect: Relief stimmt nie selbst zu
+# „Akzeptieren und schließen“ stimmt zu, ist also kein Schließen-Button.
+do: schließe den Dialog
+expect: kein Schließen-Button gefunden
+# Der Hintergrund ist nur Auskunft; bedienen bleibt gesperrt.
+do: Was ist hinter dem Dialog?
+expect: Hinter dialog „Wir verwenden Cookies“
+do: klicke Zum Artikel
+expect: gesperrt, solange „Wir verwenden Cookies“ offen ist
+do: Cookies ablehnen
+expect: Activate auf [button] Alle ablehnen
+expect: Ablehnung gespeichert.
+
+# Kein Ablehnen ohne Abo (wie spiegel.de „pur“): ansagen, nicht umgehen.
+url: ../fixtures/consent-abo.html
+do: Welcher Dialog ist offen?
+expect: vermutlich Cookie-Dialog
+expect: Zustimmen „Einwilligen und weiter“, Einstellungen „Einstellungen“, Abo „Jetzt abonnieren“
+expect: Kein Ablehnen ohne Bezahlung
+do: Cookies ablehnen
+expect: Nicht abgelehnt
+expect: umgeht keine Bezahlschranke
+
+# Consent im iframe eines modalen Dialogs (wie spiegel.de, bild.de).
+url: ../fixtures/consent-iframe.html
+do: Was ist hier?
+expect: dialog „Ihre Privatsphäre“ vermutlich Cookie-Dialog
+expect: Ablehnen „Nur notwendige“
+do: klicke Zum Artikel
+expect: gesperrt
+do: Cookies ablehnen
+expect: Activate auf [button] Nur notwendige
+expect: Nur notwendige Cookies.

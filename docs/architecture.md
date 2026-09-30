@@ -29,6 +29,7 @@ crates/
 │   ├── src/
 │   │   ├── graph.rs          # SemanticGraph → Graph (Bereiche, Überschriften, Bedienelemente, Fließtext; Ziele als NodeRef + DOM-ID); Fokus der Seite
 │   │   ├── page.rs           # Seitentyp, funktionale Gruppen (Produkt, Formular), primäre Aktion — erschlossen mit Evidence, nie Known
+│   │   ├── overlay.rs        # Cookie-, Newsletter- und andere Dialoge; Buttons eingeordnet (Zustimmen, Ablehnen, Einstellungen, Abo, Schließen) — erschlossen, nie Known
 │   │   ├── command.rs        # Text → Command (feste Formulierungen, kein LLM)
 │   │   ├── resolve.rs        # Zielbeschreibung → Bedienelement oder Abschnitt/Bereich; Schritte vom Fokus; was sich schließen lässt
 │   │   ├── validate.rs       # Bedienelement + Aktion → ActionPlan mit Risikoklasse; Seitentyp Anmeldung/Kasse erhöht (plan_on_page)
@@ -275,7 +276,15 @@ flowchart LR
   der Dialog mit dem Fokus, sonst ein aufgeklapptes Popup, sonst der letzte
   Dialog (`resolve::dismissal`, Fokus live abgefragt). Ohne Schließen-Button
   Escape an das fokussierte Element; liegt es nicht im Ziel, sagt die
-  Antwort, wohin Escape ging.
+  Antwort, wohin Escape ging. Ein Button, dessen Name nach Zustimmung oder
+  Abo klingt („Akzeptieren und schließen“), gilt nie als Schließen-Button.
+- **Overlays** (`overlay`): erreichbare Dialoge und nach Einwilligung
+  benannte Bereiche, auch mit den Buttons in einem iframe darin; Art und
+  Buttons nach Wörtern eingeordnet (Inferenz mit Evidence). „cookies
+  ablehnen“ wird ein gewöhnlicher `ActionPlan` (`Activate`) auf den einen
+  Button, der ablehnt; Links und Buttons mit Abo-Wörtern lehnen nicht ab.
+  „was ist hinter dem Dialog“ liest gesperrte Überschriften und
+  Bedienelemente, merkt aber keine Auswahl.
 - **Befehlsleiste** (`palette`): `palette.js` kommt per
   `Page.addScriptToEvaluateOnNewDocument` in jedes Dokument und ruft den Host
   über die Binding `reliefCommand`. Sie ist selbst ein modaler `<dialog>`, damit
