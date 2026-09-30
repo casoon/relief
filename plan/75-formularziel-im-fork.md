@@ -1,6 +1,6 @@
 # 75 · Formularziel und HTML-`autocomplete` im Fork
 
-**Umgebung:** Cloud schreibt, M4 baut · **Phase:** quer · **Abhängig von:** 58 · **Entscheidung nötig**
+**Umgebung:** Cloud schreibt, M4 baut · **Phase:** quer · **Abhängig von:** 58 · **Entscheidung: (b), 2026-09-30**
 
 ## Ziel
 
@@ -17,9 +17,13 @@ Link-Ziel, Dokument- und Bildadresse), und `kAutoComplete` ist
 `aria-autocomplete` bzw. „list“ (`AXNodeObject::AutoComplete`), nicht das
 HTML-Attribut. `kInputType` kommt an und wird genutzt.
 
+## Entscheidung (Nutzer, 2026-09-30)
+
+Weg (b): Anfrage an den Renderer nur bei einer Rückfrage, kein Blink-Patch.
+
 ## Schritte
 
-1. Weg entscheiden, mit Kosten: (a) Blink-Patch, der für Absenden-Buttons
+1. (erledigt: (b)) Weg entscheiden, mit Kosten: (a) Blink-Patch, der für Absenden-Buttons
    das aufgelöste Formularziel und für Felder HTML-`autocomplete` als
    String-Attribut serialisiert (Patch-Serie wächst, → spezifikation/01,
    Fork-Strategie); (b) Anfrage an den Renderer nur bei einer Rückfrage

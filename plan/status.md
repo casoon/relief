@@ -108,7 +108,7 @@ sensible Werte (Paket 58, im Fork belegt).
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 (44 erledigt), 43 zurückgestellt; 70 jederzeit.
 - Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
-- Vor jeder Modellintegration (28 im Fork, 34): 48 ✓, 58 ✓; 75 entscheiden.
+- Vor jeder Modellintegration (28 im Fork, 34): 48 ✓, 58 ✓; 75 (Weg b: Renderer-Anfrage).
 
 | Nr | Thema | Umgebung | Status | Abhängig von | Datei |
 |---|---|---|---|---|---|
@@ -118,10 +118,10 @@ sensible Werte (Paket 58, im Fork belegt).
 | 28 | Resolver: Messlauf und Schwellen | lokal / Cloud (API-Key) | wartet auf API-Key | 27 ✓, 12 ✓ | [28](28-resolver-fehlende-namen.md) |
 | 29 | Semantic View | Cloud + M4 | offen | 25 ✓ | [29](29-semantic-view.md) |
 | 30 | CDP-Host: barrierlab-Release übernehmen (Nachladen erledigt) | Cloud | wartet auf barrierlab-Release | barrierlab | [30](30-cdp-host-pflege.md) |
-| 31 | Plattformen Linux und Windows (Build-Hosts) | offen | Entscheidung nötig | 14 ✓, 17 ✓ | [31](31-plattformen.md) |
+| 31 | Plattformen Linux und Windows (Build-Hosts) | offen | zurückgestellt (Nutzer, 2026-09-30) | 14 ✓, 17 ✓ | [31](31-plattformen.md) |
 | 34 | Bridge-Variante B (Utility-Prozess) bauen und messen | Cloud + M4 | später | 19 ✓, vor KI-Code in der Runtime | [34](34-bridge-utility-prozess.md) |
 | 36 | Name und Branding „Relief“ | Cloud + M4 | offen | 19 ✓ | [36](36-branding.md) |
-| 37 | Updates und Auslieferung (Signatur, Notarisierung) | M4 + Entscheidung | Entscheidung nötig | 36 | [37](37-updates-und-auslieferung.md) |
+| 37 | Updates und Auslieferung (Signatur, Notarisierung) | M4 + Entscheidung | zurückgestellt (Nutzer, 2026-09-30) | 36 | [37](37-updates-und-auslieferung.md) |
 | 39 | Formular-Assistent | Cloud + M4 | offen | 24 ✓, 25 ✓ (26) | [39](39-formular-assistent.md) |
 | 40 | Overlay- und Consent-Dialoge | Cloud + M4 | offen | 24 ✓ | [40](40-overlay-und-consent.md) |
 | 41 | Fähigkeitsprofile | Cloud + M4 | offen | 25 ✓, 26, 29 | [41](41-faehigkeitsprofile.md) |
@@ -129,6 +129,6 @@ sensible Werte (Paket 58, im Fork belegt).
 | 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 ✓ | [45](45-playwright-anbindung.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 ✓ | [47](47-relief-ui-accessibility.md) |
 | 70 | CDP-Host mit Site Isolation: Frames in anderem Prozess (Aufnahme, DOM-Fakten, Aktionen) | Cloud | offen | 64 ✓ | [70](70-cdp-host-site-isolation.md) |
-| 75 | Formularziel und HTML-`autocomplete` im Fork | Cloud + M4 | Entscheidung nötig | 58 ✓ | [75](75-formularziel-im-fork.md) |
+| 75 | Formularziel und HTML-`autocomplete` im Fork | Cloud + M4 | offen, Weg (b) entschieden | 58 ✓ | [75](75-formularziel-im-fork.md) |
 | 76 | Sensible Werte außerhalb der Rückfrage (Antwort, Protokolle) | Cloud + M4 | offen | 58 ✓ | [76](76-werte-ausserhalb-der-rueckfrage.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
