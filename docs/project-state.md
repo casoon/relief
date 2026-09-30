@@ -81,7 +81,10 @@ Formulare: „was fehlt noch“ nennt leere Pflichtfelder und fehlerhafte,
 „zurück“ an den Ort davor. Vor dem Absenden nennt die Rückfrage alle
 Feldwerte (sensible verdeckt) und gilt nur, solange sie gleich bleiben; nach
 dem Absenden sagt die Antwort fehlerhafte Felder an.
-`spike/tasks/15-formular-assistent.txt` (beide Hosts).
+`spike/tasks/15-formular-assistent.txt` (beide Hosts). Nach dem Ausfüllen
+eines sensiblen Felds (Passwort, Zahlungs- oder Identitäts-`autocomplete`)
+nennt die Antwort weder neuen noch bisherigen Wert
+(`SetValue(verdeckt)`, „Wert geändert“), `spike/tasks/16-sensible-werte.txt`.
 
 In Aufgabendateien prüft `assert: <Zusicherung>` den aktuellen Stand eines
 Formulars und antwortet mit Befunden (Regel-IDs `form/…`) oder „Keine
@@ -99,7 +102,8 @@ Im Palettenmodus öffnet Strg+Umschalt+Leertaste die Befehlsleiste; riskante
 Aktionen werden mit „ja“ bestätigt, „nein“ verwirft die Rückfrage. Jede
 Eingabe landet mit Ergebnisart und
 Tastendrücken, ohne Seiteninhalte, in `relief-protokoll.jsonl` (`RELIEF_LOG`),
-dazu die Zeilen des Security-Logs.
+der Wert eines Ausfüll- oder Auswahlbefehls als „(verdeckt)“, dazu die
+Zeilen des Security-Logs.
 
 Resolver fehlender Namen kalibrieren (Stichprobe `spike/kalibrierung/`):
 

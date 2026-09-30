@@ -35,6 +35,7 @@ Gültige Entscheidungen und Rahmenbedingungen stehen in `docs/decisions.md` und
 | 92 | Linie A: Nachtrag zu 39 (echte Formulare) |
 | 90 | zurückgestellt |
 | 91 | Linie A: Nachtrag zu 80 (Consent, zweite Ebene) |
+| 100 | Querschnitt: Nachtrag zu 76 (sensible Werte in Auskünften) |
 
 ## Jedes Paket hat
 

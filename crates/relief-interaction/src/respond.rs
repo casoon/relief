@@ -483,8 +483,14 @@ pub fn scrolled(direction: ScrollDirection, before: f64, after: f64, max: f64) -
 
 /// Wert- und Zustandswechsel des bedienten Elements selbst (`checked`,
 /// `pressed` …), über den Graph statt über den Diff: `describe_diff` verfolgt
-/// nur einen Teil der Zustände.
-pub fn target_change(before: &Graph, after: &Graph, target: &NodeRef) -> Option<String> {
+/// nur einen Teil der Zustände. `hide_value`: nur „Wert geändert“, ohne die
+/// Werte (sensibles Feld, → `security::is_sensitive_field`).
+pub fn target_change(
+    before: &Graph,
+    after: &Graph,
+    target: &NodeRef,
+    hide_value: bool,
+) -> Option<String> {
     let find = |g: &'_ Graph| {
         g.controls
             .iter()
@@ -493,6 +499,9 @@ pub fn target_change(before: &Graph, after: &Graph, target: &NodeRef) -> Option<
     };
     let ((old, old_value), (new, new_value)) = (find(before)?, find(after)?);
     let value = (old_value != new_value).then(|| {
+        if hide_value {
+            return "Wert geändert".to_string();
+        }
         format!(
             "Wert {} → {}",
             old_value.as_deref().unwrap_or("leer"),
@@ -530,16 +539,20 @@ pub fn describe_diff(before: &SemanticGraph, after: &SemanticGraph) -> String {
         after,
         focused(before).as_ref(),
         focused(after).as_ref(),
+        None,
     )
 }
 
 /// Wie [`describe_diff`], mit dem Fokus vorher und nachher vom Aufrufer
 /// (Position der Sitzung statt des Fokus im Modell, → `session`).
+/// `hidden`: ein sensibles Feld, dessen Inhalt (Text in ihm, also sein Wert)
+/// nicht genannt wird (→ `security::is_sensitive_field`).
 pub fn describe_diff_at(
     before: &SemanticGraph,
     after: &SemanticGraph,
     focus_before: Option<&NodeRef>,
     focus_after: Option<&NodeRef>,
+    hidden: Option<&NodeRef>,
 ) -> String {
     let delta = TreeDelta::between(before, after);
     let mut parts = Vec::new();
@@ -601,6 +614,9 @@ pub fn describe_diff_at(
             continue;
         }
         let node = after.node(&at).expect("aus der Dokumentreihenfolge");
+        if hidden.is_some_and(|h| inside(after, &at, h)) {
+            continue;
+        }
         if !perceivable(before, &at) {
             added_all.push(node);
             continue;
@@ -708,6 +724,24 @@ pub fn describe_diff_at(
 /// Zustände, deren Wechsel `describe_diff` meldet, als Text; `None`, wo der
 /// Knoten den Zustand nicht führt. `invalid` fehlt nie: kein Fehler heißt
 /// `false`.
+/// Liegt `at` in `ancestor` (oder ist es selbst)? Über die Eltern im selben
+/// Baum.
+fn inside(g: &SemanticGraph, at: &NodeRef, ancestor: &NodeRef) -> bool {
+    if at.tree != ancestor.tree {
+        return false;
+    }
+    let mut id = Some(at.node);
+    while let Some(current) = id {
+        if current == ancestor.node {
+            return true;
+        }
+        id = g
+            .node(&NodeRef::new(at.tree.clone(), current))
+            .and_then(|n| n.parent);
+    }
+    false
+}
+
 fn tracked(n: &SemanticNode) -> [(&'static str, Option<String>); 4] {
     let s = &n.states;
     [
@@ -820,8 +854,12 @@ mod tests {
             .unwrap();
         after.controls[i].value = Some("2".into());
         assert_eq!(
-            target_change(&before, &after, &at(20)).as_deref(),
+            target_change(&before, &after, &at(20), false).as_deref(),
             Some("Ziel jetzt: Wert 1 → 2")
+        );
+        assert_eq!(
+            target_change(&before, &after, &at(20), true).as_deref(),
+            Some("Ziel jetzt: Wert geändert")
         );
     }
 

@@ -110,12 +110,15 @@ Tests, Bestätigungstoken, Grenzen je Aufgabe, Security-Log), beschrieben in
 der Bestätigungs-Bypass ist auch im Fork getestet. Hosts schreiben das
 Security-Log, ein Anbieter lässt sich nur über `Budget` aufrufen (`Permit`),
 die Rückfrage nennt und bindet im CDP-Host das Formularziel und verdeckt
-sensible Werte (Paket 58, im Fork belegt).
+sensible Werte (Paket 58, im Fork belegt). Auch die Antwort nach einer
+Aktion verdeckt sie, Protokolle den Wert jedes Ausfüll- und Auswahlbefehls
+(Paket 76, Fork-Teil zu bauen), beschrieben in
+[spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#sensible-werte-außerhalb-der-rückfrage-umgesetzt-paket-76-fork-teil-zu-bauen).
 
 **Sofort startbar:**
-- Cloud: 76 (Werte außerhalb der Rückfrage), 85 (Frames anderer Prozesse, Nachtrag)
+- Cloud: 85 (Frames anderer Prozesse, Nachtrag), 100 (sensible Werte in Auskünften)
 - Cloud + M4: 26 (Sprache), 29 (Semantic View), 21 (Befunde im Inspector), 36 (Branding), 45 (Playwright), 91 (Consent: zweite Ebene)
-- M4: 43 (VoiceOver im Test)
+- M4: 43 (VoiceOver im Test), 76 (Fork-Teil bauen)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
@@ -142,8 +145,9 @@ sensible Werte (Paket 58, im Fork belegt).
 | 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 ✓ | [45](45-playwright-anbindung.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 ✓ | [47](47-relief-ui-accessibility.md) |
 | 75 | Formularziel und HTML-`autocomplete` im Fork | Cloud + M4 | offen, Weg (b) entschieden | 58 ✓ | [75](75-formularziel-im-fork.md) |
-| 76 | Sensible Werte außerhalb der Rückfrage (Antwort, Protokolle) | Cloud + M4 | offen | 58 ✓ | [76](76-werte-ausserhalb-der-rueckfrage.md) |
+| 76 | Sensible Werte außerhalb der Rückfrage (Antwort, Protokolle) | M4 | Fork-Teil zu bauen | 58 ✓ | [76](76-werte-ausserhalb-der-rueckfrage.md) |
 | 85 | CDP-Host: Frames anderer Prozesse, Nachtrag (Änderungssignal, Verschachtelung, Zählung) | Cloud | offen | 70 ✓ | [85](85-cdp-host-frames-nachtrag.md) |
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
 | 91 | Consent: zweite Ebene auf echten Seiten | Cloud + M4 | offen | 80 ✓ | [91](91-consent-zweite-ebene.md) |
+| 100 | Sensible Werte in Auskünften und unverstandenen Eingaben | Cloud + M4 | offen | 76 | [100](100-sensible-werte-in-auskuenften.md) |

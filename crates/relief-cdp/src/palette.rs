@@ -6,7 +6,8 @@
 //! angezeigt. Riskante Aktionen werden mit „ja“ bestätigt.
 //!
 //! Protokoll: eine JSON-Zeile je Eingabe in `RELIEF_LOG` (Standard
-//! `relief-protokoll.jsonl`) mit Zeit, Eingabe, Art des Ergebnisses und
+//! `relief-protokoll.jsonl`) mit Zeit, Eingabe (Wert eines Ausfüll- oder
+//! Auswahlbefehls verdeckt, `redact_input`), Art des Ergebnisses und
 //! Tastendrücken — ohne Seiteninhalte und ohne Antworttexte; dazu die Zeilen
 //! des Security-Logs (`security`, ohne Werte und Namen).
 
@@ -164,7 +165,7 @@ async fn serve(mut session: Session, mut calls: EventStream<EventBindingCalled>)
             "{}",
             json!({
                 "t": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_millis() as u64,
-                "eingabe": text,
+                "eingabe": relief_interaction::redact_input(&text),
                 "ergebnis": kind,
                 "tasten_seit_letzter_eingabe": keys.saturating_sub(last_keys),
                 "tasten_gesamt": keys,

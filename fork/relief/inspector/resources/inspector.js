@@ -231,8 +231,6 @@ function addLog(input, answer) {
   entry.scrollIntoView({block: 'nearest'});
 }
 
-let lastInput = '';
-
 // Schickt die Eingabe; false, wenn noch ein Befehl läuft (die Eingabe
 // bleibt dann stehen).
 function send(text) {
@@ -244,9 +242,8 @@ function send(text) {
     return false;
   }
   busy = true;
-  lastInput = text.trim();
   setState('Führe aus …');
-  chrome.send('command', [lastInput]);
+  chrome.send('command', [text.trim()]);
   return true;
 }
 
@@ -264,7 +261,6 @@ function cancel() {
   if (!busy) {
     // Offene Rückfrage: die Runtime verwirft sie und antwortet.
     busy = true;
-    lastInput = 'abbrechen';
     setState('Breche ab …');
   }
   chrome.send('cancel');
@@ -285,9 +281,11 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
-addWebUiListener('answer', (answer, acted) => {
+// `input`: die Eingabe, wie der Host sie fürs Log liefert (Wert eines
+// Ausfüll- oder Auswahlbefehls verdeckt).
+addWebUiListener('answer', (answer, acted, input) => {
   busy = false;
-  addLog(lastInput || 'abbrechen', answer);
+  addLog(input, answer);
   setState(stateAfter(answer) + (acted ? ' Fokus liegt auf der Seite.' : ''));
 });
 addWebUiListener('focusCommand', () => cmdInput.focus());

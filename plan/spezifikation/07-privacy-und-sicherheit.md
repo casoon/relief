@@ -209,7 +209,8 @@ Eine Hypothese senkt das Risiko nie (`injection.rs`,
   zeigt die Rückfrage `SetValue(verdeckt)` bzw. `Select(verdeckt)` und das
   Ziel ohne bisherigen Wert; gebunden bleibt der Wert trotzdem (belegt:
   `sensible_werte_stehen_nicht_in_der_rueckfrage`). Im Fork nur für
-  Passwortfelder (`type` kommt an, `autocomplete` nicht).
+  Passwortfelder (`type` kommt an, `autocomplete` nicht). Antwort und
+  Protokolle → „Sensible Werte außerhalb der Rückfrage“.
 - **Gebunden** (`Binding`) an: Aktion samt Wert, Zielknoten und DOM-ID,
   Risikoklasse, Graph-Version, Zieladresse (URL des Ziels bzw.
   Formularziel, vollständig),
@@ -289,7 +290,55 @@ fork-run-tasks.sh` mit 01–05, 07 → 79/79, die `security`-Zeilen zu 07 in
 derselben Folge wie im CDP-Host, keine mit „kaufen“, „erika“ oder
 „file:“; `relief_browsertests` 15/15.
 
-Grenzen: Die Protokolle, in denen die Zeilen stehen, enthalten daneben die
-Eingabe selbst (Fork: Zeile `command`, Befehlsleiste: `eingabe`), also auch
-einen eingegebenen Wert; die Antwort nach einer Aktion nennt den Wert
-(`SetValue("…") auf …`) auch bei sensiblen Feldern → Paket 76.
+Die Protokolle, in denen die Zeilen stehen, enthalten daneben die Eingabe,
+ohne Werte (→ „Sensible Werte außerhalb der Rückfrage“).
+
+### Sensible Werte außerhalb der Rückfrage [umgesetzt, Paket 76; Fork-Teil zu bauen]
+
+**Antwort nach einer Aktion** (`Session::performed`, beide Hosts): Ist das
+Ziel ein sensibles Feld (dieselbe Regel wie die Rückfrage,
+`is_sensitive_field`), lautet sie `SetValue(verdeckt)`/`Select(verdeckt)`
+auf das Ziel ohne bisherigen Wert, der Wertwechsel nur „Wert geändert“
+(`respond::target_change`, `hide_value`), und Text im Feld (Chromium zeigt
+den Inhalt eines Textfelds als Textknoten) zählt nicht als „Neuer Text“
+(`respond::describe_diff_at`, `hidden`). Auch „Abgelehnt: … (Ziel)“ nennt
+den bisherigen Wert nicht. Für nicht sensible Felder bleibt die Antwort
+gleich (`SetValue("…")`, „Wert alt → neu“).
+
+**Protokolle**: `relief_interaction::redact_input` ersetzt den Wert eines
+Ausfüll- oder Auswahlbefehls (`SetValue`, `Select`) durch „(verdeckt)“,
+jede Fundstelle in der Eingabe; alles andere bleibt wörtlich, auch
+Unverstandenes. Genutzt von der CDP-Befehlsleiste (`eingabe` in
+`RELIEF_LOG`), im Fork von `RuntimeHost::RunCommand` (Zeile `command`)
+und vom Log der Befehlsleiste im Relief-Panel (die WebUI bekommt die
+Eingabe mit der Antwort vom Host, `bridge::redact_input`).
+
+Entscheidung: Protokolle enthalten die Eingabe, aber nie den Wert eines
+Ausfüll- oder Auswahlbefehls, **unabhängig vom Ziel**. Der Host schreibt
+die Zeile, bevor das Ziel feststeht (Fork: vor `run_command`; eine
+Mehrdeutigkeit löst erst die nächste Eingabe), und ein solcher Wert ist
+nie Seiteninhalt, sondern kommt von der Nutzerin. Für die Nutzerstudie
+(→ 11) zählen Formulierung, Ziel und Ergebnis, nicht der Inhalt; die
+Formulierung bleibt erhalten. Nur sensible Ziele zu verdecken hätte
+verlangt, die Zeile erst nach der Auflösung zu schreiben.
+
+Belegt: `session.rs` `sensible_werte_stehen_nicht_in_der_antwort`
+(Passwort und `cc-number`: kein neuer, kein bisheriger Wert, kein Text im
+Feld; nicht sensibel unverändert), `protokoll_verdeckt_werte`;
+`crates/relief-bridge/tests/befehle.rs`
+`passwort_steht_nicht_in_antwort_und_protokoll` (Fork-Runtime: AX-Schritt
+trägt den Wert, Antwort, Protokolleingabe und Security-Log nicht);
+`spike/tasks/16-sensible-werte.txt` im CDP-Host (Anzeigename unverändert,
+Benutzername, Passwort, Kartennummer verdeckt, auch der bisherige Wert);
+`relief-cdp palette-selftest spike/fixtures/login.html` mit `RELIEF_LOG`:
+`eingabe` lautet „fülle Passwort mit (verdeckt)“, keine Zeile mit einem der
+Werte. Vorher (belegt): Die Kartennummer stand als „Neuer Text“ in der
+Antwort, der Wert in `eingabe`.
+
+Offen: Im Fork gebaut und geprüft sind die Protokollzeile `command` und das
+Panel-Log noch nicht (Paket 76, M4). Auskünfte (`wo bin ich`, `details zu`,
+Aktionsliste, Inspector) nennen den Wert eines Felds mit Zahlungs- oder
+Identitäts-`autocomplete` weiter; unverstandene Eingaben stehen wörtlich im
+Protokoll → Paket 100. Die Aufgaben-Runner (`relief-cdp run`/`test`,
+`--relief-run`) geben die Eingaben der Aufgabendatei aus; das sind
+Testausgaben, keine Protokolle.

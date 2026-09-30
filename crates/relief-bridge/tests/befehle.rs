@@ -303,3 +303,59 @@ fn sprungmarken_listen_und_waehlen_mit_rueckfrage() {
         matches!(rt.command("marke zz"), Reply::Answer(t) if t.starts_with("Keine Sprungmarke"))
     );
 }
+
+/// Paket 76: Ein Passwortfeld ausfüllen. Der Wert geht als AX-Schritt an den
+/// Fork, steht aber weder in der Antwort noch in der Eingabe fürs Protokoll.
+#[test]
+fn passwort_steht_nicht_in_antwort_und_protokoll() {
+    let pair = common::pairs()
+        .into_iter()
+        .find(|p| p.name.contains("01-shop-clean"))
+        .expect("Aufnahme 01-shop-clean");
+    // Das Suchfeld als Passwortfeld, wie der Fork `type` meldet.
+    let mut vorher = pair.before;
+    let suche = vorher
+        .document_order()
+        .into_iter()
+        .find(|at| vorher.node(at).unwrap().role == Role::SearchBox)
+        .unwrap();
+    let mut feld = vorher.node(&suche).unwrap().clone();
+    feld.extra.insert(
+        relief_interaction::security::INPUT_TYPE.into(),
+        "password".into(),
+    );
+    let setze = |g: &mut SemanticGraph, n: relief_model::SemanticNode| {
+        g.trees
+            .get_mut(&suche.tree)
+            .unwrap()
+            .nodes
+            .insert(suche.node, n);
+    };
+    setze(&mut vorher, feld.clone());
+    let mut rt = Runtime::new();
+    rt.apply(&TreeDelta::between(&SemanticGraph::default(), &vorher))
+        .unwrap();
+
+    let eingabe = "fülle Suche mit geheim123";
+    assert_eq!(
+        schritte(&mut rt, eingabe),
+        vec![
+            (Role::SearchBox, Action::Focus, None),
+            (Role::SearchBox, Action::SetValue, Some("geheim123".into())),
+        ]
+    );
+    let mut nachher = rt.graph().clone();
+    feld.value = relief_model::Fact::known(Some("geheim123".into()));
+    setze(&mut nachher, feld);
+    rt.apply(&TreeDelta::between(rt.graph(), &nachher)).unwrap();
+    let antwort = rt.finish();
+    assert!(antwort.starts_with("SetValue(verdeckt) auf"), "{antwort}");
+    assert!(antwort.contains("Wert geändert"), "{antwort}");
+    assert!(!antwort.contains("geheim123"), "{antwort}");
+    assert_eq!(
+        relief_interaction::redact_input(eingabe),
+        "fülle Suche mit (verdeckt)"
+    );
+    let security = serde_json::to_string(&rt.take_security_log()).unwrap();
+    assert!(!security.contains("geheim123"), "{security}");
+}

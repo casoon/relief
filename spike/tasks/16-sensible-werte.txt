@@ -1,0 +1,16 @@
+# Sensible Werte außerhalb der Rückfrage (Paket 76): Die Antwort nach dem
+# Ausfüllen nennt Wert und Text im Feld nur bei nicht sensiblen Feldern
+# (Passwort, `autocomplete` für Anmelde-, Zahlungs- und Identitätsdaten).
+url: ../fixtures/login.html
+do: fülle Anzeigename mit erika
+expect: SetValue("erika") auf
+expect: Wert leer → erika
+do: fülle Benutzername mit erika.m
+expect: SetValue(verdeckt) auf [textbox] Benutzername. Ziel jetzt: Wert geändert. Fokus
+do: fülle Passwort mit geheim123
+expect: SetValue(verdeckt) auf [textbox] Passwort. Ziel jetzt: Wert geändert. Fokus
+do: fülle Kartennummer mit 4111111111111111
+expect: SetValue(verdeckt) auf [textbox] Kartennummer. Ziel jetzt: Wert geändert. Fokus jetzt auf textbox „Kartennummer“.
+# Auch der bisherige Wert steht nicht im Ziel.
+do: fülle Kartennummer mit 5555555555554444
+expect: SetValue(verdeckt) auf [textbox] Kartennummer. Ziel jetzt: Wert geändert. Keine wahrnehmbare Änderung.

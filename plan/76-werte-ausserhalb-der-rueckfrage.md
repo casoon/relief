@@ -1,35 +1,40 @@
-# 76 · Sensible Werte außerhalb der Rückfrage
+# 76 · Sensible Werte außerhalb der Rückfrage: Fork-Teil bauen
 
-**Umgebung:** Cloud (+ M4 für den Fork-Teil) · **Phase:** quer · **Abhängig von:** 58
+**Umgebung:** M4 · **Phase:** quer · **Abhängig von:** 58
 
 ## Ziel
 
-Nicht nur die Rückfrage, auch Antworten und Protokolle geben Werte
-sensibler Felder nicht wieder (→ spezifikation/07, „Security-Log“,
-Grenzen).
-
-## Kontext
-
-Belegt (Paket 58): Die Antwort nach einer Aktion beginnt mit
-`{:?}` des Plans, also `SetValue("…") auf …`, auch für Passwortfelder
-(`Session::performed`). Das Fork-Protokoll schreibt jede Eingabe als
-`command\t<Eingabe>`, das Protokoll der Befehlsleiste als `eingabe`; beide
-enthalten damit eingegebene Werte, neben den wertfreien `security`-Zeilen.
+Der umgesetzte Rest im Fork gebaut und geprüft (Substanz →
+spezifikation/07, „Sensible Werte außerhalb der Rückfrage“). Rust-Seite,
+CDP-Host und Fork-Runtime sind belegt.
 
 ## Schritte
 
-1. `Session::performed` verdeckt den Wert bei sensiblen Feldern wie die
-   Rückfrage (`is_sensitive_field`); Aufgaben, die `SetValue("…")` erwarten,
-   bleiben für nicht sensible Felder gleich.
-2. Entscheiden, ob Protokolle Eingaben enthalten dürfen (Nutzerstudie
-   braucht sie ggf.) oder nur ihre Art; mindestens bei sensiblen Zielen
-   verdecken.
+1. `scripts/fork-apply.sh`, `autoninja -C out/Relief chrome
+   relief_browsertests` (geändert: `crates/relief-interaction`,
+   `crates/relief-bridge/src/cxx_bridge.rs` mit `redact_input`,
+   `fork/relief/bridge/runtime_host.cc`,
+   `fork/relief/inspector/relief_inspector_ui.cc`,
+   `fork/relief/inspector/resources/inspector.js`).
+2. `relief_browsertests` wie bisher grün.
+3. `scripts/fork-run-tasks.sh spike/tasks/0[1-5]*.txt spike/tasks/07-*.txt
+   spike/tasks/15-*.txt`: „0 nicht erfüllt“ (Antworten für nicht sensible
+   Felder unverändert).
+4. `RELIEF_LOG=<datei> scripts/fork-run-tasks.sh
+   spike/tasks/16-sensible-werte.txt`: Anzeigename und Passwort erfüllt.
+   Benutzername und Kartennummer (drei Erwartungen) verfehlt der Fork
+   erwartungsgemäß, weil `autocomplete` nicht ankommt (→ 75); dann nennt
+   die Antwort dort den Wert. Protokoll: die `command`-Zeilen lauten
+   „fülle … mit (verdeckt)“, `grep -c 'geheim123\|erika\|4111\|5555'
+   <datei>` ergibt 0.
+5. Panel (Strg+Umschalt+I): „fülle Passwort mit geheim123“ auf
+   `spike/fixtures/login.html`; das Log der Leiste zeigt „fülle Passwort mit
+   (verdeckt)“ und „SetValue(verdeckt) auf …“.
 
 ## Fertig, wenn
 
-- Ein Test füllt ein Passwortfeld aus; weder Antwort noch Protokoll
-  enthalten den Wert.
+- Schritte 2–5 belegt; Status in spezifikation/07 auf „im Fork belegt“.
 
 ## Nicht Teil
 
-- Security-Log selbst (wertfrei, 48/58).
+- Auskünfte und unverstandene Eingaben (→ 100).
