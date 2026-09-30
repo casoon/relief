@@ -293,7 +293,7 @@ derselben Folge wie im CDP-Host, keine mit „kaufen“, „erika“ oder
 Die Protokolle, in denen die Zeilen stehen, enthalten daneben die Eingabe,
 ohne Werte (→ „Sensible Werte außerhalb der Rückfrage“).
 
-### Sensible Werte außerhalb der Rückfrage [umgesetzt, Paket 76; Fork-Teil zu bauen]
+### Sensible Werte außerhalb der Rückfrage [umgesetzt, Paket 76; im Fork belegt]
 
 **Antwort nach einer Aktion** (`Session::performed`, beide Hosts): Ist das
 Ziel ein sensibles Feld (dieselbe Regel wie die Rückfrage,
@@ -335,8 +335,16 @@ Benutzername, Passwort, Kartennummer verdeckt, auch der bisherige Wert);
 Werte. Vorher (belegt): Die Kartennummer stand als „Neuer Text“ in der
 Antwort, der Wert in `eingabe`.
 
-Offen: Im Fork gebaut und geprüft sind die Protokollzeile `command` und das
-Panel-Log noch nicht (Paket 76, M4). Auskünfte (`wo bin ich`, `details zu`,
+Im Fork (M4) belegt: `relief_browsertests` grün; Fork-Aufgaben 01–05, 07,
+15 ohne Fehlschlag; `16-sensible-werte.txt` mit `--relief-log`: Anzeigename
+und Passwort wie erwartet, Benutzername und Kartennummer (drei
+Erwartungen) nennen den Wert, weil `autocomplete` im Fork nicht ankommt
+(→ 75); die Zeilen `command` lauten „fülle … mit (verdeckt)“, keine
+Protokollzeile enthält einen der Werte. Panel: „fülle Passwort mit
+geheim123“ erscheint im Log als „fülle Passwort mit (verdeckt):
+SetValue(verdeckt) auf [textbox] Passwort …“.
+
+Offen: Auskünfte (`wo bin ich`, `details zu`,
 Aktionsliste, Inspector) nennen den Wert eines Felds mit Zahlungs- oder
 Identitäts-`autocomplete` weiter; unverstandene Eingaben stehen wörtlich im
 Protokoll → Paket 100. Die Aufgaben-Runner (`relief-cdp run`/`test`,
