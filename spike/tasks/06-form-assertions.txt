@@ -93,6 +93,14 @@ url: server:../fixtures/form-fremd.html
 assert: namen-wie-accname
 expect: 1 Befund:
 expect: laut Chromium „Telefon (Rückfrage)“, laut accname „Telefon“
+# Chrome läuft mit Site Isolation, das iframe in einem eigenen Prozess
+# (Paket 70): Tab-Folge, Aktion und Fokus über die Sitzung des Frames.
+assert: tabfolge Name, Telefon (Rückfrage)
+expect: Keine Befunde
+do: fülle Telefon mit 030 1234567
+expect: SetValue("030 1234567")
+do: wo bin ich
+expect: Telefon
 
 # Gleiche IDs im Dokument und im Shadow-Root (Paket 64): accname rechnet mit
 # einem ID-Index je Dokument; statt falscher Abweichungen `untested`.

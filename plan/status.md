@@ -82,12 +82,14 @@ Formular-Zusicherungen im Aufgabenformat (`assert:`) umgesetzt, browserfrei
 ausgewertet mit `a11y-dom`, `accname` und `a11y-report` (Feature
 `assertions`, nicht im Fork); `statusmeldung` prüft die Änderung der
 Live-Region über `TreeDelta`, `namen-wie-accname` rechnet mit Rendering
-(`display`, `visibility`) und über iframes im selben Prozess und Shadow DOM,
+(`display`, `visibility`) und über iframes und Shadow DOM,
 `06-form-assertions.txt` läuft in Prüfbefehlen und CI, beschrieben in
 [spezifikation/12](spezifikation/12-produktumfang.md#formular-zusicherungen-umgesetzt-2026-09-30-pakete-42-49-55-64).
 Feld in einem iframe fremder Herkunft verglichen (lokaler Server,
-`url: server:…`; ohne Site Isolation im Host), gleiche IDs in Dokument und
-Shadow-Root ergeben `untested` statt falscher Befunde, ebd.
+`url: server:…`), gleiche IDs in Dokument und Shadow-Root ergeben
+`untested` statt falscher Befunde, ebd. Der CDP-Host läuft mit Site
+Isolation: Frames in einem anderen Prozess kommen über eine eigene Sitzung
+in Aufnahme, DOM-Fakten, Aktionen, Fokus und Tab-Folge (Paket 70), ebd.
 Relief ersetzt in barrierlab den Reader-Host als Konsument
 (casoon/barrierlab#29, zum Merge offen); Kandidaten zum Ablegen in
 [spezifikation/12](spezifikation/12-produktumfang.md#kandidaten-zum-ablegen-stand-2026-09-30).
@@ -111,7 +113,7 @@ die Rückfrage nennt und bindet im CDP-Host das Formularziel und verdeckt
 sensible Werte (Paket 58, im Fork belegt).
 
 **Sofort startbar:**
-- Cloud: 70 (CDP-Host mit Site Isolation), 76 (Werte außerhalb der Rückfrage)
+- Cloud: 76 (Werte außerhalb der Rückfrage), 85 (Frames anderer Prozesse, Nachtrag)
 - Cloud + M4: 26 (Sprache), 29 (Semantic View), 21 (Befunde im Inspector), 36 (Branding), 45 (Playwright), 91 (Consent: zweite Ebene)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
@@ -119,7 +121,7 @@ sensible Werte (Paket 58, im Fork belegt).
 **Reihenfolge:**
 - Linie A: 26, 29 parallel → 41 (40 und 80 erledigt, Nachtrag 91);
   47 läuft mit 20 und 25 als Abnahme mit.
-- Linie B: 45 (44 erledigt), 43 zurückgestellt; 70 jederzeit.
+- Linie B: 45 (44 erledigt), 43 zurückgestellt; 85 jederzeit (70 erledigt).
 - Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
 - Vor jeder Modellintegration (28 im Fork, 34): 48 ✓, 58 ✓; 75 (Weg b: Renderer-Anfrage).
 
@@ -139,9 +141,9 @@ sensible Werte (Paket 58, im Fork belegt).
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
 | 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 ✓ | [45](45-playwright-anbindung.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 ✓ | [47](47-relief-ui-accessibility.md) |
-| 70 | CDP-Host mit Site Isolation: Frames in anderem Prozess (Aufnahme, DOM-Fakten, Aktionen) | Cloud | offen | 64 ✓ | [70](70-cdp-host-site-isolation.md) |
 | 75 | Formularziel und HTML-`autocomplete` im Fork | Cloud + M4 | offen, Weg (b) entschieden | 58 ✓ | [75](75-formularziel-im-fork.md) |
 | 76 | Sensible Werte außerhalb der Rückfrage (Antwort, Protokolle) | Cloud + M4 | offen | 58 ✓ | [76](76-werte-ausserhalb-der-rueckfrage.md) |
+| 85 | CDP-Host: Frames anderer Prozesse, Nachtrag (Änderungssignal, Verschachtelung, Zählung) | Cloud | offen | 70 ✓ | [85](85-cdp-host-frames-nachtrag.md) |
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
 | 91 | Consent: zweite Ebene auf echten Seiten | Cloud + M4 | offen | 80 ✓ | [91](91-consent-zweite-ebene.md) |

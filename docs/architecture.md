@@ -64,7 +64,8 @@ crates/
 │   └── tests/calibrate.rs    # nur Fake-Anbieter (Stufe none, Wiedergabe)
 └── relief-cdp/               # Host, chromiumoxide 0.8 + tokio
     └── src/
-        ├── capture.rs        # getFullAXTree je Frame, iframes eingehängt, Fokus → AXSnapshot
+        ├── capture.rs        # getFullAXTree je Frame, iframes eingehängt (auch aus anderen Prozessen), Fokus → AXSnapshot
+        ├── frames.rs         # Frames in anderen Renderer-Prozessen: zweite Verbindung, flache Sitzung je Frame, Backend-IDs mit Frame-Nummer, Dokument mit eingehängten Frames, Fokus
         ├── facts.rs          # DOM.getDocument je Aufnahme → extra: Formularziel von Absenden-Buttons, HTML-type/-autocomplete
         ├── live.rs           # DOM-Mutationen + Netzwerk → „Seite ruht“; „geändert seit letzter Aufnahme“
         ├── act.rs            # ActionPlan → DOM/JS am Element (Backend-ID); Escape/Pfeiltasten/Tab als Taste; Scrollen
@@ -289,9 +290,27 @@ flowchart LR
 - **Aufnahme**: vor einem Befehl nur, wenn seit der letzten Aufnahme etwas
   mutiert oder navigiert wurde; nach eigenen Aktionen immer, weil nicht jede
   Wirkung eine Mutation auslöst.
-- **iframes**: je Frame `getFullAXTree { frameId }`, Knoten-IDs mit
-  Frame-Präfix, Frame-Wurzel unter dem `iframe`-Knoten eingehängt. Chrome
-  läuft dafür mit `--disable-site-isolation-trials`.
+- **iframes**: Chrome läuft mit Site Isolation wie ein normales Chrome.
+  Frames im Prozess der Seite: je Frame `getFullAXTree { frameId }`,
+  Knoten-IDs mit Präfix `f<n>:`, Frame-Wurzel unter dem `iframe`-Knoten
+  eingehängt. Frames in einem anderen Prozess sind eigene CDP-Ziele (Ziel-ID
+  = Frame-ID); `frames.rs` hängt sich über eine zweite Verbindung zum Browser
+  flach an (`Target.attachToTarget`, `flatten`), weil chromiumoxide Befehle
+  nur an die Sitzung der Seite schickt. Ein `iframe`-Knoten ohne Kinder,
+  dessen Element (`DOM.describeNode`) eine `frameId` trägt, bekommt den Baum
+  aus der Sitzung des Frames (Präfix `r<Nummer>:`), auch verschachtelt.
+  Backend-IDs vergibt jeder Prozess selbst; im Modell steht deshalb
+  `Nummer << 32 | Backend-ID` (Seite: Nummer 0, IDs unverändert), auch in
+  Beziehungen (`labelledby` u. a.). `Frames::resolve` macht daraus Sitzung
+  und Backend-ID: Aktionen (`act.rs`) laufen über die Sitzung des Frames,
+  Tasten über die Seite (der Browser leitet sie an den fokussierten Frame).
+  Fokus: meldet die Seite ein `iframe` eines angehängten Frames als
+  `activeElement`, wird im Frame weitergefragt. DOM-Fakten (`facts.rs`,
+  `assertions.rs`) bekommen die Dokumente dieser Frames als
+  `contentDocument` ihres `iframe` eingehängt (`Frames::document`), mit
+  denselben IDs; `DOMSnapshot` je Prozess. Mutationen in solchen Frames
+  meldet `live.rs` nicht (nur die Sitzung der Seite); nach eigenen Aktionen
+  wird ohnehin neu aufgenommen.
 - **Modalität**: Ist ein modaler Dialog offen (`modal`-Eigenschaft), sind in
   seinem Dokument nur seine Bedienelemente erreichbar
   (`Graph::reachable_controls`) — auch bei `aria-modal`, wo Chrome den Rest
@@ -356,17 +375,16 @@ flowchart LR
 - **Aufteilung**: `relief-cdp/src/assertions.rs` erhebt, `relief-interaction`
   wertet aus. DOM-Fakten nur für `namen-wie-accname`: Tag, Text und die
   Attribute aus `dom_attribute_needed`, ohne `script`, `style`, `template`,
-  `noscript`; je Dokument eine Arena (Hauptdokument und jedes iframe im
-  selben Renderer-Prozess, eigene IDs), Shadow DOM des Autors flach unter dem
+  `noscript`; je Dokument eine Arena (Hauptdokument und jedes iframe, auch
+  aus einem anderen Renderer-Prozess, eigene IDs), Shadow DOM des Autors flach unter dem
   Host (Slots aufgelöst, Shadow DOM des Browsers weggelassen). Aus
   `DOMSnapshot.captureSnapshot` kommen `display`/`visibility` je Element
   (ohne Layout-Objekt: `none` bzw. `contents`) und die Leerraum-Textknoten,
   die `DOM.getDocument` auslässt. `DomDocument` erfüllt `a11y_dom::Rendering`
   (ohne Geometrie), `accname::name_rendered` rechnet darauf; eine Abweichung
   zu Chromiums Namen ist ein `review`-Befund mit beiden Werten. iframes
-  fremder Herkunft liegen wegen `--disable-site-isolation-trials` im selben
-  Prozess und werden verglichen; ohne den Schalter fehlten Frame und Feld
-  schon im Modell. Je Element steht sein ID-Bereich (Dokument oder
+  fremder Herkunft in einem eigenen Prozess werden über die Sitzung des
+  Frames erhoben und verglichen. Je Element steht sein ID-Bereich (Dokument oder
   Shadow-Root) in den DOM-Fakten; kommt eine ID des Feldes (`id`,
   `aria-labelledby`) in mehreren Bereichen vor, ist es `untested`, weil
   `accname::IdIndex` nur einen Bereich je Dokument kennt.

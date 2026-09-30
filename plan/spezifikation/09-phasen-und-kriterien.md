@@ -94,7 +94,8 @@ Was daraus folgt:
 8. **iframes**: Die Bäume der Frames werden einzeln geholt und unter ihrem
    `iframe`-Knoten eingehängt; Aktionen darin funktionieren. Frames fremder
    Origins erreicht der Host nur, weil Chrome im Spike mit
-   `--disable-site-isolation-trials` läuft; auch dann bleiben einzelne Frames
+   `--disable-site-isolation-trials` läuft (seit Paket 70 ohne den Schalter,
+   über eine Sitzung je Frame, → 12); auch dann bleiben einzelne Frames
    unerreichbar (bild.de 2 von 4). Das Consent-Banner von bild.de liegt so im
    Graph.
 9. **Grenze des AXTree bestätigt**: Ein `div` mit `onclick` und Größen-`span`s

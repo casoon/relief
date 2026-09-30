@@ -76,7 +76,12 @@ async fn open(browser: &Browser, url: &str) -> Result<(Session, EventStream<Even
     page.execute(AddBindingParams::new(BINDING)).await?;
     page.execute(AddScriptToEvaluateOnNewDocumentParams::new(SCRIPT))
         .await?;
-    let session = Session::open_page(page, &crate::to_url(url, std::path::Path::new("."))).await?;
+    let session = Session::open_page(
+        browser,
+        page,
+        &crate::to_url(url, std::path::Path::new(".")),
+    )
+    .await?;
     Ok((session, calls))
 }
 

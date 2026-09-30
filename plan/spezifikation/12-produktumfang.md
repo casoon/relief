@@ -220,22 +220,36 @@ Paket 49).
   auf dem DOM sieht ihn nicht. Der Befund nennt dann „meist CSS-Inhalt“ als
   Ursache; Text in CSS erreicht nicht jede Assistenztechnik gleich, deshalb
   `review` [Annahme, nicht gegen Screenreader gemessen].
-- **iframes fremder Herkunft [belegt, Paket 64]:** Der CDP-Host startet
-  Chrome mit `--disable-site-isolation-trials` (für `getFullAXTree` mit
-  `frameId`, `capture.rs`). Damit liegt ein iframe von `127.0.0.1` in einer
-  Seite von `localhost` im selben Prozess, `DOM.getDocument` (`pierce`)
-  liefert sein Dokument mit, und sein Feld wird verglichen: In
-  `form-fremd.html` meldet `namen-wie-accname` die CSS-Abweichung im iframe
-  („Telefon (Rückfrage)“ gegen „Telefon“), per CSS verborgener Label-Inhalt
-  dort ist keine Abweichung. Gegenprobe mit Site Isolation (Schalter
-  entfernt): Das Feld fehlt schon im Modell (1 statt 2 Bedienelemente), weil
-  `getFullAXTree` den Frame in einem anderen Prozess nicht erreicht, und
-  deshalb auch in den Befunden, nicht als `untested`.
-- **Keine eigene CDP-Sitzung je Frame [Entscheidung, Paket 64]:** Solange der
-  Host ohne Site Isolation läuft, gibt es keinen Frame in einem anderen
-  Prozess; DOM-Fakten über `Target.attachToTarget` hätten kein Feld im
-  Modell, gegen das sie verglichen würden. Ein Host mit Site Isolation
-  braucht Aufnahme **und** DOM-Fakten über die Sitzung des Frames → 70.
+- **iframes fremder Herkunft mit Site Isolation [belegt, Pakete 64, 70]:**
+  Der CDP-Host startet Chrome ohne `--disable-site-isolation-trials`; ein
+  iframe von `127.0.0.1` in einer Seite von `localhost` liegt in einem
+  eigenen Renderer-Prozess. Ohne eigene Sitzung fehlte sein Feld schon im
+  Modell (Gegenprobe Paket 64: 1 statt 2 Bedienelemente), weil
+  `getFullAXTree { frameId }` und `DOM.getDocument` (`pierce`) den Frame
+  nicht erreichen. Heute kommen Aufnahme, DOM-Fakten, Aktionen, Fokus und
+  Tab-Folge über die Sitzung des Frames (`relief-cdp/src/frames.rs`,
+  → `docs/architecture.md`, „iframes“). In `form-fremd.html`: 2
+  Bedienelemente, `namen-wie-accname` meldet die CSS-Abweichung im iframe
+  („Telefon (Rückfrage)“ gegen „Telefon“), per CSS verborgener
+  Label-Inhalt dort ist keine Abweichung; `tabfolge Name, Telefon
+  (Rückfrage)` ohne Befund, `fülle Telefon mit …` setzt den Wert im Frame,
+  „wo bin ich“ nennt danach das Feld im Frame
+  (`spike/tasks/06-form-assertions.txt`). Gemessen je Aufnahme: in
+  `form-fremd.html` 1 Frame über eine eigene Sitzung, in `with-iframe.html`
+  (`file://`) 1 Frame im Prozess der Seite. Aufgaben 01–09 im Modus `test`:
+  141 erfüllt, 0 nicht erfüllt; 10 und 12 (echte Seiten, Consent-Dialoge
+  von spiegel.de, bild.de, welt.de, faz.net, t-online.de weiter erkannt):
+  35 erfüllt, 0 nicht erfüllt (2026-09-30). `measure`: bild.de 2
+  eingehängt, 1 nicht erreichbar; spiegel.de 1 und 1 (Summe beider Wege,
+  welcher Weg und warum nicht erreichbar, ist nicht aufgeschlüsselt → 85).
+- **Zweite Verbindung statt chromiumoxide-Sitzung [Entscheidung, Paket 70]:**
+  chromiumoxide 0.8 schickt Befehle nur an die Sitzung einer Seite und
+  hängt Frames zwar selbst an (`setAutoAttach`), gibt deren Sitzung aber
+  nicht heraus. Der Host öffnet je Seite eine zweite Verbindung zum Browser
+  (`chromiumoxide::Connection`, keine neue Abhängigkeit) und hängt sich dort
+  flach an den Frame. Backend-IDs im Modell: `Nummer << 32 | Backend-ID`,
+  Nummer 0 ist die Seite; für `relief-interaction` bleibt die DOM-ID eine
+  undurchsichtige Zahl des Hosts.
 - **Lokaler Server für fremde Herkunft [Entscheidung, Paket 64]:**
   `url: server:<Pfad>` in einer Aufgabendatei startet (einmal je
   Verzeichnis und Lauf) einen HTTP-Server des Hosts auf `127.0.0.1` mit
@@ -264,8 +278,8 @@ Paket 49).
   `<label>` jenseits der Shadow-Grenze für `accname` mit. Inhalt
   geschlossener `<details>` (`content-visibility`) meldet der Snapshot mit
   normalem `display`, `accname` zählt ihn dann mit [laut
-  auditmysite-Kommentar, hier nicht gemessen]. Frames in einem anderen
-  Prozess → 70.
+  auditmysite-Kommentar, hier nicht gemessen]. Frames im Prozess eines
+  Frames aus einem anderen Prozess fehlen im Modell → 85.
 - **Änderung über `TreeDelta` [Entscheidung, Paket 49]:** Der Vergleich
   „vorher/nachher“ nutzt `relief_model::TreeDelta::between`, nicht die
   Diff-Regeln aus `a11y-perception`: `relief-interaction` hängt außerhalb der

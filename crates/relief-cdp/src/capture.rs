@@ -10,11 +10,14 @@ use a11y_perception::{
 };
 use anyhow::{anyhow, Context, Result};
 use chromiumoxide::cdp::browser_protocol::accessibility::GetFullAxTreeParams;
-use chromiumoxide::cdp::browser_protocol::dom::{DescribeNodeParams, GetFrameOwnerParams};
+use chromiumoxide::cdp::browser_protocol::dom::{
+    BackendNodeId, DescribeNodeParams, GetFrameOwnerParams,
+};
 use chromiumoxide::cdp::browser_protocol::page::{FrameTree, GetFrameTreeParams};
-use chromiumoxide::cdp::js_protocol::runtime::EvaluateParams;
 use chromiumoxide::Page;
 use serde_json::Value;
+
+use crate::frames::{encode, Doc, Frames};
 
 pub struct Capture {
     pub snapshot: AXSnapshot,
@@ -24,7 +27,7 @@ pub struct Capture {
     pub frames: (usize, usize),
 }
 
-pub async fn capture(page: &Page, label: &str) -> Result<Capture> {
+pub async fn capture(page: &Page, frames: &Frames, label: &str) -> Result<Capture> {
     let started = Instant::now();
     let response = tokio::time::timeout(
         Duration::from_secs(30),
@@ -39,19 +42,20 @@ pub async fn capture(page: &Page, label: &str) -> Result<Capture> {
         .iter()
         .map(convert_node)
         .collect();
-    let frames = attach_frames(page, &mut nodes).await.unwrap_or((0, 0));
+    let (local, local_failed) = attach_frames(page, &mut nodes).await.unwrap_or((0, 0));
+    let (remote, remote_failed) = attach_remote_frames(page, frames, &mut nodes).await;
     drop_palette(&mut nodes);
     let tree = AXTree::from_nodes(nodes);
     let tree_ms = started.elapsed().as_millis();
 
     let url = page.url().await?.unwrap_or_default();
     let title = page.get_title().await?.unwrap_or_default();
-    let focus = focus(page, &tree).await.unwrap_or_default();
+    let focus = focus(page, frames, &tree).await.unwrap_or_default();
 
     Ok(Capture {
         snapshot: AXSnapshot::new(label, url, title, now_ms(), tree, focus),
         tree_ms,
-        frames,
+        frames: (local + remote, local_failed + remote_failed),
     })
 }
 
@@ -104,9 +108,8 @@ fn drop_subtree_named(nodes: &mut Vec<AXNode>, name: &str) {
 /// einzeln geholt und unter ihrem `iframe`-Knoten eingehängt; ihre Knoten-IDs
 /// bekommen ein Frame-Präfix, weil Chrome sie je Frame vergibt.
 ///
-/// Frames in einem anderen Renderer-Prozess (Site Isolation) antworten hier
-/// nicht; sie werden gezählt, nicht verschwiegen. Der Spike startet Chrome
-/// deshalb mit `--disable-site-isolation-trials`.
+/// Frames in einem anderen Renderer-Prozess (Site Isolation) kennt der
+/// Frame-Baum der Seite nicht; sie hängt [`attach_remote_frames`] ein.
 async fn attach_frames(page: &Page, nodes: &mut Vec<AXNode>) -> Result<(usize, usize)> {
     let tree = page
         .execute(GetFrameTreeParams::default())
@@ -161,22 +164,106 @@ async fn attach_frames(page: &Page, nodes: &mut Vec<AXNode>) -> Result<(usize, u
     Ok((attached, failed))
 }
 
-pub(crate) async fn focus(page: &Page, tree: &AXTree) -> Result<FocusSnapshot> {
-    let eval = EvaluateParams::builder()
-        .expression("document.activeElement")
-        .build()
-        .map_err(|e| anyhow!(e))?;
-    let result = page.execute(eval).await?;
-    let object_id = result
-        .result
-        .result
-        .object_id
-        .clone()
-        .ok_or_else(|| anyhow!("kein activeElement"))?;
-    let described = page
-        .execute(DescribeNodeParams::builder().object_id(object_id).build())
-        .await?;
-    let backend = *described.node.backend_node_id.inner();
+/// Frames in einem anderen Renderer-Prozess (Site Isolation): Ein
+/// `iframe`-Knoten ohne Kinder, dessen Element eine `frameId` trägt, ist ein
+/// eigenes Ziel. Dessen Baum kommt über die Sitzung des Frames
+/// (`frames.rs`), Knoten-IDs mit Präfix `r<Nummer>`, Backend-IDs über
+/// [`encode`]. Eingehängte Knoten werden weiter durchsucht, so kommen auch
+/// Frames in Frames dazu. Gezählt wie in [`attach_frames`].
+async fn attach_remote_frames(
+    page: &Page,
+    frames: &Frames,
+    nodes: &mut Vec<AXNode>,
+) -> (usize, usize) {
+    let (mut attached, mut failed) = (0, 0);
+    let mut i = 0;
+    while i < nodes.len() {
+        let owner = &nodes[i];
+        i += 1;
+        if !matches!(
+            owner.role.as_deref(),
+            Some("Iframe" | "IframePresentational")
+        ) || !owner.child_ids.is_empty()
+        {
+            continue;
+        }
+        let (Some(owner_backend), owner_id) = (owner.backend_dom_node_id, owner.node_id.clone())
+        else {
+            continue;
+        };
+        let Ok((doc, backend)) = frames.resolve(page, owner_backend) else {
+            continue;
+        };
+        let described = doc
+            .execute(
+                DescribeNodeParams::builder()
+                    .backend_node_id(BackendNodeId::new(backend))
+                    .build(),
+            )
+            .await;
+        // Ohne `frameId` hat das iframe (noch) kein Dokument.
+        let Some(frame_id) = described.ok().and_then(|d| d.node.frame_id) else {
+            continue;
+        };
+        let Ok(frame) = frames.attach(frame_id.as_ref()).await else {
+            failed += 1;
+            continue;
+        };
+        let Ok(response) = Doc::Frame(frames, frame.clone())
+            .execute(GetFullAxTreeParams::default())
+            .await
+        else {
+            failed += 1;
+            continue;
+        };
+        let prefix = format!("r{}", frame.index);
+        let Ok(json) = serde_json::to_value(&response.nodes) else {
+            failed += 1;
+            continue;
+        };
+        let mut frame_nodes: Vec<AXNode> = json
+            .as_array()
+            .map(|a| a.iter().map(convert_node).collect())
+            .unwrap_or_default();
+        for n in &mut frame_nodes {
+            n.node_id = format!("{prefix}:{}", n.node_id);
+            n.parent_id = n.parent_id.as_ref().map(|p| format!("{prefix}:{p}"));
+            n.child_ids = n
+                .child_ids
+                .iter()
+                .map(|c| format!("{prefix}:{c}"))
+                .collect();
+            renumber(n, frame.index);
+        }
+        if let Some(root) = frame_nodes.first_mut() {
+            root.parent_id = Some(owner_id.clone());
+            if let Some(owner) = nodes.iter_mut().find(|n| n.node_id == owner_id) {
+                owner.child_ids.push(root.node_id.clone());
+            }
+        }
+        nodes.extend(frame_nodes);
+        attached += 1;
+    }
+    (attached, failed)
+}
+
+/// Backend-IDs eines Knotens aus einem Frame in einem anderen Prozess,
+/// auch in Beziehungen (`labelledby` u. a.), über [`encode`].
+fn renumber(node: &mut AXNode, index: i64) {
+    node.backend_dom_node_id = node.backend_dom_node_id.map(|b| encode(index, b));
+    for p in node.properties.iter_mut() {
+        if let AXValue::Node { related_nodes } = &mut p.value {
+            for r in related_nodes {
+                r.backend_dom_node_id = r.backend_dom_node_id.map(|b| encode(index, b));
+            }
+        }
+    }
+}
+
+/// Fokus als Backend-ID im Modell, auch in Frames anderer Prozesse
+/// (`Frames::active_element`).
+pub(crate) async fn focus(page: &Page, frames: &Frames, tree: &AXTree) -> Result<FocusSnapshot> {
+    let backend = frames.active_element(page).await?;
     Ok(FocusSnapshot {
         active_backend_node_id: Some(backend),
         ax_node_id: tree.node_by_backend_id(backend).map(|n| n.node_id.clone()),
