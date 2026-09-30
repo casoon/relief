@@ -63,7 +63,6 @@ beschrieben in
   der Fork-Teil braucht 24)
 - Cloud + M4: 24 (Aktionen über AXActionData), 20 (Inspector), 36 (Branding)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
-- Cloud: 10 (Linux-Nachweis über die CI; das Repo ist öffentlich)
 
 **Reihenfolge:**
 - Linie A: 24 und 20 parallel → 25 → dann 26, 29, 38, 39, 40 parallel → 41;
@@ -74,7 +73,7 @@ beschrieben in
 
 | Nr | Thema | Umgebung | Status | Abhängig von | Datei |
 |---|---|---|---|---|---|
-| 10 | CI und Cloud-Setup: Nachweis unter Linux (Workflow und Skript liegen bei) | Cloud | offen | — | [10](10-cloud-umgebung-und-ci.md) |
+| 10 | Cloud-Setup: Nachweis in einer Cloud-Session (CI unter Linux grün) | Cloud | blockiert: Cloud-Sessions HTTP 403 | Zugang | [10](10-cloud-umgebung-und-ci.md) |
 | 20 | Semantic Inspector im Fork | Cloud + M4 | offen | 19 ✓ | [20](20-inspector-panel.md) |
 | 21 | Befunde aus a11y-rules im Inspector | Cloud + M4 | offen | 20 | [21](21-befunde-im-inspector.md) |
 | 24 | Aktionen über AXActionData | Cloud + M4 | offen | 17 ✓ | [24](24-axactiondata-rueckweg.md) |
