@@ -324,8 +324,13 @@ flowchart LR
   (ohne Layout-Objekt: `none` bzw. `contents`) und die Leerraum-Textknoten,
   die `DOM.getDocument` auslässt. `DomDocument` erfüllt `a11y_dom::Rendering`
   (ohne Geometrie), `accname::name_rendered` rechnet darauf; eine Abweichung
-  zu Chromiums Namen ist ein `review`-Befund mit beiden Werten. iframes in
-  einem anderen Prozess fehlen, Felder dort sind `untested`.
+  zu Chromiums Namen ist ein `review`-Befund mit beiden Werten. iframes
+  fremder Herkunft liegen wegen `--disable-site-isolation-trials` im selben
+  Prozess und werden verglichen; ohne den Schalter fehlten Frame und Feld
+  schon im Modell. Je Element steht sein ID-Bereich (Dokument oder
+  Shadow-Root) in den DOM-Fakten; kommt eine ID des Feldes (`id`,
+  `aria-labelledby`) in mehreren Bereichen vor, ist es `untested`, weil
+  `accname::IdIndex` nur einen Bereich je Dokument kennt.
 - **Statusmeldung als Änderung**: Der Host merkt sich vor jeder
   `do:`-Zeile das Modell (`before_action`). `TreeDelta::between` davon zum
   aktuellen Modell: Ist die Live-Region mit dem Text dort `created`, ihr

@@ -8,7 +8,9 @@
 //! relief-cdp palette <url>                       Befehlsleiste im Browser (immer sichtbar)
 //! ```
 //!
-//! Aufgabendatei: `url: …`, `do: …` (mit `!` davor bestätigt), `expect: …`
+//! Aufgabendatei: `url: …` (Pfad relativ zur Aufgabendatei als `file://`, mit
+//! `server:` davor über einen lokalen HTTP-Server → `server.rs`), `do: …`
+//! (mit `!` davor bestätigt), `expect: …`
 //! (Teilstring der letzten Antwort), `assert: …` (Formular-Zusicherung, Befunde
 //! als Antwort → `assertions.rs`), `#` Kommentar.
 
@@ -18,6 +20,7 @@ mod capture;
 mod live;
 mod palette;
 mod record;
+mod server;
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -397,6 +400,7 @@ async fn repl(browser: &Browser, url: &str) -> Result<()> {
 
 async fn run_files(browser: &Browser, files: &[&String]) -> Result<()> {
     let (mut passed, mut failed) = (0, 0);
+    let mut servers = server::Servers::default();
     for file in files {
         let path = PathBuf::from(file);
         let base = path.parent().unwrap_or(Path::new(".")).to_path_buf();
@@ -407,7 +411,17 @@ async fn run_files(browser: &Browser, files: &[&String]) -> Result<()> {
         for line in parse_tasks(&text) {
             match line {
                 TaskLine::Url(url) => {
-                    let url = to_url(&url, &base);
+                    let url = match url.strip_prefix(server::PREFIX) {
+                        Some(path) => match servers.url(&base.join(path.trim())).await {
+                            Ok(url) => url,
+                            Err(e) => {
+                                println!("\n## {url}\n!! Server nicht startbar: {e}");
+                                session = None;
+                                continue;
+                            }
+                        },
+                        None => to_url(&url, &base),
+                    };
                     println!("\n## {url}");
                     match Session::open(browser, &url).await {
                         Ok(s) => {

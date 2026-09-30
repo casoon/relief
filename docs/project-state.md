@@ -62,6 +62,10 @@ Befunde.“: `feldnamen`, `namen-wie-accname`, `fehler-verknüpft [Feld]`,
 `tabfolge <Feld>, …`. `statusmeldung` verlangt zusätzlich, dass die letzte
 `do:`-Zeile eine vorhandene Live-Region geändert hat. `07-bestaetigung.txt`
 prüft, dass sich die Rückfrage nicht umgehen lässt (beide Hosts).
+`url: server:<Pfad>` lädt eine Testseite über einen lokalen HTTP-Server des
+Hosts (`127.0.0.1`, freier Port) als `http://localhost:<Port>/…`; so lädt
+ein iframe von `127.0.0.1` ohne Netz aus einer fremden Site
+(`form-fremd.html`).
 
 Im Palettenmodus öffnet Strg+Umschalt+Leertaste die Befehlsleiste; riskante
 Aktionen werden mit „ja“ bestätigt, „nein“ verwirft die Rückfrage. Jede
@@ -95,7 +99,7 @@ Release-Tags (`v*`) und per Hand (`workflow_dispatch`) auf `ubuntu-24.04`:
   -- -D warnings`, `cargo test --workspace`.
 - **browser:** Chrome for Testing 154.0.8037.57 (nächste zu `fork/UPSTREAM`) über
   `browser-actions/setup-chrome`, dann `relief-cdp run spike/tasks/01`–`06`
-  (nur `file://`-Seiten). Der Job schlägt fehl, wenn nicht alle
+  (`file://`-Seiten und der lokale Server des Hosts, kein Netz). Der Job schlägt fehl, wenn nicht alle
   `expect:`-Zeilen erfüllt sind (`run` selbst endet immer mit 0).
 
 Actions sind per Commit-SHA gepinnt.

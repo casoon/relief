@@ -75,7 +75,10 @@ ausgewertet mit `a11y-dom`, `accname` und `a11y-report` (Feature
 Live-Region über `TreeDelta`, `namen-wie-accname` rechnet mit Rendering
 (`display`, `visibility`) und über iframes im selben Prozess und Shadow DOM,
 `06-form-assertions.txt` läuft in Prüfbefehlen und CI, beschrieben in
-[spezifikation/12](spezifikation/12-produktumfang.md#formular-zusicherungen-umgesetzt-2026-09-30-pakete-42-49-55).
+[spezifikation/12](spezifikation/12-produktumfang.md#formular-zusicherungen-umgesetzt-2026-09-30-pakete-42-49-55-64).
+Feld in einem iframe fremder Herkunft verglichen (lokaler Server,
+`url: server:…`; ohne Site Isolation im Host), gleiche IDs in Dokument und
+Shadow-Root ergeben `untested` statt falscher Befunde, ebd.
 Relief ersetzt in barrierlab den Reader-Host als Konsument
 (casoon/barrierlab#29, zum Merge offen); Kandidaten zum Ablegen in
 [spezifikation/12](spezifikation/12-produktumfang.md#kandidaten-zum-ablegen-stand-2026-09-30).
@@ -86,7 +89,7 @@ Tests, Bestätigungstoken, Grenzen je Aufgabe, Security-Log), beschrieben in
 der Bestätigungs-Bypass ist auch im Fork getestet.
 
 **Sofort startbar:**
-- Cloud: 58 (Sicherheitsgrenzen im Host), 64 (DOM-Fakten für fremde Frames)
+- Cloud: 58 (Sicherheitsgrenzen im Host), 70 (CDP-Host mit Site Isolation)
 - Cloud + M4: 26 (Sprache), 29 (Semantic View), 38 (Sprungmarken), 39 (Formular-Assistent), 21 (Befunde im Inspector), 40 (Overlay und Consent), 36 (Branding),
   44 (Lauf ohne Fenster, JUnit)
 - M4: 43 (VoiceOver im Test)
@@ -95,7 +98,7 @@ der Bestätigungs-Bypass ist auch im Fork getestet.
 **Reihenfolge:**
 - Linie A: 26, 29, 38, 39, 40 parallel → 41;
   47 läuft mit 20 und 25 als Abnahme mit.
-- Linie B: 43 und 44 parallel → 45; 64 jederzeit.
+- Linie B: 43 und 44 parallel → 45; 70 jederzeit.
 - Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
 - Vor jeder Modellintegration (28 im Fork, 34): 48, dann 58.
 
@@ -120,5 +123,5 @@ der Bestätigungs-Bypass ist auch im Fork getestet.
 | 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 | [45](45-playwright-anbindung.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 ✓ | [47](47-relief-ui-accessibility.md) |
 | 58 | Sicherheitsgrenzen in Hosts und Modellaufruf verdrahten (Log, Budget, Formularziel) | Cloud + M4 | offen | 48 ✓, vor Modellintegration | [58](58-sicherheitsgrenzen-im-host.md) |
-| 64 | DOM-Fakten für iframes in anderem Prozess, ID-Bereich im Shadow DOM | Cloud | offen | 55 ✓ | [64](64-dom-fakten-fremde-frames.md) |
+| 70 | CDP-Host mit Site Isolation: Frames in anderem Prozess (Aufnahme, DOM-Fakten, Aktionen) | Cloud | offen | 64 ✓ | [70](70-cdp-host-site-isolation.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
