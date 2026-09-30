@@ -47,15 +47,38 @@ version() {
 # GN-Target ersetzt dort Cargo.toml).
 RUST_CRATES=(relief-model relief-interaction relief-bridge)
 
+# barrierlab-Crates, die //relief/BUILD.gn aus Quellen baut (Paket 21). Sie
+# stehen nicht in //third_party/rust; statt sie im Repository zu kopieren
+# (barrierlab ist die Quelle, → CLAUDE.md), holt das Skript die Quellen der
+# in Cargo.lock festgelegten Version aus der lokalen Cargo-Registry
+# (`cargo fetch` legt sie an).
+BARRIERLAB_CRATES=(a11y-dom a11y-report a11y-rules)
+
+copy_barrierlab() {
+  (cd "$ROOT" && cargo fetch --quiet)
+  local metadata
+  metadata=$(cd "$ROOT" && cargo metadata --format-version 1 --locked)
+  for crate in "${BARRIERLAB_CRATES[@]}"; do
+    local manifest
+    manifest=$(python3 -c 'import json,sys
+m=json.load(sys.stdin)
+print(next(p["manifest_path"] for p in m["packages"] if p["name"]==sys.argv[1]))' "$crate" <<<"$metadata")
+    mkdir -p "$SRC/relief/third_party/$crate"
+    rsync -a --delete "$(dirname "$manifest")/src/" "$SRC/relief/third_party/$crate/src/"
+  done
+  echo "barrierlab {$(IFS=,; echo "${BARRIERLAB_CRATES[*]}")} -> $SRC/relief/third_party/ kopiert."
+}
+
 copy_relief() {
   [[ -d "$FORK/relief" ]] || { echo "fork/relief/ fehlt, nichts zu kopieren."; return; }
   mkdir -p "$SRC/relief"
-  rsync -a --delete --exclude /crates/ "$FORK/relief/" "$SRC/relief/"
+  rsync -a --delete --exclude /crates/ --exclude /third_party/*/src/ "$FORK/relief/" "$SRC/relief/"
   for crate in "${RUST_CRATES[@]}"; do
     mkdir -p "$SRC/relief/crates/$crate"
     rsync -a --delete "$ROOT/crates/$crate/src/" "$SRC/relief/crates/$crate/src/"
   done
   echo "fork/relief/ und crates/{$(IFS=,; echo "${RUST_CRATES[*]}")}/src -> $SRC/relief/ kopiert."
+  copy_barrierlab
 }
 
 if [[ "$MODE" == --continue ]]; then

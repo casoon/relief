@@ -48,12 +48,18 @@ rust_static_library("relief_interaction_rs") {
     "crates/relief-interaction/src/page.rs",
     "crates/relief-interaction/src/resolve.rs",
     "crates/relief-interaction/src/respond.rs",
+    "crates/relief-interaction/src/rules.rs",
     "crates/relief-interaction/src/security.rs",
     "crates/relief-interaction/src/session.rs",
     "crates/relief-interaction/src/validate.rs",
   ]
+  # Befunde im Inspector (Paket 21); `assertions` bleibt aus.
+  features = [ "rules" ]
   deps = [
     ":relief_model_rs",
+    "//relief/third_party:a11y_dom",
+    "//relief/third_party:a11y_report",
+    "//relief/third_party:a11y_rules",
     "//third_party/rust/serde/v1:lib",
   ]
 }

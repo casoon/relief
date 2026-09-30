@@ -27,7 +27,8 @@ Befehlsleiste (Strg+Umschalt+Leertaste; alle Befehle des Spikes, Rückfragen
 per Nummer, „ja“, „abbrechen“), darunter der Semantic Inspector
 (Strg+Umschalt+I oder `--relief-inspector`): Bereiche, Überschriften und
 Bedienelemente live mit Herkunft der Namen, Auswahl und „im Dokument
-zeigen“ getrennt. Dazu Tastatur-Sprungmarken über der Seite
+zeigen“ getrennt, Befunde aus `a11y-rules` je Knoten (nur Regeln, die auf
+dem Accessibility-Tree laufen; die übrigen als nicht geprüft). Dazu Tastatur-Sprungmarken über der Seite
 (Strg+Umschalt+M).
 
 ## Ausführen
@@ -213,7 +214,7 @@ scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurüc
 | `spike/recordings` | AXTree-Aufnahmen als Fixtures für browserfreie Tests |
 | `spike/kalibrierung` | von Hand beschriftete Stichprobe unbenannter Controls mit Soll-Namen und Begründung |
 | `crates/relief-interaction/tests` | Snapshot- und Aufgabentests gegen die Aufnahmen; Erwartungen neu setzen mit `RELIEF_ERWARTUNGEN=neu` |
-| `fork/` | Fork-Inhalt für einen Chromium-Checkout: Patch-Serie (`patches/`, `series`, 3 Patches), Basisversion (`UPSTREAM`), `//relief/` (`relief/`: Tab-Helfer, eigener AXTree, Runtime-Sequenz, Aufgaben-Runner, Inspector (`inspector/`), `BUILD.gn`, Browser-Tests in `testing/`); Format in `fork/README.md` |
+| `fork/` | Fork-Inhalt für einen Chromium-Checkout: Patch-Serie (`patches/`, `series`, 3 Patches), Basisversion (`UPSTREAM`), `//relief/` (`relief/`: Tab-Helfer, eigener AXTree, Runtime-Sequenz, Aufgaben-Runner, Inspector (`inspector/`), `BUILD.gn`, GN-Ziele für barrierlab-Crates (`third_party/`), Browser-Tests in `testing/`); Format in `fork/README.md` |
 | `scripts/fork-apply.sh`, `scripts/fork-export.sh` | Fork auf einen Checkout anwenden (inkl. Kopie der Crate-Quellen) bzw. Patches daraus neu erzeugen |
 | `scripts/cloud-setup.sh` | Setup-Skript für die Cloud-Umgebung auf claude.ai |
 | `.github/workflows/ci.yml` | CI: Rust-Prüfungen und Aufgaben 01–06 gegen Chrome |

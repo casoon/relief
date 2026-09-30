@@ -10,7 +10,8 @@ publish.workspace = true
 [dependencies]
 relief-model = { path = "../relief-model" }
 # Befehle in Sprache: Eingabe → geprüfter Plan → AX-Schritte (Fork).
-relief-interaction = { workspace = true }
+# Feature `rules`: Befunde im Inspector (Paket 21).
+relief-interaction = { workspace = true, features = ["rules"] }
 # Inspector-Daten als JSON für die WebUI (im Fork aus //third_party/rust).
 serde = { workspace = true }
 serde_json = { workspace = true }
