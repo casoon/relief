@@ -93,7 +93,8 @@ in Aufnahme, DOM-Fakten, Aktionen, Fokus und Tab-Folge (Paket 70), ebd.;
 ihre Mutationen und Anfragen gehen ins Änderungssignal, iframes in ihrem
 Prozess werden eingehängt, `measure` zählt je Weg (Paket 85), ebd.; sie
 werden beim Entstehen angehängt, die Ruhe nach dem Laden endet wie ohne
-fremden Frame (Paket 105), ebd.
+fremden Frame (Paket 105), ebd.; den Fokus in einem solchen Frame findet
+der Host auch, wenn die Seite ihn abgegeben hat (Paket 106), ebd.
 Relief ersetzt in barrierlab den Reader-Host als Konsument
 (casoon/barrierlab#29, zum Merge offen); Kandidaten zum Ablegen in
 [spezifikation/12](spezifikation/12-produktumfang.md#kandidaten-zum-ablegen-stand-2026-09-30).
@@ -130,7 +131,7 @@ beschrieben in
 [spezifikation/01](spezifikation/01-chromium-integration.md#name-und-branding-paket-36-belegt).
 
 **Sofort startbar:**
-- Cloud: 100 (sensible Werte in Auskünften), 106 (`tabfolge` sporadisch)
+- Cloud: 100 (sensible Werte in Auskünften)
 - Cloud + M4: 26 (Sprache), 29 (Semantic View), 111 (Branding-Reste), 45 (Playwright), 110 (Consent: Zweck-Titel)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
@@ -138,7 +139,7 @@ beschrieben in
 **Reihenfolge:**
 - Linie A: 26, 29 parallel → 41 (40, 80, 91 erledigt, Nachtrag 110);
   47 läuft mit 20 und 25 als Abnahme mit.
-- Linie B: 45 (44 erledigt), 43 zurückgestellt; 106 jederzeit (85, 105 erledigt).
+- Linie B: 45 (44 erledigt), 43 zurückgestellt; 130 wartet auf ein erneutes Auftreten (85, 105, 106 erledigt).
 - Produkt: 111 jederzeit; 37 erst vor einer Weitergabe an Dritte.
 - Vor jeder Modellintegration (28 im Fork, 34): 48 ✓, 58 ✓; 75 (Weg b: Renderer-Anfrage).
 
@@ -161,5 +162,5 @@ beschrieben in
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
 | 100 | Sensible Werte in Auskünften und unverstandenen Eingaben | Cloud + M4 | offen | 76 ✓ | [100](100-sensible-werte-in-auskuenften.md) |
-| 106 | CDP-Host: `tabfolge` in einen fremden Frame sporadisch verfehlt | Cloud | offen | 85 ✓ | [106](106-tabfolge-fremder-frame-sporadisch.md) |
+| 130 | CDP-Host: `tabfolge` in einen fremden Frame, Ursache des seltenen Ausfalls | Cloud | wartet auf erneutes Auftreten | 106 ✓ | [130](130-tabfolge-ausfall-ursache.md) |
 | 110 | Consent: Zweck-Titel und Rückfrage je Zweck | Cloud + M4 | offen | 91 ✓ | [110](110-consent-zweck-titel.md) |

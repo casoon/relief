@@ -270,8 +270,8 @@ Paket 49).
   0/0 und 1/0, `with-iframe.html` 1/0 und 0/0. Ruhe nach dem Laden: nächster
   Punkt. Der
   sporadische Ausfall aus der Zusammenführung mit main ist `tabfolge` in
-  `form-fremd.html` (einmal unter Last gesichert, → 106), nicht die
-  Ruhe-Erkennung.
+  `form-fremd.html` (einmal unter Last gesichert), nicht die
+  Ruhe-Erkennung; Messung dazu unten (Paket 106).
 - **Frames anderer Prozesse beim Entstehen anhängen [belegt, Paket 105]:**
   Die Anfrage für das Dokument eines iframes in einem anderen Prozess
   beginnt in der Sitzung der Seite (`requestWillBeSent`), `loadingFinished`
@@ -289,6 +289,32 @@ Paket 49).
   nachher 150–152 ms, 151–152 ms, 151–152 ms. Aufgaben 01–09, 15, 16 im
   Modus `test`: 187 erfüllt, 0 nicht erfüllt (zwei Läufe); 10 und 12: 47
   erfüllt, 0 nicht erfüllt.
+- **Fokus in Frames anderer Prozesse ohne Seitenfokus [belegt, Paket 106]:**
+  Nach dem letzten Tab einer Tab-Folge gibt die Seite den Fokus mitunter
+  ganz ab (`document.hasFocus()` falsch, `activeElement` `body`; in 516
+  von 18 560 Folgen über `form-fremd.html` unter Last). Setzt eine Aktion
+  danach den Fokus in ein Feld eines Frames in einem anderen Prozess
+  (`fülle Telefon …`), meldet der Frame das Feld, die Seite aber weiter
+  `body` statt des `iframe`; „wo bin ich“ fand dann kein Bedienelement
+  (Protokoll: Seite `body`/ohne Fokus, Frame `input`/ohne Fokus; Folge
+  Tab-Folge → `fülle` → „wo bin ich“ 150-mal je Lauf, 5 Läufe
+  gleichzeitig: vor Paket 105 3, mit 105 8 Ausfälle je 150). Seitdem fragt
+  `Frames::active_element` bei `body` der Seite die angehängten Frames und
+  nimmt den ersten, dessen `activeElement` nicht `body` ist: 0 Ausfälle in
+  900 Folgen. 100 Läufe von `06-form-assertions.txt`, je 4 gleichzeitig:
+  vorher 1 Ausfall („wo bin ich“), nachher 4500 erfüllt, 0 nicht erfüllt.
+- **`tabfolge` in einen fremden Frame [belegt; Ursache Annahme, Paket 106]:**
+  Den gesicherten Ausfall („Telefon (Rückfrage)“ per Tab nicht erreicht)
+  gab es in reinen Tab-Folgen über `form-fremd.html` (4 bis 6 Läufe
+  gleichzeitig) mit dem Stand vor Paket 105 einmal in 10 960 Folgen, mit
+  Paket 105 keinmal in 15 200. Die Vermutung aus Paket 85 (der Frame
+  bekommt den Fokus erst nach der Antwort der Seite) trifft nicht zu:
+  Direkt nach der Bestätigung des Tabs meldete in 18 560 Folgen die Seite
+  immer das `iframe` und der Frame immer das Feld mit Fokus. Beobachtet
+  ist dagegen das Abgeben des Seitenfokus am Ende der Folge (vorheriger
+  Punkt); geschieht das schon beim Tab in den Frame, fehlte das Feld
+  [Annahme, nicht beobachtet] — mit dem Nachfragen in den Frames käme es
+  jetzt trotzdem an, sofern der Frame das Feld fokussiert hat. Offen → 130.
 - **Anhängen nur über `setAutoAttach` [Entscheidung, Paket 105]:** Das
   Anhängen bei der Aufnahme (`Target.attachToTarget`) entfällt;
   `Frames::attached` schlägt nur nach. Zwei Wege hätten sich um dieselbe

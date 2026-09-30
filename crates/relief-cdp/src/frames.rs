@@ -300,16 +300,58 @@ impl Frames {
     /// Fokussiertes Element als ID im Modell. Liegt der Fokus in einem Frame
     /// eines anderen Prozesses, meldet die Seite dessen `iframe`; dann im
     /// Frame weiterfragen.
+    ///
+    /// Hat die Seite selbst keinen Fokus mehr (`document.hasFocus()` falsch,
+    /// etwa nach Tab über das letzte Element hinaus), setzt ein `focus()` im
+    /// Frame das `activeElement` der Seite nicht auf dessen `iframe`; die
+    /// Seite meldet `body` (Paket 106). Dann zählt der Frame, dessen
+    /// `activeElement` nicht sein `body` ist.
     pub async fn active_element(&self, page: &Page) -> Result<i64> {
         let mut doc = Doc::Page(page);
         loop {
             let node = describe(&doc, "document.activeElement").await?;
             let backend = encode(doc.index(), *node.backend_node_id.inner());
-            match node.frame_id.and_then(|id| self.known(id.as_ref())) {
+            let inner = match node.frame_id.and_then(|id| self.known(id.as_ref())) {
+                Some(frame) => Some(frame),
+                None if doc.index() == 0 && node.local_name == "body" => self.focused_frame().await,
+                None => None,
+            };
+            match inner {
                 Some(frame) => doc = Doc::Frame(self, frame),
                 None => return Ok(backend),
             }
         }
+    }
+
+    /// Angehängter Frame mit einem fokussierten Element (`activeElement`
+    /// nicht `body`), in der Reihenfolge der Nummern. Frames eines früheren
+    /// Dokuments antworten nicht mehr und zählen nicht.
+    async fn focused_frame(&self) -> Option<Frame> {
+        let mut frames: Vec<Frame> = self
+            .attached
+            .lock()
+            .expect("Frames")
+            .values()
+            .cloned()
+            .collect();
+        frames.sort_by_key(|f| f.index);
+        let eval = EvaluateParams::builder()
+            .expression("document.activeElement !== document.body")
+            .return_by_value(true)
+            .build()
+            .expect("Ausdruck gesetzt");
+        for frame in frames {
+            let focused = self
+                .execute(Some(&frame.session), eval.clone())
+                .await
+                .ok()
+                .and_then(|r| r.result.value)
+                .and_then(|v| v.as_bool());
+            if focused == Some(true) {
+                return Some(frame);
+            }
+        }
+        None
     }
 }
 
