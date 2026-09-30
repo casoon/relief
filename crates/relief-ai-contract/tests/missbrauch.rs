@@ -20,12 +20,29 @@ use std::time::Duration;
 
 use common::{node, page, shop};
 use relief_ai_contract::{
-    filter, propose_intent, resolve_missing, Budget, FieldHint, FilteredInput, LimitExceeded,
-    Limits, ModelError, ModelId, ModelProvider, ModelReply, ModelRequest, PrivacyContext,
+    filter, Budget, FieldHint, FilteredInput, Hypothesis, IntentProposal, LimitExceeded, Limits,
+    ModelError, ModelId, ModelProvider, ModelReply, ModelRequest, Permit, PrivacyContext,
     ProviderError, Task, Tier, Usage, UserUtterance, ValidationError,
 };
 use relief_interaction::{parse_input, Decision, Graph, Limit, Outcome, Session};
 use relief_model::{Role, SemanticGraph};
+
+/// Jeder Aufruf mit eigenem Budget (Standardgrenzen): Ein Anbieter lässt sich
+/// nur über ein Budget fragen.
+fn resolve_missing(
+    provider: &dyn ModelProvider,
+    input: FilteredInput,
+) -> Result<Vec<Hypothesis>, ModelError> {
+    Budget::new(Limits::default()).resolve_missing(provider, input)
+}
+
+fn propose_intent(
+    provider: &dyn ModelProvider,
+    utterance: &UserUtterance,
+    input: FilteredInput,
+) -> Result<Option<IntentProposal>, ModelError> {
+    Budget::new(Limits::default()).propose_intent(provider, utterance, input)
+}
 
 // ---------------------------------------------------------------------------
 // Testanbieter
@@ -56,7 +73,11 @@ impl ModelProvider for Fest {
         Tier::Api
     }
 
-    fn complete(&self, request: &ModelRequest) -> Result<Option<ModelReply>, ProviderError> {
+    fn complete(
+        &self,
+        request: &ModelRequest,
+        _: Permit<'_>,
+    ) -> Result<Option<ModelReply>, ProviderError> {
         self.calls.set(self.calls.get() + 1);
         *self.last.borrow_mut() = serde_json::to_string(request).unwrap();
         let buy = request

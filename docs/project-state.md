@@ -53,7 +53,12 @@ Befehle im REPL: „was ist hier", „wo bin ich", „was kann ich tun",
 Ende", „schließe den Dialog" (vollständig: „hilfe"); `url …` lädt eine
 andere Seite. Riskante Aktionen fragen zurück; `!` vor demselben Befehl als
 nächste Eingabe bestätigt genau diese Rückfrage, einmal. `!` ohne offene
-Rückfrage bestätigt nichts.
+Rückfrage bestätigt nichts. Die Rückfrage zu einem Absenden-Button nennt im
+CDP-Host das Formularziel; Werte von Passwortfeldern und Feldern mit
+`autocomplete` für Zahlungs- oder Identitätsdaten stehen nicht darin.
+Mit `RELIEF_LOG=<datei>` schreibt `run`/`repl` die Entscheidungen jeder
+Eingabe als JSON-Zeilen (`{"t":…,"security":{…}}`: Entscheidung, Plan-ID,
+Aktionsart, Risiko, Grund; keine Werte, keine Namen).
 
 In Aufgabendateien prüft `assert: <Zusicherung>` den aktuellen Stand eines
 Formulars und antwortet mit Befunden (Regel-IDs `form/…`) oder „Keine
@@ -66,7 +71,8 @@ prüft, dass sich die Rückfrage nicht umgehen lässt (beide Hosts).
 Im Palettenmodus öffnet Strg+Umschalt+Leertaste die Befehlsleiste; riskante
 Aktionen werden mit „ja“ bestätigt, „nein“ verwirft die Rückfrage. Jede
 Eingabe landet mit Ergebnisart und
-Tastendrücken, ohne Seiteninhalte, in `relief-protokoll.jsonl` (`RELIEF_LOG`).
+Tastendrücken, ohne Seiteninhalte, in `relief-protokoll.jsonl` (`RELIEF_LOG`),
+dazu die Zeilen des Security-Logs.
 
 Resolver fehlender Namen kalibrieren (Stichprobe `spike/kalibrierung/`):
 
@@ -126,7 +132,7 @@ Aufgaben im eigenen Build über den AX-Weg (Ausgabe wie `relief-cdp run`):
 
 ```bash
 scripts/fork-apply.sh ~/chromium/src --continue && autoninja -C ~/chromium/src/out/Relief chrome
-scripts/fork-run-tasks.sh spike/tasks/0[1-5]*.txt     # RELIEF_LOG=<datei> für das Protokoll
+scripts/fork-run-tasks.sh spike/tasks/0[1-5]*.txt spike/tasks/07-*.txt  # RELIEF_LOG=<datei>: Protokoll mit `security`-Zeilen
 ```
 
 Voraussetzungen: Xcode mit macOS-SDK, `git-lfs` (`brew install git-lfs && git lfs
@@ -163,8 +169,8 @@ scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurüc
   (Feature `anthropic`) und das Kalibrierwerkzeug in `relief-resolver`.
   Schwellen sind noch nicht gemessen, Modellnamen bleiben `Uncertain`; die
   Runtime ruft noch kein Modell auf. Missbrauchsfälle an der Modellgrenze
-  sind als feste Tests beschrieben; Modellaufrufe unter Grenzen je Aufgabe
-  gehen über `Budget`.
+  sind als feste Tests beschrieben; einen Anbieter aufrufen lässt sich nur
+  über `Budget` (Grenzen je Aufgabe, `Permit`).
 
 ## Wo liegt was
 

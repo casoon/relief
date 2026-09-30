@@ -12,7 +12,8 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 
 use relief_ai_contract::{
-    FilteredInput, ModelId, ModelProvider, ModelReply, ModelRequest, ProviderError, Tier, Usage,
+    FilteredInput, ModelId, ModelProvider, ModelReply, ModelRequest, Permit, ProviderError, Tier,
+    Usage,
 };
 use serde::{Deserialize, Serialize};
 
@@ -64,7 +65,11 @@ impl ModelProvider for Replay {
         Tier::Api
     }
 
-    fn complete(&self, request: &ModelRequest) -> Result<Option<ModelReply>, ProviderError> {
+    fn complete(
+        &self,
+        request: &ModelRequest,
+        _: Permit<'_>,
+    ) -> Result<Option<ModelReply>, ProviderError> {
         match self.replies.get(&key(request.input())) {
             None => Ok(None),
             Some(Err(e)) => Err(ProviderError(e.clone())),
@@ -101,8 +106,12 @@ impl ModelProvider for Recording<'_> {
         self.inner.tier()
     }
 
-    fn complete(&self, request: &ModelRequest) -> Result<Option<ModelReply>, ProviderError> {
-        let result = self.inner.complete(request);
+    fn complete(
+        &self,
+        request: &ModelRequest,
+        permit: Permit<'_>,
+    ) -> Result<Option<ModelReply>, ProviderError> {
+        let result = self.inner.complete(request, permit);
         let recorded = match &result {
             Ok(None) => None,
             Ok(Some(r)) => Some(Ok(RecordedReply {

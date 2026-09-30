@@ -202,7 +202,9 @@ mod http {
     use std::fmt;
     use std::time::Duration;
 
-    use relief_ai_contract::{ModelProvider, ModelReply, ModelRequest, ProviderError, Tier};
+    use relief_ai_contract::{
+        ModelProvider, ModelReply, ModelRequest, Permit, ProviderError, Tier,
+    };
 
     use super::{
         handles, parse_reply, request_body, API_URL, API_VERSION, DEFAULT_MODEL, KEY_ENV, MODEL_ENV,
@@ -254,7 +256,11 @@ mod http {
             Tier::Api
         }
 
-        fn complete(&self, request: &ModelRequest) -> Result<Option<ModelReply>, ProviderError> {
+        fn complete(
+            &self,
+            request: &ModelRequest,
+            _: Permit<'_>,
+        ) -> Result<Option<ModelReply>, ProviderError> {
             if !handles(request) {
                 return Ok(None);
             }

@@ -1,41 +1,55 @@
-# 58 · Sicherheitsgrenzen in Hosts und Modellaufruf verdrahten
+# 58 · Sicherheitsgrenzen im Fork bauen und prüfen
 
-**Umgebung:** Cloud + M4 · **Phase:** quer · **Abhängig von:** 48; vor Modellintegration (28 im Fork, 34)
+**Umgebung:** M4 · **Phase:** quer · **Abhängig von:** 48 ✓
 
 ## Ziel
 
-Was Paket 48 browserfrei gebaut hat, wirkt auch im laufenden Browser:
-Security-Log wird geschrieben, Modellaufrufe laufen nur über `Budget`, die
-Rückfrage bindet und zeigt alles, was sie binden soll (→ spezifikation/07,
-„Sicherheits-Regressionsmatrix“, Offen).
+Der Fork-Teil von Paket 58 ist geschrieben, aber noch nicht gebaut: Der
+Fork schreibt das Security-Log der Sitzung ins Protokoll (`--relief-log`),
+und der Mirror gibt HTML-`type` eines `<input>` weiter, damit die Rückfrage
+Passwortwerte verdeckt (→ spezifikation/07, „Security-Log“,
+„Bestätigungstoken“). CDP-Host und Rust sind umgesetzt und belegt.
 
 ## Schritte
 
-1. Security-Log abholen (`Session::take_security_log`) und als JSON-Zeilen
-   schreiben: CDP-Host (`RELIEF_LOG` bzw. eigene Datei), Fork
-   (`--relief-log`). Prüfen, dass keine Werte darin stehen.
-2. Sobald die Runtime ein Modell aufruft: nur über `Budget`, ein Budget je
-   Aufgabe/Seite; der Abbruchtext geht an die Nutzerin, das Ereignis ins Log.
-   Grenzwerte (`Limits::default`, Annahme) an echten Seiten und dem
-   Resolver-Messlauf (28) prüfen.
-3. Formularziel binden: `action` des Formulars eines Submit-Buttons (CDP:
-   `DOM.describeNode`; Fork: klären, ob es im `AXNodeData` ankommt) in
-   `Binding::destination` und in der Rückfrage.
-4. Sensible Werte in der Rückfrage maskieren, sobald die Runtime
-   Feldangaben (`type=password`, `autocomplete`) kennt (→ spezifikation/07,
-   „Woher die Feldangaben kommen“).
-5. CI: Aufgaben `06` und `07` aufnehmen (heute Glob `0[1-5]`), Skill
-   `ci-budget` beachten.
+1. Quellen übernehmen und bauen:
+
+   ```bash
+   scripts/fork-apply.sh ~/chromium/src --continue
+   autoninja -C ~/chromium/src/out/Relief chrome relief_browsertests
+   ```
+
+   Geändert: `fork/relief/bridge/runtime_host.{h,cc}` (`LogSecurity` nach
+   `run_command`), `fork/relief/bridge/ax_tree_mirror.cc` (`kInputType` →
+   `extra["inputType"]`), Bridge-Funktion `take_security_log`
+   (`crates/relief-bridge/src/cxx_bridge.rs`).
+2. Aufgaben mit Protokoll:
+
+   ```bash
+   RELIEF_LOG=/tmp/relief-58.log scripts/fork-run-tasks.sh \
+     spike/tasks/0[1-5]*.txt spike/tasks/07-bestaetigung.txt
+   grep -F 'security' /tmp/relief-58.log | tail -9
+   ```
+
+   Erwartet: „0 nicht erfüllt“; die letzten neun `security`-Zeilen wie im
+   CDP-Host (07): `reject`/`no_prompt`, `ask_confirmation` (Plan 1, 2),
+   `reject`/`no_prompt`, `ask_confirmation` (3, 4), `perform_confirmed` (4),
+   `reject`/`no_prompt`, `ask_confirmation` (5). `security`-Zeilen ohne
+   „kaufen“, „Erika“, „file:“ (`grep -F security … | grep -ciE
+   'kaufen|erika|file:'` → 0).
+3. Integrationstests ohne Regression:
+   `out/Relief/relief_browsertests` (alle, besonders
+   `*BestaetigungNurEinmalUndGebunden*`, `*Befehlsleiste*`).
+4. Ergebnis in `spezifikation/07` („In den Hosts“, „Sensible Werte“) als
+   im Fork belegt eintragen, dieses Paket löschen.
 
 ## Fertig, wenn
 
-- Ein Lauf von `spike/tasks/07-bestaetigung.txt` erzeugt in beiden Hosts
-  Log-Zeilen mit Entscheidung, Plan-ID und Grund, ohne Feldwerte.
-- Kein Modellaufruf der Runtime umgeht `Budget` (Test oder Typ).
-- Eine Rückfrage zu einem Absenden-Button nennt das Formularziel, wo es
-  bekannt ist, und ein anderes Ziel verlangt neue Bestätigung.
+- Ein Fork-Lauf von `07-bestaetigung.txt` schreibt `security`-Zeilen mit
+  Entscheidung, Plan-ID und Grund, ohne Feldwerte, und alle Aufgaben
+  bleiben erfüllt.
 
 ## Nicht Teil
 
-- Die Matrix selbst und das Token (48).
-- Consent-Anzeige für Cloud-Modelle (→ spezifikation/07).
+- Formularziel im Fork (→ 75).
+- Werte in Antworten und Protokollzeilen außerhalb des Security-Logs (→ 76).

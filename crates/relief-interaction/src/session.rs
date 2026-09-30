@@ -32,8 +32,8 @@ use crate::resolve::{
 };
 use crate::respond;
 use crate::security::{
-    action_name, Binding, Confirmation, Decision, PlanId, Reason, SecurityEvent, SecurityLog,
-    CONFIRMATION_TTL,
+    action_name, is_sensitive_field, Binding, Confirmation, Decision, PlanId, Reason,
+    SecurityEvent, SecurityLog, CONFIRMATION_TTL, HTML_AUTOCOMPLETE, INPUT_TYPE,
 };
 use crate::validate::{plan_navigation, plan_on_page, ActionKind, ActionPlan};
 
@@ -434,7 +434,7 @@ impl Session {
             Some(id),
             &plan,
         ));
-        let answer = confirmation_prompt(&plan, &label, binding.destination.as_deref(), refused);
+        let answer = confirmation_prompt(&plan, &control, model, &binding, refused);
         self.confirmation = Some(Confirmation::new(id, binding));
         Outcome::Answer(answer)
     }
@@ -501,26 +501,57 @@ impl Session {
 
 /// Rückfrage aus dem validierten Plan und den lokalen Daten, nicht aus einer
 /// freien Zusammenfassung: Risiko, Gründe, Aktion mit Wert, Ziel und
-/// Zieladresse (ohne Query und Fragment).
+/// Zieladresse bzw. Formularziel (ohne Query und Fragment). Bei einem
+/// sensiblen Feld (Passwort, `autocomplete` für Zahlungs- und
+/// Identitätsdaten, → [`is_sensitive_field`]) stehen weder der neue noch der
+/// bisherige Wert darin.
 fn confirmation_prompt(
     plan: &ActionPlan,
-    label: &str,
-    destination: Option<&str>,
+    control: &Control,
+    model: &SemanticGraph,
+    binding: &Binding,
     refused: Option<Reason>,
 ) -> String {
-    let destination = destination
-        .map(|d| format!(", Adresse: {}", d.split(['?', '#']).next().unwrap_or(d)))
+    let node = model.node(&plan.target);
+    let sensitive = node.is_some_and(|n| {
+        is_sensitive_field(
+            n.extra.get(INPUT_TYPE).map(String::as_str),
+            n.extra.get(HTML_AUTOCOMPLETE).map(String::as_str),
+        )
+    });
+    let (kind, label) = if sensitive {
+        let kind = match &plan.kind {
+            ActionKind::SetValue(_) => "SetValue(verdeckt)".to_string(),
+            ActionKind::Select(_) => "Select(verdeckt)".to_string(),
+            other => format!("{other:?}"),
+        };
+        let hidden = Control {
+            value: None,
+            ..control.clone()
+        };
+        (kind, respond::control_line(&hidden))
+    } else {
+        (format!("{:?}", plan.kind), respond::control_line(control))
+    };
+    let what = if node.is_some_and(|n| n.url.is_some()) {
+        "Adresse"
+    } else {
+        "Formularziel"
+    };
+    let destination = binding
+        .destination
+        .as_deref()
+        .map(|d| format!(", {what}: {}", d.split(['?', '#']).next().unwrap_or(d)))
         .unwrap_or_default();
     let refused = refused
         .map(|r| format!(" Die Bestätigung galt nicht: {r}."))
         .unwrap_or_default();
     format!(
-        "Bestätigung nötig ({:?}): {} — Aktion: {:?}, Ziel: {label}{destination}. \
+        "Bestätigung nötig ({:?}): {} — Aktion: {kind}, Ziel: {label}{destination}. \
          „ja“ (oder „!“ vor denselben Befehl) bestätigt einmal und nur genau diese \
          Aktion, „abbrechen“ verwirft sie.{refused}",
         plan.risk,
         plan.notes.join("; "),
-        plan.kind,
     )
 }
 
@@ -846,6 +877,85 @@ mod tests {
         assert!(text.contains("Ziel oder Seite hat sich geändert"), "{text}");
         // Die neue Rückfrage gilt für den neuen Stand.
         assert_eq!(run(&mut s, &changed, true, order()), None);
+    }
+
+    /// Knoten der Testseite verändern.
+    fn with_node(
+        model: &SemanticGraph,
+        id: i32,
+        change: impl FnOnce(&mut relief_model::SemanticNode),
+    ) -> SemanticGraph {
+        let mut m = model.clone();
+        let at = crate::graph::at(id);
+        change(
+            m.trees
+                .get_mut(&at.tree)
+                .unwrap()
+                .nodes
+                .get_mut(&at.node)
+                .unwrap(),
+        );
+        m
+    }
+
+    #[test]
+    fn rueckfrage_nennt_das_formularziel_und_bindet_es() {
+        let target = |url: &str| {
+            let url = url.to_string();
+            with_node(&crate::graph::sample_tree(), 21, move |n| {
+                n.extra.insert(crate::security::FORM_ACTION.into(), url);
+            })
+        };
+        let shop = target("https://shop.example/bestellung?id=7");
+        let mut s = Session::new();
+        let text = run(&mut s, &shop, false, order()).unwrap();
+        assert!(
+            text.contains("Formularziel: https://shop.example/bestellung."),
+            "{text}"
+        );
+        // Zwischen Rückfrage und „!“ zeigt das Formular woandershin.
+        let evil = target("https://evil.example/bestellung");
+        let text = run(&mut s, &evil, true, order()).unwrap();
+        assert!(text.contains("andere Zieladresse"), "{text}");
+        assert!(
+            text.contains("Formularziel: https://evil.example/bestellung"),
+            "{text}"
+        );
+        assert_eq!(run(&mut s, &evil, true, order()), None);
+    }
+
+    #[test]
+    fn sensible_werte_stehen_nicht_in_der_rueckfrage() {
+        // „Menge“ ohne sicheren Namen: Ausfüllen verlangt eine Rückfrage.
+        let base = with_node(&crate::graph::sample_tree(), 20, |n| {
+            n.name.certainty = relief_model::Certainty::Uncertain;
+            n.value = relief_model::Fact::known(Some("alt-geheim".into()));
+        });
+        let fill = || Command::SetValue("Menge".into(), "geheim123".into());
+
+        let mut s = Session::new();
+        let plain = run(&mut s, &base, false, fill()).unwrap();
+        assert!(plain.contains("SetValue(\"geheim123\")"), "{plain}");
+
+        for (key, value) in [
+            (crate::security::INPUT_TYPE, "password"),
+            (crate::security::HTML_AUTOCOMPLETE, "cc-number"),
+        ] {
+            let model = with_node(&base, 20, |n| {
+                n.extra.insert(key.into(), value.into());
+            });
+            let mut s = Session::new();
+            let text = run(&mut s, &model, false, fill()).unwrap();
+            assert!(text.starts_with("Bestätigung nötig"), "{text}");
+            assert!(text.contains("SetValue(verdeckt)"), "{text}");
+            for secret in ["geheim123", "alt-geheim"] {
+                assert!(!text.contains(secret), "„{secret}“ in: {text}");
+            }
+            // Gebunden bleibt der Wert: „!“ mit anderem Wert gilt nicht.
+            let other = Command::SetValue("Menge".into(), "anders".into());
+            let refused = run(&mut s, &model, true, other).unwrap();
+            assert!(refused.contains("anderer Wert"), "{refused}");
+        }
     }
 
     #[test]

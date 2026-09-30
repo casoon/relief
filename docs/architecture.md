@@ -34,7 +34,7 @@ crates/
 │   │   ├── validate.rs       # Bedienelement + Aktion → ActionPlan mit Risikoklasse; Seitentyp Anmeldung/Kasse erhöht (plan_on_page)
 │   │   ├── respond.rs        # Antworttexte (auch wo bin ich, Vorlesen, Scrollergebnis), Wirkung einer Aktion aus zwei Modellständen
 │   │   ├── session.rs        # Befehlsablauf beider Hosts: Eingabe → Antwort oder Plan (Outcome), Antwort nach der Aktion, Position, Rückfrage mit Token; Aufgabendateien
-│   │   ├── security.rs       # Bestätigungstoken (an Plan gebunden, einmalig, kurzlebig), Security-Log ohne Werte, Namen der Grenzen
+│   │   ├── security.rs       # Bestätigungstoken (an Plan gebunden, einmalig, kurzlebig), Security-Log ohne Werte, Namen der Grenzen; Schlüssel für Host-Angaben (Formularziel, type, autocomplete), sensible Felder
 │   │   └── assertions.rs     # Formular-Zusicherungen (Feature `assertions`, nicht im Fork): Modell + DOM-Fakten (a11y-dom) + Tab-Folge → Befunde (a11y-report); accname für den Namensvergleich
 │   └── tests/                # browserfrei gegen spike/recordings (über den Konverter als Modell)
 │       ├── recordings.rs     # Graph-Zusammenfassung je Aufnahme ↔ erwartungen/, Graph-Stabilität
@@ -44,24 +44,25 @@ crates/
 │   ├── schema/               # JSON-Schemas der Modellausgaben (handgeschrieben, Test gegen die Typen)
 │   └── src/
 │       ├── privacy.rs        # Privacy-Filter: SemanticGraph → FilteredInput (einziger Weg zur Modelleingabe); Ausschnitt um einen Knoten
-│       ├── provider.rs       # ModelProvider, Tier none/os/local/api, NoModel; resolve_missing, propose_intent
-│       ├── budget.rs         # Budget/Limits: Grenzen je Aufgabe (Baumgröße, Aufrufe, Wiederholungen, Zeit, Tokens), Abbruch ohne weitere Aufrufe
+│       ├── provider.rs       # ModelProvider (complete verlangt eine Permit), Tier none/os/local/api, NoModel
+│       ├── budget.rs         # Budget/Limits: einziger Weg zu einem Anbieter; resolve_missing, propose_intent, complete unter Grenzen je Aufgabe (Baumgröße, Aufrufe, Wiederholungen, Zeit, Tokens), Abbruch ohne weitere Aufrufe
 │       ├── hypothesis.rs     # Hypothese zu fehlendem Namen/Beschreibung, strenge Prüfung; gemessene Schwellen je Modell (leer)
 │       ├── intent.rs         # Intent-Vorschlag aus einer Nutzeräußerung, strenge Prüfung
 │       └── risk.rs           # assess_risk: Hypothesen erhöhen die Risikoklasse nur
 │   (tests/missbrauch.rs: Sicherheits-Regressionsmatrix, je Missbrauchsfall ein fester Test)
 ├── relief-resolver/          # browserfrei, relief-ai-contract + a11y-perception; ureq nur mit Feature `anthropic`
 │   ├── src/
-│   │   ├── lib.rs            # resolve_node: Ausschnitt (40 Knoten + Vorfahren) → resolve_missing → Name des Knotens
+│   │   ├── lib.rs            # resolve_node: Ausschnitt (40 Knoten + Vorfahren) → Budget::resolve_missing → Name des Knotens
 │   │   ├── anthropic.rs      # Adapter Stufe api: Anfrage/Antwort der Messages API; HTTP nur mit Feature `anthropic`
 │   │   ├── replay.rs         # Antworten aufzeichnen und wiedergeben (Tests, Auswertung ohne erneute Kosten)
 │   │   ├── sample.rs         # Stichprobe spike/kalibrierung laden, Aufnahme → FilteredInput
-│   │   ├── calibrate.rs      # Trefferquote je Confidence-Band, Schwellenvorschlag, Tokens je Anfrage/Seite
+│   │   ├── calibrate.rs      # Trefferquote je Confidence-Band, Schwellenvorschlag, Tokens je Anfrage/Seite; ein Budget je Seite
 │   │   └── main.rs           # `relief-resolver kalibrieren`
 │   └── tests/calibrate.rs    # nur Fake-Anbieter (Stufe none, Wiedergabe)
 └── relief-cdp/               # Host, chromiumoxide 0.8 + tokio
     └── src/
         ├── capture.rs        # getFullAXTree je Frame, iframes eingehängt, Fokus → AXSnapshot
+        ├── facts.rs          # DOM.getDocument je Aufnahme → extra: Formularziel von Absenden-Buttons, HTML-type/-autocomplete
         ├── live.rs           # DOM-Mutationen + Netzwerk → „Seite ruht“; „geändert seit letzter Aufnahme“
         ├── act.rs            # ActionPlan → DOM/JS am Element (Backend-ID); Escape/Pfeiltasten/Tab als Taste; Scrollen
         ├── assertions.rs     # `assert:`-Zeilen: DOM-Fakten aus DOM.getDocument + DOMSnapshot, Tab-Folge beobachten, Fokus → relief_interaction::assertions
@@ -106,17 +107,20 @@ einen späteren Utility-Prozess (nicht gebaut).
 aus `filter` (privat, ohne `Deserialize`). Der Filter kopiert nach
 Positivliste: keine Werte, kein Feldinhalt, sensible Felder nur mit Rolle,
 URLs ohne Query, Tree-IDs durch lokale IDs (`t0:18`) ersetzt. Anbieter liefern
-nur Text; `resolve_missing`/`propose_intent` prüfen ihn gegen Schema und
-Eingabe und machen daraus `Hypothesis` oder `IntentProposal` — keine
-Aktion. Eine Hypothese ist `Uncertain`, außer für ihr Modell ist in
+nur Text; `Budget::resolve_missing`/`Budget::propose_intent` prüfen ihn
+gegen Schema und Eingabe und machen daraus `Hypothesis` oder
+`IntentProposal` — keine Aktion. Eine Hypothese ist `Uncertain`, außer für ihr Modell ist in
 `CALIBRATED_THRESHOLDS` eine gemessene Schwelle eingetragen (heute keine).
-`Budget` stellt dieselben Aufrufe unter feste Grenzen je Aufgabe; die erste
-Überschreitung beendet die Aufgabe mit verständlichem Grund
-(`ModelError::Limit`), danach ruft es keinen Anbieter mehr auf.
+Aufrufen lässt sich ein Anbieter nur über ein `Budget`:
+`ModelProvider::complete` verlangt eine `Permit`, die nur das Budget
+ausstellt (außerhalb der Crate nicht zu bauen, `compile_fail`-Doctest). Es
+stellt jeden Aufruf unter feste Grenzen je Aufgabe; die erste Überschreitung
+beendet die Aufgabe mit verständlichem Grund (`ModelError::Limit`), danach
+ruft es keinen Anbieter mehr auf.
 
 `relief-resolver` benennt einzelne Controls ohne Namen: Es schneidet aus der
 gefilterten Eingabe einen Ausschnitt um den Knoten (`FilteredInput::excerpt`,
-nimmt nur weg) und fragt über `resolve_missing`. Der einzige Adapter spricht
+nimmt nur weg) und fragt über `Budget::resolve_missing`. Der einzige Adapter spricht
 die Anthropic Messages API (Stufe `api`, Key aus `ANTHROPIC_API_KEY`); sein
 HTTP-Teil existiert nur mit dem Feature `anthropic`. Die Runtime ruft den
 Resolver noch nicht auf; genutzt wird er vom Kalibrierwerkzeug.
@@ -192,6 +196,12 @@ flowchart LR
   Pfeiltasten aus und zeigt mit der Eingabetaste im Dokument
   (Fokus/Hinbewegen, nie Auslösen). → `plan/spezifikation/01`, „Semantic
   Inspector“.
+- **Security-Log**: nach jeder Eingabe (`RuntimeHost::RunCommand`) holt der
+  Host das Log der Sitzung ab (`take_security_log`) und schreibt je Eintrag
+  `security\t<JSON>` ins Protokoll (`--relief-log`, sonst `LOG(INFO)`).
+- **Feldangaben**: der Mirror legt HTML-`type` eines `<input>` (`kInputType`)
+  als `extra["inputType"]` ab; HTML-`autocomplete` und das Formularziel
+  serialisiert Blink nicht in `AXNodeData`.
 - **Messen**: `--relief-log=<datei>` schreibt je Paket Zeiten (UI-Thread,
   Warteschlange, Rust) und Knotenzahlen; `scripts/fork-measure.mjs` schreibt
   über CDP Messknoten in die Seite (Ende-zu-Ende-Latenz);
@@ -240,8 +250,17 @@ flowchart LR
   Ausschnitt genügt); jede andere Eingabe verwirft es. „!“ ohne offene
   Rückfrage ergibt nur eine neue Rückfrage. Entscheidungen landen im
   Security-Log (`Session::take_security_log`: Entscheidung, Plan-ID,
-  Aktionsart, Risiko, Grund; keine Werte, keine Namen). Beide Hosts holen
-  es noch nicht ab; es hält die letzten 256 Einträge.
+  Aktionsart, Risiko, Grund; keine Werte, keine Namen). Der Host holt es
+  nach jeder Eingabe ab und schreibt es mit `RELIEF_LOG` als JSON-Zeilen
+  (`palette`: in ihr Protokoll); ungeholt hält es die letzten 256 Einträge.
+- **Formularziel und Feldangaben** (`facts.rs`): nach jeder Aufnahme ein
+  `DOM.getDocument` (Tiefe -1, `pierce`); Absenden-Buttons bekommen
+  `extra["formAction"]` (`formaction`, sonst `action` des Formulars über
+  Vorfahren oder `form=`-ID, sonst Dokumentadresse, gegen die Basisadresse
+  aufgelöst; nicht bei `method=dialog`), `<input>` `extra["inputType"]`,
+  Felder mit `autocomplete` `extra["htmlAutocomplete"]`. Die Bindung der
+  Rückfrage nimmt das Formularziel als Zieladresse, die Rückfrage nennt es
+  („Formularziel: …“) und verdeckt Werte sensibler Felder.
 - **Modell**: Jede Aufnahme wird mit `relief_model::perception` zum
   `SemanticGraph`. Die Tree-ID des Hauptdokuments (`dokument-N`) wechselt bei
   Navigation und `DOM.documentUpdated`; über Dokumente hinweg wird kein Knoten

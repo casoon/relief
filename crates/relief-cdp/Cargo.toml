@@ -13,6 +13,9 @@ relief-interaction = { workspace = true }
 relief-model = { workspace = true }
 a11y-perception = { workspace = true }
 serde_json = { workspace = true }
+# Formularziel gegen die Basisadresse auflösen (WHATWG URL, wie der Browser);
+# steht über chromiumoxide schon im Lockfile.
+url = "2"
 chromiumoxide = { version = "0.8", default-features = false, features = ["tokio-runtime"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "io-std", "io-util"] }
 futures = "0.3"

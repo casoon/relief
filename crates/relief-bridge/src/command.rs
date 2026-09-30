@@ -144,6 +144,13 @@ impl Runtime {
         }
     }
 
+    /// Security-Log der Sitzung seit dem letzten Abholen (Entscheidung,
+    /// Plan-ID, Aktionsart, Risiko, Grund; keine Werte, keine Namen). Der
+    /// Fork schreibt es nach jeder Eingabe ins Protokoll (`--relief-log`).
+    pub fn take_security_log(&mut self) -> Vec<relief_interaction::SecurityEvent> {
+        self.session.take_security_log()
+    }
+
     /// Seitenbeschreibung wie nach dem Laden im CDP-Host.
     pub fn describe_page(&self) -> String {
         relief_interaction::respond::describe(&Graph::build(&self.graph))

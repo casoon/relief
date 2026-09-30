@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use relief_ai_contract::{ModelError, ModelRequest, NoModel, Usage};
+use relief_ai_contract::{Budget, Limits, ModelError, ModelRequest, NoModel, Usage};
 use relief_model::Certainty;
 use relief_resolver::anthropic::{request_body, user_message, DEFAULT_MODEL, SYSTEM_PROMPT};
 use relief_resolver::calibrate::{run, Answer, Outcome, Report};
@@ -143,21 +143,34 @@ fn resolver_benennt_nur_den_fokus_und_bleibt_unsicher() {
     let replay = Replay {
         replies: replies(&sample, |_, soll, id| reply(soll, id, 0.99)),
     };
-    let h = resolve_node(&replay, &input, "t0:15").unwrap().unwrap();
+    let mut budget = Budget::new(Limits::default());
+    let h = resolve_node(&mut budget, &replay, &input, "t0:15")
+        .unwrap()
+        .unwrap();
     assert_eq!(h.value, "Warenkorb");
     // Keine gemessene Schwelle für das Modell: bleibt Uncertain.
     let fact = h.fact();
     assert_eq!(fact.certainty, Certainty::Uncertain);
     assert_eq!(fact.confidence, Some(0.99));
 
-    assert!(resolve_node(&NoModel, &input, "t0:15").unwrap().is_none());
-    assert!(resolve_node(&replay, &input, "t0:9999").unwrap().is_none());
+    assert!(resolve_node(&mut budget, &NoModel, &input, "t0:15")
+        .unwrap()
+        .is_none());
+    assert!(resolve_node(&mut budget, &replay, &input, "t0:9999")
+        .unwrap()
+        .is_none());
 
     let broken = Replay {
         replies: replies(&sample, |_, _, id| reply("", id, 0.5)),
     };
+    // Dieselbe Anfrage ein drittes Mal: Das Budget der Aufgabe fragt nicht mehr.
     assert!(matches!(
-        resolve_node(&broken, &input, "t0:15"),
+        resolve_node(&mut budget, &broken, &input, "t0:15"),
+        Err(ModelError::Limit(_))
+    ));
+    let mut fresh = Budget::new(Limits::default());
+    assert!(matches!(
+        resolve_node(&mut fresh, &broken, &input, "t0:15"),
         Err(ModelError::Invalid(_))
     ));
 }
