@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Relief Inspector</title>
+  <link rel="stylesheet" href="inspector.css">
+  <script type="module" src="inspector.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Relief Inspector</h1>
+    <p id="page">Warte auf die Seite …</p>
+  </header>
+  <main>
+    <label for="nodes">Knoten der Seite</label>
+    <select id="nodes" size="14" aria-describedby="nodes-hint"></select>
+    <p id="nodes-hint" class="hint">Pfeiltasten wählen aus, Eingabetaste zeigt den
+      Knoten im Dokument.</p>
+    <section aria-labelledby="details-title">
+      <h2 id="details-title">Details</h2>
+      <p id="details-empty">Kein Knoten ausgewählt.</p>
+      <ul id="details" hidden></ul>
+      <button id="show" type="button" disabled>Im Dokument zeigen</button>
+    </section>
+    <p id="status" role="status"></p>
+    <p>
+      <label><input type="checkbox" id="announce" checked> Änderungen der Seite
+        ansagen</label>
+    </p>
+  </main>
+</body>
+</html>

@@ -36,6 +36,10 @@ inline constexpr char kReliefLogNodes[] = "relief-log-nodes";
 // Datei.
 inline constexpr char kReliefRun[] = "relief-run";
 
+// Inspector im Side Panel des ersten Tabs nach dem ersten Laden öffnen.
+// Sonst öffnet und schließt ihn Strg+Umschalt+I auf der Seite.
+inline constexpr char kReliefInspector[] = "relief-inspector";
+
 }  // namespace relief::switches
 
 #endif  // RELIEF_RELIEF_SWITCHES_H_

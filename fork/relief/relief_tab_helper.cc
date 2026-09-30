@@ -14,6 +14,7 @@
 #include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/bind_post_task.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "components/input/native_web_keyboard_event.h"
@@ -23,10 +24,12 @@
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/page.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/scoped_accessibility_mode.h"
 #include "content/public/browser/web_contents.h"
+#include "relief/inspector/relief_inspector.h"
 #include "relief/relief_attach.h"
 #include "relief/relief_switches.h"
 #include "relief/relief_task_runner.h"
@@ -55,6 +58,10 @@ int g_next_tab = 1;
 // Unserialize im UI-Thread, → plan/spezifikation/09); ein Baum, der immer
 // wieder aus dem Tritt kommt, soll das nicht in Schleife auslösen.
 constexpr base::TimeDelta kResetInterval = base::Seconds(5);
+
+// Inspector „im Dokument zeigen“: so lange auf die Wirkung warten, bevor
+// die Antwort entsteht.
+constexpr base::TimeDelta kShowSettle = base::Milliseconds(400);
 
 ax::mojom::Action ToAXAction(bridge::Action action) {
   switch (action) {
@@ -141,6 +148,11 @@ ReliefTabHelper::ReliefTabHelper(content::WebContents* contents)
   if (need_reset) {
     Reset("attach");
   }
+  key_callback_ = base::BindRepeating(&ReliefTabHelper::OnKeyPress,
+                                      base::Unretained(this));
+  WatchKeys(contents->GetPrimaryMainFrame());
+  open_inspector_ =
+      tab == 1 && command_line.HasSwitch(switches::kReliefInspector);
   if (tab == 1 && command_line.HasSwitch(switches::kReliefRun)) {
     task_runner_ = std::make_unique<ReliefTaskRunner>(
         *this, *contents,
@@ -148,7 +160,138 @@ ReliefTabHelper::ReliefTabHelper(content::WebContents* contents)
   }
 }
 
-ReliefTabHelper::~ReliefTabHelper() = default;
+ReliefTabHelper::~ReliefTabHelper() {
+  WatchKeys(nullptr);
+  for (InspectorObserver& observer : observers_) {
+    observer.OnTabHelperDestroyed();
+  }
+}
+
+void ReliefTabHelper::AddObserver(InspectorObserver* observer) {
+  observers_.AddObserver(observer);
+}
+
+void ReliefTabHelper::RemoveObserver(InspectorObserver* observer) {
+  observers_.RemoveObserver(observer);
+}
+
+void ReliefTabHelper::NotifyGraphChanged() {
+  for (InspectorObserver& observer : observers_) {
+    observer.OnGraphChanged();
+  }
+}
+
+void ReliefTabHelper::WatchKeys(content::RenderFrameHost* frame) {
+  content::RenderWidgetHost* widget =
+      frame ? frame->GetRenderWidgetHost() : nullptr;
+  content::RenderWidgetHost* old =
+      keys_widget_ ? content::RenderWidgetHost::FromID(keys_widget_->first,
+                                                       keys_widget_->second)
+                   : nullptr;
+  if (old == widget && widget) {
+    return;
+  }
+  if (old) {
+    old->RemoveKeyPressEventCallback(key_callback_);
+  }
+  keys_widget_.reset();
+  if (widget) {
+    widget->AddKeyPressEventCallback(key_callback_);
+    keys_widget_ = std::pair(widget->GetProcess()->GetDeprecatedID(),
+                             widget->GetRoutingID());
+  }
+}
+
+bool ReliefTabHelper::OnKeyPress(const input::NativeWebKeyboardEvent& event) {
+  // Strg+Umschalt+I, ohne weitere Umschalttasten (macOS: Befehlstaste
+  // bleibt frei, die Entwicklertools liegen auf Befehl+Wahl+I).
+  constexpr int kModifiers = blink::WebInputEvent::kControlKey |
+                             blink::WebInputEvent::kShiftKey |
+                             blink::WebInputEvent::kAltKey |
+                             blink::WebInputEvent::kMetaKey;
+  if (event.GetType() != blink::WebInputEvent::Type::kRawKeyDown ||
+      event.windows_key_code != ui::VKEY_I ||
+      (event.GetModifiers() & kModifiers) !=
+          (blink::WebInputEvent::kControlKey |
+           blink::WebInputEvent::kShiftKey)) {
+    return false;
+  }
+  runtime_.AsyncCall(&RuntimeHost::Log).WithArgs("inspector\ttaste");
+  if (tabs::TabInterface* tab =
+          tabs::TabInterface::MaybeGetFromContents(web_contents())) {
+    ToggleInspector(*tab);
+  }
+  return true;
+}
+
+void ReliefTabHelper::DidFinishLoad(content::RenderFrameHost* render_frame_host,
+                                    const GURL& validated_url) {
+  if (!open_inspector_ || !render_frame_host->IsInPrimaryMainFrame()) {
+    return;
+  }
+  // Beim Start kann das Laden fertig sein, bevor der Tab in einem Fenster
+  // hängt oder das Fenster sein Side Panel angelegt hat (Show wird dann
+  // übergangen): kurz danach öffnen.
+  open_inspector_ = false;
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](base::WeakPtr<ReliefTabHelper> self) {
+            if (!self) {
+              return;
+            }
+            tabs::TabInterface* tab =
+                tabs::TabInterface::MaybeGetFromContents(self->web_contents());
+            const bool shown = tab && ShowInspector(*tab);
+            self->runtime_.AsyncCall(&RuntimeHost::Log)
+                .WithArgs(std::string("inspector\t") +
+                          (shown ? "geöffnet" : "kein Fenster"));
+          },
+          weak_factory_.GetWeakPtr()),
+      base::Seconds(1));
+}
+
+void ReliefTabHelper::InspectorJson(
+    base::OnceCallback<void(std::string)> done) {
+  runtime_.AsyncCall(&RuntimeHost::InspectorJson).Then(std::move(done));
+}
+
+void ReliefTabHelper::Show(const std::string& key,
+                           base::OnceCallback<void(std::string)> done) {
+  runtime_.AsyncCall(&RuntimeHost::ShowNode)
+      .WithArgs(key)
+      .Then(base::BindOnce(
+          [](base::WeakPtr<ReliefTabHelper> self,
+             base::OnceCallback<void(std::string)> done, bridge::Reply reply) {
+            if (!self) {
+              return;
+            }
+            if (reply.kind != bridge::ReplyKind::Perform) {
+              std::move(done).Run(std::string(reply.text));
+              return;
+            }
+            for (const bridge::Step& step : reply.steps) {
+              if (!self->PerformStep(step)) {
+                std::move(done).Run("Knoten nicht mehr im Baum.");
+                return;
+              }
+            }
+            // Wirkung abwarten wie eine Person, die hinsieht; die Antwort
+            // nennt, wo Relief jetzt steht.
+            base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+                FROM_HERE,
+                base::BindOnce(
+                    [](base::WeakPtr<ReliefTabHelper> self,
+                       base::OnceCallback<void(std::string)> done) {
+                      if (self) {
+                        self->FinishCommand(std::move(done));
+                      }
+                    },
+                    self, std::move(done)),
+                kShowSettle);
+          },
+          weak_factory_.GetWeakPtr(), std::move(done)));
+}
 
 void ReliefTabHelper::AccessibilityEventReceived(
     const ui::AXUpdatesAndEvents& details) {
@@ -230,6 +373,7 @@ void ReliefTabHelper::AccessibilityEventReceived(
     return;
   }
   runtime_.AsyncCall(&RuntimeHost::Apply).WithArgs(std::move(delta), timing);
+  NotifyGraphChanged();
 }
 
 void ReliefTabHelper::AccessibilityLocationChangesReceived(
@@ -256,9 +400,12 @@ void ReliefTabHelper::AccessibilityLocationChangesReceived(
     return;
   }
   runtime_.AsyncCall(&RuntimeHost::Apply).WithArgs(std::move(delta), timing);
+  NotifyGraphChanged();
 }
 
 void ReliefTabHelper::PrimaryPageChanged(content::Page& page) {
+  // Neues Hauptdokument, womöglich mit neuem Widget: Kürzel umhängen.
+  WatchKeys(&page.GetMainDocument());
   std::set<ui::AXTreeID> current;
   page.GetMainDocument().ForEachRenderFrameHost(
       [&current](content::RenderFrameHost* frame) {
@@ -404,6 +551,7 @@ void ReliefTabHelper::DropTree(const ui::AXTreeID& tree_id) {
   timing.kind = "drop";
   timing.received = base::TimeTicks::Now();
   runtime_.AsyncCall(&RuntimeHost::Apply).WithArgs(std::move(delta), timing);
+  NotifyGraphChanged();
 }
 
 void ReliefTabHelper::Perform(bridge::ActionPlan plan) {

@@ -15,14 +15,17 @@ unverändert). Zwei Linien: Assistenz im Browser und Prüfen im echten Browser;
 Relief ersetzt den geplanten barrierlab-Reader. Es gibt
 einen CDP-Spike gegen ein normales Chrome: Rust-Workspace mit sechs Crates,
 siehe `docs/architecture.md`. Dazu das Fork-Grundgerüst: Chromium
-154.0.8037.58 mit `//relief/` und zwei Patches (`fork/`), lokal gebaut in
+154.0.8037.58 mit `//relief/` und drei Patches (`fork/`), lokal gebaut in
 `~/chromium/src/out/Relief`. Mit `--enable-relief` liest er den AXTree samt
 Positionen im Browser-Prozess, auch aus cross-site-iframes, führt ihn als
 `SemanticGraph` in der Rust-Runtime nach (über Navigation, Back-Forward-Cache
 und Discard hinweg) und führt Befehle in Sprache über `AXActionData` aus
 (Tasten als Ersatzweg); die Aufgaben `spike/tasks/01`–`05` laufen dort mit
 `--relief-run` vollständig. Browser-Tests je Integrationspunkt
-(`relief_browsertests`). Eine Bedienoberfläche hat der Fork noch nicht.
+(`relief_browsertests`). Erste Oberfläche ist der Semantic Inspector im
+Side Panel (Strg+Umschalt+I auf der Seite oder `--relief-inspector`):
+Bereiche, Überschriften und Bedienelemente live mit Herkunft der Namen,
+Auswahl und „im Dokument zeigen“ getrennt.
 
 ## Ausführen
 
@@ -168,7 +171,7 @@ scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurüc
 | `spike/recordings` | AXTree-Aufnahmen als Fixtures für browserfreie Tests |
 | `spike/kalibrierung` | von Hand beschriftete Stichprobe unbenannter Controls mit Soll-Namen und Begründung |
 | `crates/relief-interaction/tests` | Snapshot- und Aufgabentests gegen die Aufnahmen; Erwartungen neu setzen mit `RELIEF_ERWARTUNGEN=neu` |
-| `fork/` | Fork-Inhalt für einen Chromium-Checkout: Patch-Serie (`patches/`, `series`, 2 Patches), Basisversion (`UPSTREAM`), `//relief/` (`relief/`: Tab-Helfer, eigener AXTree, Runtime-Sequenz, `BUILD.gn`, Browser-Tests in `testing/`); Format in `fork/README.md` |
+| `fork/` | Fork-Inhalt für einen Chromium-Checkout: Patch-Serie (`patches/`, `series`, 3 Patches), Basisversion (`UPSTREAM`), `//relief/` (`relief/`: Tab-Helfer, eigener AXTree, Runtime-Sequenz, Aufgaben-Runner, Inspector (`inspector/`), `BUILD.gn`, Browser-Tests in `testing/`); Format in `fork/README.md` |
 | `scripts/fork-apply.sh`, `scripts/fork-export.sh` | Fork auf einen Checkout anwenden (inkl. Kopie der Crate-Quellen) bzw. Patches daraus neu erzeugen |
 | `scripts/cloud-setup.sh` | Setup-Skript für die Cloud-Umgebung auf claude.ai |
 | `.github/workflows/ci.yml` | CI: Rust-Prüfungen und Aufgaben 01–05 gegen Chrome |

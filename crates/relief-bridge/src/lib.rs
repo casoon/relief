@@ -24,8 +24,10 @@
 mod command;
 #[allow(unsafe_code)]
 mod cxx_bridge;
+mod inspector;
 mod runtime;
 
 pub use command::{ax_steps, AxStep, Key, Reply, Step};
 pub use cxx_bridge::{delta_from_ffi, delta_to_ffi, ffi};
+pub use inspector::inspector_json;
 pub use runtime::{ActionPlan, ActionRequest, Answer, Rejection, Runtime};
