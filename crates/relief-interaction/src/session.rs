@@ -926,7 +926,8 @@ fn is_steppable(c: &Control) -> bool {
 }
 
 /// Aufgabendatei (`spike/tasks/*.txt`) Zeile für Zeile: `url:`, `do:`,
-/// `assert:` (Formular-Zusicherung), `expect:`; `#` und Leerzeilen fallen
+/// `assert:` (Formular-Zusicherung), `expect:`, `wait:` (Millisekunden, in
+/// denen die Seite ohne Eingabe weiterläuft); `#` und Leerzeilen fallen
 /// weg, Unbekanntes auch.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TaskLine {
@@ -934,6 +935,7 @@ pub enum TaskLine {
     Do(String),
     Assert(String),
     Expect(String),
+    Wait(u64),
 }
 
 pub fn parse_tasks(text: &str) -> Vec<TaskLine> {
@@ -947,6 +949,8 @@ pub fn parse_tasks(text: &str) -> Vec<TaskLine> {
                 Some(TaskLine::Do(input.trim().to_string()))
             } else if let Some(text) = line.strip_prefix("assert:") {
                 Some(TaskLine::Assert(text.trim().to_string()))
+            } else if let Some(ms) = line.strip_prefix("wait:") {
+                ms.trim().parse().ok().map(TaskLine::Wait)
             } else {
                 line.strip_prefix("expect:")
                     .map(|e| TaskLine::Expect(e.trim().to_string()))
@@ -967,12 +971,15 @@ mod tests {
 
     #[test]
     fn aufgabenzeilen() {
-        let lines = parse_tasks("# Kommentar\nurl: a.html\n\ndo: !klicke X\nexpect: Äpfel\nfoo");
+        let lines = parse_tasks(
+            "# Kommentar\nurl: a.html\n\ndo: !klicke X\nwait: 1500\nexpect: Äpfel\nfoo\nwait: bald",
+        );
         assert_eq!(
             lines,
             vec![
                 TaskLine::Url("a.html".into()),
                 TaskLine::Do("!klicke X".into()),
+                TaskLine::Wait(1500),
                 TaskLine::Expect("Äpfel".into()),
             ]
         );

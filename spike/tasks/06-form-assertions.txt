@@ -102,6 +102,23 @@ expect: SetValue("030 1234567")
 do: wo bin ich
 expect: Telefon
 
+# Änderungssignal aus einem Frame in einem anderen Prozess (Paket 85): Das
+# fremde iframe fügt 3 s nach dem Laden ein Feld ein. Ohne eigene Aktion
+# zeigt der nächste Befehl es, weil die Mutation über die Sitzung des Frames
+# kommt. Darin ein iframe im Prozess des fremden Frames (`srcdoc`) mit dem
+# Button „Einlösen“: eingehängt über die Sitzung des Frames, bedienbar.
+url: server:../fixtures/frame-nachladen.html
+do: was ist hier
+expect: 2 Bedienelemente
+wait: 3500
+do: was ist hier
+expect: 3 Bedienelemente
+do: was kann ich tun
+expect: [textbox] Gutscheincode
+expect: [button] Einlösen
+do: klicke Einlösen
+expect: Eingelöst
+
 # Gleiche IDs im Dokument und im Shadow-Root (Paket 64): accname rechnet mit
 # einem ID-Index je Dokument; statt falscher Abweichungen `untested`.
 url: ../fixtures/form-shadow-ids.html

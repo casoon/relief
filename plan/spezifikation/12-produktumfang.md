@@ -239,9 +239,46 @@ Paket 49).
   (`file://`) 1 Frame im Prozess der Seite. Aufgaben 01–09 im Modus `test`:
   141 erfüllt, 0 nicht erfüllt; 10 und 12 (echte Seiten, Consent-Dialoge
   von spiegel.de, bild.de, welt.de, faz.net, t-online.de weiter erkannt):
-  35 erfüllt, 0 nicht erfüllt (2026-09-30). `measure`: bild.de 2
-  eingehängt, 1 nicht erreichbar; spiegel.de 1 und 1 (Summe beider Wege,
-  welcher Weg und warum nicht erreichbar, ist nicht aufgeschlüsselt → 85).
+  35 erfüllt, 0 nicht erfüllt (2026-09-30). Zählung je Weg, Änderungssignal
+  und Verschachtelung: nächster Punkt.
+- **Frames anderer Prozesse: Änderungssignal, Verschachtelung, Zählung
+  [belegt, Paket 85]:** Beim Anhängen schaltet `frames.rs` in der Sitzung
+  des Frames den Network-Agenten ein und fordert das Dokument an; die
+  Ereignisse der zweiten Verbindung (DOM-Mutationen, `requestWillBeSent`,
+  `loadingFinished`, `loadingFailed`) gehen an `live.rs` wie die der Seite,
+  nach `DOM.documentUpdated` im Frame fordert die Verbindung das Dokument
+  selbst neu an. `frame-nachladen.html` (`url: server:…`): das fremde
+  iframe fügt 3 s nach dem Laden ein Feld ein; nach `wait: 3500` zeigt
+  „was ist hier“ 3 statt 2 Bedienelemente („neu aufgenommen (DOM
+  geändert)“), ohne eigene Aktion. Gegenprobe mit abgeschaltetem
+  Weiterreichen (Fixture noch ohne `srcdoc`-iframe): „unverändert, keine
+  Aufnahme“, das Feld fehlt.
+  iframes im Prozess eines solchen Frames hängt `capture.rs` über
+  `getFullAXTree { frameId }` und `DOM.getFrameOwner` in dessen Sitzung ein
+  (Präfix `r<Nummer>f<n>:`); im Fixture ein `srcdoc`-iframe mit „Einlösen“,
+  „klicke Einlösen“ wirkt dort (vorher fehlte der Button,
+  Gegenprobe mit dem Stand vor dem Paket). `measure` zählt getrennt: im
+  Prozess des Elterndokuments / eigene Sitzung, je eingehängt / nicht
+  erreichbar, und nennt je nicht erreichbarem iframe Weg, Adresse und
+  Fehler. 2026-09-30: bild.de im Prozess 2/1, eigene Sitzung 0/0;
+  spiegel.de 1/1 und 0/0 (Consent-iframe `sp-spiegel-de.spiegel.de` ist
+  dieselbe Site, also im Prozess). Nicht erreichbar ist auf beiden das
+  TCF-Locator-iframe (`<iframe name="__tcfapiLocator" style="display:
+  none">`, `about:blank`): Chrome führt ein Element mit `display: none`
+  nicht im AXTree, also gibt es keinen Knoten zum Einhängen und nichts zu
+  bedienen. Lokal: `frame-nachladen.html` 1/0 und 1/0, `form-fremd.html`
+  0/0 und 1/0, `with-iframe.html` 1/0 und 0/0. Nach dem Laden wartet die
+  Ruhe mit einem Frame in einem anderen Prozess gut 1 s (→ 105). Der
+  sporadische Ausfall aus der Zusammenführung mit main ist `tabfolge` in
+  `form-fremd.html` (einmal unter Last gesichert, → 106), nicht die
+  Ruhe-Erkennung.
+- **`wait: <ms>` in Aufgabendateien [Entscheidung, Paket 85]:** Ein Befehl
+  folgt im Aufgabenlauf ohne Pause auf das Laden; eine Änderung „ohne
+  eigene Aktion“ lässt sich nur mit einer Pause prüfen. Die Zeile wartet im
+  CDP-Host, ohne etwas aufzunehmen; der Fork-Runner bekommt sie nicht
+  (`relief-bridge` filtert sie), dort laufen keine `server:`-Aufgaben.
+  Alternative verworfen: vor jedem Befehl auf Ruhe warten, das kostet auf
+  Seiten mit Karussell bei jeder Frage bis zu 3 s.
 - **Zweite Verbindung statt chromiumoxide-Sitzung [Entscheidung, Paket 70]:**
   chromiumoxide 0.8 schickt Befehle nur an die Sitzung einer Seite und
   hängt Frames zwar selbst an (`setAutoAttach`), gibt deren Sitzung aber
@@ -278,8 +315,7 @@ Paket 49).
   `<label>` jenseits der Shadow-Grenze für `accname` mit. Inhalt
   geschlossener `<details>` (`content-visibility`) meldet der Snapshot mit
   normalem `display`, `accname` zählt ihn dann mit [laut
-  auditmysite-Kommentar, hier nicht gemessen]. Frames im Prozess eines
-  Frames aus einem anderen Prozess fehlen im Modell → 85.
+  auditmysite-Kommentar, hier nicht gemessen].
 - **Änderung über `TreeDelta` [Entscheidung, Paket 49]:** Der Vergleich
   „vorher/nachher“ nutzt `relief_model::TreeDelta::between`, nicht die
   Diff-Regeln aus `a11y-perception`: `relief-interaction` hängt außerhalb der

@@ -23,8 +23,20 @@ pub struct Capture {
     pub snapshot: AXSnapshot,
     /// Dauer von `getFullAXTree` inklusive Umwandlung und iframes.
     pub tree_ms: u128,
-    /// Eingehängte iframes / nicht erreichbare iframes.
-    pub frames: (usize, usize),
+    pub frames: FrameCount,
+}
+
+/// iframes je Weg, für `measure`.
+#[derive(Debug, Default)]
+pub struct FrameCount {
+    /// Im Prozess des Elterndokuments (`getFullAXTree { frameId }` in dessen
+    /// Sitzung): eingehängt / nicht erreichbar.
+    pub local: (usize, usize),
+    /// In einem anderen Prozess (eigene Sitzung, `frames.rs`): eingehängt /
+    /// nicht erreichbar.
+    pub remote: (usize, usize),
+    /// Je nicht erreichbarem iframe: Weg, Frame und Fehler.
+    pub unreachable: Vec<String>,
 }
 
 pub async fn capture(page: &Page, frames: &Frames, label: &str) -> Result<Capture> {
@@ -42,8 +54,11 @@ pub async fn capture(page: &Page, frames: &Frames, label: &str) -> Result<Captur
         .iter()
         .map(convert_node)
         .collect();
-    let (local, local_failed) = attach_frames(page, &mut nodes).await.unwrap_or((0, 0));
-    let (remote, remote_failed) = attach_remote_frames(page, frames, &mut nodes).await;
+    let mut count = FrameCount::default();
+    attach_frames(&Doc::Page(page), "f", &mut nodes, &mut count)
+        .await
+        .ok();
+    attach_remote_frames(page, frames, &mut nodes, &mut count).await;
     drop_palette(&mut nodes);
     let tree = AXTree::from_nodes(nodes);
     let tree_ms = started.elapsed().as_millis();
@@ -55,7 +70,7 @@ pub async fn capture(page: &Page, frames: &Frames, label: &str) -> Result<Captur
     Ok(Capture {
         snapshot: AXSnapshot::new(label, url, title, now_ms(), tree, focus),
         tree_ms,
-        frames: (local + remote, local_failed + remote_failed),
+        frames: count,
     })
 }
 
@@ -104,37 +119,55 @@ fn drop_subtree_named(nodes: &mut Vec<AXNode>, name: &str) {
     }
 }
 
-/// `getFullAXTree` liefert nur den Hauptframe. Die Bäume der iframes werden
-/// einzeln geholt und unter ihrem `iframe`-Knoten eingehängt; ihre Knoten-IDs
-/// bekommen ein Frame-Präfix, weil Chrome sie je Frame vergibt.
+/// `getFullAXTree` liefert nur den Frame der Sitzung. Die Bäume der iframes
+/// im selben Prozess werden einzeln geholt und unter ihrem `iframe`-Knoten
+/// eingehängt; ihre Knoten-IDs bekommen ein Frame-Präfix (`prefix` und
+/// laufende Nummer), weil Chrome sie je Frame vergibt. `doc` ist die Seite
+/// oder ein Frame in einem anderen Prozess (dann Backend-IDs über
+/// [`encode`], auch die des Besitzers).
 ///
 /// Frames in einem anderen Renderer-Prozess (Site Isolation) kennt der
-/// Frame-Baum der Seite nicht; sie hängt [`attach_remote_frames`] ein.
-async fn attach_frames(page: &Page, nodes: &mut Vec<AXNode>) -> Result<(usize, usize)> {
-    let tree = page
-        .execute(GetFrameTreeParams::default())
-        .await?
-        .result
-        .frame_tree;
+/// Frame-Baum der Sitzung nicht; sie hängt [`attach_remote_frames`] ein.
+async fn attach_frames(
+    doc: &Doc<'_>,
+    prefix: &str,
+    nodes: &mut Vec<AXNode>,
+    count: &mut FrameCount,
+) -> Result<()> {
+    let tree = doc.execute(GetFrameTreeParams::default()).await?.frame_tree;
+    let index = doc.index();
     let mut stack: Vec<FrameTree> = tree.child_frames.unwrap_or_default();
-    let (mut attached, mut failed) = (0, 0);
+    let mut n = 0;
     while let Some(frame) = stack.pop() {
         stack.extend(frame.child_frames.clone().unwrap_or_default());
+        n += 1;
         let id = frame.frame.id.clone();
-        let Ok(owner) = page.execute(GetFrameOwnerParams::new(id.clone())).await else {
-            failed += 1;
-            continue;
+        let mut unreachable = |why: String| {
+            count.local.1 += 1;
+            count
+                .unreachable
+                .push(format!("im Prozess, {}: {why}", frame.frame.url));
         };
-        let owner_backend = *owner.result.backend_node_id.inner();
-        let Ok(resp) = page
+        let owner = match doc.execute(GetFrameOwnerParams::new(id.clone())).await {
+            Ok(owner) => owner,
+            Err(e) => {
+                unreachable(format!("getFrameOwner: {e}"));
+                continue;
+            }
+        };
+        let owner_backend = encode(index, *owner.backend_node_id.inner());
+        let resp = match doc
             .execute(GetFullAxTreeParams::builder().frame_id(id.clone()).build())
             .await
-        else {
-            failed += 1;
-            continue;
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                unreachable(format!("getFullAXTree: {e}"));
+                continue;
+            }
         };
-        let prefix = format!("f{}", attached + failed + 1);
-        let mut frame_nodes: Vec<AXNode> = serde_json::to_value(&resp.result.nodes)?
+        let prefix = format!("{prefix}{n}");
+        let mut frame_nodes: Vec<AXNode> = serde_json::to_value(&resp.nodes)?
             .as_array()
             .map(|a| a.iter().map(convert_node).collect())
             .unwrap_or_default();
@@ -146,12 +179,13 @@ async fn attach_frames(page: &Page, nodes: &mut Vec<AXNode>) -> Result<(usize, u
                 .iter()
                 .map(|c| format!("{prefix}:{c}"))
                 .collect();
+            renumber(n, index);
         }
         let Some(owner_node) = nodes
             .iter_mut()
             .find(|n| n.backend_dom_node_id == Some(owner_backend))
         else {
-            failed += 1;
+            unreachable("iframe-Element nicht im AXTree".into());
             continue;
         };
         if let Some(root) = frame_nodes.first_mut() {
@@ -159,23 +193,24 @@ async fn attach_frames(page: &Page, nodes: &mut Vec<AXNode>) -> Result<(usize, u
             owner_node.child_ids.push(root.node_id.clone());
         }
         nodes.extend(frame_nodes);
-        attached += 1;
+        count.local.0 += 1;
     }
-    Ok((attached, failed))
+    Ok(())
 }
 
 /// Frames in einem anderen Renderer-Prozess (Site Isolation): Ein
 /// `iframe`-Knoten ohne Kinder, dessen Element eine `frameId` trägt, ist ein
 /// eigenes Ziel. Dessen Baum kommt über die Sitzung des Frames
 /// (`frames.rs`), Knoten-IDs mit Präfix `r<Nummer>`, Backend-IDs über
-/// [`encode`]. Eingehängte Knoten werden weiter durchsucht, so kommen auch
-/// Frames in Frames dazu. Gezählt wie in [`attach_frames`].
+/// [`encode`]; iframes im Prozess dieses Frames hängt [`attach_frames`] in
+/// dessen Sitzung ein (Präfix `r<Nummer>f<n>`). Eingehängte Knoten werden
+/// weiter durchsucht, so kommen auch Frames in Frames dazu.
 async fn attach_remote_frames(
     page: &Page,
     frames: &Frames,
     nodes: &mut Vec<AXNode>,
-) -> (usize, usize) {
-    let (mut attached, mut failed) = (0, 0);
+    count: &mut FrameCount,
+) {
     let mut i = 0;
     while i < nodes.len() {
         let owner = &nodes[i];
@@ -191,6 +226,7 @@ async fn attach_remote_frames(
         else {
             continue;
         };
+        let owner_name = owner.name.clone().unwrap_or_default();
         let Ok((doc, backend)) = frames.resolve(page, owner_backend) else {
             continue;
         };
@@ -205,21 +241,37 @@ async fn attach_remote_frames(
         let Some(frame_id) = described.ok().and_then(|d| d.node.frame_id) else {
             continue;
         };
-        let Ok(frame) = frames.attach(frame_id.as_ref()).await else {
-            failed += 1;
-            continue;
+        let mut unreachable = |why: String| {
+            count.remote.1 += 1;
+            count.unreachable.push(format!(
+                "eigene Sitzung, iframe „{owner_name}“ (Frame {}): {why}",
+                frame_id.as_ref()
+            ));
         };
-        let Ok(response) = Doc::Frame(frames, frame.clone())
+        let frame = match frames.attach(frame_id.as_ref()).await {
+            Ok(frame) => frame,
+            Err(e) => {
+                unreachable(format!("anhängen: {e}"));
+                continue;
+            }
+        };
+        let response = match Doc::Frame(frames, frame.clone())
             .execute(GetFullAxTreeParams::default())
             .await
-        else {
-            failed += 1;
-            continue;
+        {
+            Ok(response) => response,
+            Err(e) => {
+                unreachable(format!("getFullAXTree: {e}"));
+                continue;
+            }
         };
         let prefix = format!("r{}", frame.index);
-        let Ok(json) = serde_json::to_value(&response.nodes) else {
-            failed += 1;
-            continue;
+        let json = match serde_json::to_value(&response.nodes) {
+            Ok(json) => json,
+            Err(e) => {
+                unreachable(format!("Knoten: {e}"));
+                continue;
+            }
         };
         let mut frame_nodes: Vec<AXNode> = json
             .as_array()
@@ -242,9 +294,16 @@ async fn attach_remote_frames(
             }
         }
         nodes.extend(frame_nodes);
-        attached += 1;
+        count.remote.0 += 1;
+        attach_frames(
+            &Doc::Frame(frames, frame.clone()),
+            &format!("{prefix}f"),
+            nodes,
+            count,
+        )
+        .await
+        .ok();
     }
-    (attached, failed)
 }
 
 /// Backend-IDs eines Knotens aus einem Frame in einem anderen Prozess,

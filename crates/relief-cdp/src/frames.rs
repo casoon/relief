@@ -16,6 +16,12 @@
 //! ersten Anhängens) in den oberen 32 Bit, die Backend-ID des Frames in den
 //! unteren; `0` oben ist die Seite selbst, deren IDs bleiben unverändert.
 //! [`Frames::resolve`] macht daraus wieder Sitzung und Backend-ID.
+//!
+//! **Änderungssignal (Paket 85):** Beim Anhängen schaltet der Host in der
+//! Sitzung des Frames den Network-Agenten ein und fordert das Dokument an
+//! (der DOM-Agent meldet Mutationen nur für übertragene Knoten). Die
+//! Ereignisse aller Frame-Sitzungen gehen an `live.rs`; ersetzt ein Frame
+//! sein Dokument, fordert die Verbindung es selbst neu an.
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -24,11 +30,12 @@ use std::sync::Mutex;
 
 use anyhow::{anyhow, Result};
 use chromiumoxide::cdp::browser_protocol::dom::{
-    BackendNodeId, DescribeNodeParams, GetDocumentParams, Node,
+    BackendNodeId, DescribeNodeParams, EventDocumentUpdated, GetDocumentParams, Node,
 };
+use chromiumoxide::cdp::browser_protocol::network::EnableParams;
 use chromiumoxide::cdp::browser_protocol::target::{AttachToTargetParams, SessionId, TargetId};
 use chromiumoxide::cdp::js_protocol::runtime::EvaluateParams;
-use chromiumoxide::types::{CallId, CdpJsonEventMessage, Command, Message, MethodId};
+use chromiumoxide::types::{CallId, CdpJsonEventMessage, Command, Message, Method, MethodId};
 use chromiumoxide::{Connection, Page};
 use futures::StreamExt;
 use serde_json::Value;
@@ -92,10 +99,14 @@ pub struct Frames {
 }
 
 impl Frames {
-    /// Verbindet sich mit dem Browser (`webSocketDebuggerUrl`).
-    pub async fn connect(ws_url: &str) -> Result<Self> {
+    /// Verbindet sich mit dem Browser (`webSocketDebuggerUrl`). Dazu die
+    /// Ereignisse der angehängten Frames für `live.rs`.
+    pub async fn connect(
+        ws_url: &str,
+    ) -> Result<(Self, mpsc::UnboundedReceiver<CdpJsonEventMessage>)> {
         let mut conn = Connection::<CdpJsonEventMessage>::connect(ws_url).await?;
         let (tx, mut rx) = mpsc::unbounded_channel::<(MethodId, Option<SessionId>, Value, Reply)>();
+        let (events, frame_events) = mpsc::unbounded_channel();
         let task = tokio::spawn(async move {
             let mut waiting: HashMap<CallId, Reply> = HashMap::new();
             loop {
@@ -116,19 +127,32 @@ impl Frames {
                             };
                             reply.send(result).ok();
                         }
-                        // Ereignisse der Frames (etwa DOM-Mutationen nach
-                        // `DOM.getDocument`) werden nicht ausgewertet.
-                        Some(_) => {}
+                        Some(Ok(Message::Event(event))) => {
+                            // Wie `live.rs` für die Seite: Nach einem
+                            // ersetzten Dokument meldet der DOM-Agent erst
+                            // wieder, wenn es angefordert ist. Die Antwort
+                            // wartet auf niemanden.
+                            if event.method == EventDocumentUpdated::IDENTIFIER {
+                                let cmd = GetDocumentParams::builder().depth(-1).pierce(true).build();
+                                let params = serde_json::to_value(&cmd)
+                                    .expect("GetDocumentParams ist serialisierbar");
+                                let session = event.session_id.clone().map(SessionId::from);
+                                conn.submit_command(cmd.identifier(), session, params).ok();
+                            }
+                            events.send(event).ok();
+                        }
+                        Some(Err(_)) => {}
                         None => break,
                     }
                 }
             }
         });
-        Ok(Frames {
+        let frames = Frames {
             tx,
             task,
             attached: Mutex::new(HashMap::new()),
-        })
+        };
+        Ok((frames, frame_events))
     }
 
     async fn execute<C: Command>(
@@ -161,6 +185,14 @@ impl Frames {
             .build()
             .map_err(|e| anyhow!(e))?;
         let session = self.execute(None, params).await?.session_id;
+        // Änderungssignal: Anfragen und Mutationen des Frames an `live.rs`.
+        self.execute(Some(&session), EnableParams::default())
+            .await?;
+        self.execute(
+            Some(&session),
+            GetDocumentParams::builder().depth(-1).pierce(true).build(),
+        )
+        .await?;
         let mut attached = self.attached.lock().expect("Frames");
         let frame = Frame {
             index: attached.len() as i64 + 1,

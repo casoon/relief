@@ -622,26 +622,29 @@ fn scrolled_text(direction: ffi::ScrollDirection, before: f64, after: f64, max: 
     relief_interaction::respond::scrolled(direction, before, after, max)
 }
 
+/// `wait:` fällt weg: Der Fork-Host läuft ereignisgesteuert, die Aufgaben
+/// mit Wartezeit (Frames anderer Prozesse im CDP-Host) laufen dort nicht.
 fn parse_task_file(text: &str) -> Vec<ffi::Task> {
     relief_interaction::parse_tasks(text)
         .into_iter()
-        .map(|line| match line {
-            TaskLine::Url(text) => ffi::Task {
+        .filter_map(|line| match line {
+            TaskLine::Url(text) => Some(ffi::Task {
                 kind: ffi::TaskKind::Url,
                 text,
-            },
-            TaskLine::Do(text) => ffi::Task {
+            }),
+            TaskLine::Do(text) => Some(ffi::Task {
                 kind: ffi::TaskKind::Do,
                 text,
-            },
-            TaskLine::Assert(text) => ffi::Task {
+            }),
+            TaskLine::Assert(text) => Some(ffi::Task {
                 kind: ffi::TaskKind::Assert,
                 text,
-            },
-            TaskLine::Expect(text) => ffi::Task {
+            }),
+            TaskLine::Expect(text) => Some(ffi::Task {
                 kind: ffi::TaskKind::Expect,
                 text,
-            },
+            }),
+            TaskLine::Wait(_) => None,
         })
         .collect()
 }

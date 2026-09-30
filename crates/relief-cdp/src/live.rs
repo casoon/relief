@@ -20,6 +20,12 @@
 //! direkt nach dem Laden), meldet der DOM-Agent danach nichts mehr, bis das
 //! Dokument erneut angefordert wird — [`Live::take_dirty`] tut das.
 //!
+//! Frames in einem anderen Renderer-Prozess melden über ihre eigene Sitzung
+//! (`frames.rs`, ab dem Anhängen bei der ersten Aufnahme): Ihre Mutationen
+//! machen die Seite geändert, ihre Anfragen halten die Ruhe auf wie die der
+//! Seite. Ersetzt ein solcher Frame sein Dokument, ist das eine Mutation,
+//! kein neues Hauptdokument.
+//!
 //! Nicht erfasst: Änderungen ohne DOM-Mutation (per Skript gesetzte
 //! `value`-Eigenschaft, Fokuswechsel). Nach eigenen Aktionen nimmt der Host
 //! deshalb immer neu auf.
@@ -35,6 +41,7 @@ use chromiumoxide::cdp::browser_protocol::dom::{
 use chromiumoxide::cdp::browser_protocol::network::{
     EventLoadingFailed, EventLoadingFinished, EventRequestWillBeSent, RequestId, ResourceType,
 };
+use chromiumoxide::types::CdpJsonEventMessage;
 use chromiumoxide::Page;
 use futures::{Stream, StreamExt};
 use tokio::sync::mpsc;
@@ -92,7 +99,11 @@ pub struct Settle {
 }
 
 impl Live {
-    pub async fn start(page: &Page) -> Result<Self> {
+    /// `frame_events`: Ereignisse der Frame-Sitzungen (`Frames::connect`).
+    pub async fn start(
+        page: &Page,
+        frame_events: mpsc::UnboundedReceiver<CdpJsonEventMessage>,
+    ) -> Result<Self> {
         let (tx, rx) = mpsc::unbounded_channel();
         // Den Network-Agenten schaltet chromiumoxide beim Anlegen der Seite ein.
         let tasks = vec![
@@ -129,19 +140,7 @@ impl Live {
             forward(
                 page.event_listener::<EventRequestWillBeSent>().await?,
                 tx.clone(),
-                |e| {
-                    let open_ended = matches!(
-                        e.r#type,
-                        Some(
-                            ResourceType::EventSource
-                                | ResourceType::WebSocket
-                                | ResourceType::Ping
-                                | ResourceType::Media
-                        )
-                    );
-                    (!open_ended)
-                        .then(|| Signal::RequestStarted(e.request_id.clone(), Instant::now()))
-                },
+                |e| request_started(&e),
             ),
             forward(
                 page.event_listener::<EventLoadingFinished>().await?,
@@ -150,8 +149,15 @@ impl Live {
             ),
             forward(
                 page.event_listener::<EventLoadingFailed>().await?,
-                tx,
+                tx.clone(),
                 |e| Some(Signal::RequestDone(e.request_id.clone(), Instant::now())),
+            ),
+            forward(
+                Box::pin(futures::stream::unfold(frame_events, |mut rx| async move {
+                    rx.recv().await.map(|event| (event, rx))
+                })),
+                tx,
+                |e| frame_signal(&e),
             ),
         ];
         request_document(page).await?;
@@ -263,6 +269,50 @@ impl Live {
         }
         Ok(std::mem::take(&mut self.dirty))
     }
+}
+
+/// Beginn einer Anfrage; ohne Signal für Anfragen ohne Ende (siehe oben).
+fn request_started(e: &EventRequestWillBeSent) -> Option<Signal> {
+    let open_ended = matches!(
+        e.r#type,
+        Some(
+            ResourceType::EventSource
+                | ResourceType::WebSocket
+                | ResourceType::Ping
+                | ResourceType::Media
+        )
+    );
+    (!open_ended).then(|| Signal::RequestStarted(e.request_id.clone(), Instant::now()))
+}
+
+/// Ereignis einer Frame-Sitzung als Signal, wie die Abos der Seite.
+fn frame_signal(event: &CdpJsonEventMessage) -> Option<Signal> {
+    let method = event.method.as_ref();
+    if [
+        EventChildNodeInserted::IDENTIFIER,
+        EventChildNodeRemoved::IDENTIFIER,
+        EventAttributeModified::IDENTIFIER,
+        EventAttributeRemoved::IDENTIFIER,
+        EventCharacterDataModified::IDENTIFIER,
+        EventDocumentUpdated::IDENTIFIER,
+    ]
+    .contains(&method)
+    {
+        return Some(Signal::Mutation);
+    }
+    if method == EventRequestWillBeSent::IDENTIFIER {
+        let e: EventRequestWillBeSent = serde_json::from_value(event.params.clone()).ok()?;
+        return request_started(&e);
+    }
+    if method == EventLoadingFinished::IDENTIFIER {
+        let e: EventLoadingFinished = serde_json::from_value(event.params.clone()).ok()?;
+        return Some(Signal::RequestDone(e.request_id, Instant::now()));
+    }
+    if method == EventLoadingFailed::IDENTIFIER {
+        let e: EventLoadingFailed = serde_json::from_value(event.params.clone()).ok()?;
+        return Some(Signal::RequestDone(e.request_id, Instant::now()));
+    }
+    None
 }
 
 /// Der DOM-Agent meldet Mutationen nur für Knoten, die er schon übertragen

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><title>Gutschein</title></head>
+<body>
+  <p id="hinweis">Gutschein wird geladen …</p>
+  <!-- Ein iframe im Prozess dieses Frames (srcdoc, gleiche Herkunft): kommt
+       über `getFullAXTree { frameId }` in der Sitzung des Frames (Paket 85). -->
+  <iframe title="Einlösen" width="200" height="40"
+    srcdoc="<button onclick=&quot;this.textContent='Eingelöst'&quot;>Einlösen</button>"></iframe>
+  <script>
+    // Nach dem Laden, ohne Eingabe: Feld einfügen (Paket 85).
+    setTimeout(() => {
+      document.getElementById('hinweis').textContent = 'Gutschein einlösen';
+      const label = document.createElement('label');
+      label.textContent = 'Gutscheincode ';
+      label.append(document.createElement('input'));
+      document.body.append(label);
+    }, 3000);
+  </script>
+</body>
+</html>
