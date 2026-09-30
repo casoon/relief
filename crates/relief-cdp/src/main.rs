@@ -24,6 +24,7 @@ mod act;
 mod assertions;
 mod capture;
 mod facts;
+mod frames;
 mod live;
 mod palette;
 mod record;
@@ -143,10 +144,6 @@ async fn launch(headful: bool) -> Result<(Browser, tokio::task::JoinHandle<()>)>
     } else {
         config.new_headless_mode()
     };
-    // Fremd-Origin-iframes im selben Prozess halten, damit `getFullAXTree`
-    // mit `frameId` sie erreicht (nur Spike; der Fork hat alle Frames im
-    // Browser-Prozess-AXTree).
-    config = config.arg("--disable-site-isolation-trials");
     // Die automatische Erkennung greift ggf. einen verwaisten Wrapper;
     // `CHROME` setzt den Pfad explizit.
     if let Some(path) = std::env::var_os("CHROME").map(PathBuf::from).or_else(|| {
@@ -185,19 +182,22 @@ struct Session {
     opened: live::Settle,
     /// Befehlszustand (Position) zwischen den Eingaben.
     session: Dialog,
+    /// Frames in anderen Renderer-Prozessen (Site Isolation).
+    frames: frames::Frames,
     /// Ziel des Security-Logs (`RELIEF_LOG`, in `palette` deren Protokoll).
     security_log: Option<File>,
 }
 
 impl Session {
     async fn open(browser: &Browser, url: &str) -> Result<Self> {
-        Self::open_page(browser.new_page("about:blank").await?, url).await
+        Self::open_page(browser, browser.new_page("about:blank").await?, url).await
     }
 
     /// Auf einer vorbereiteten Seite (z. B. mit eingefügter Befehlsleiste)
     /// laden. `new_page(url)` + `wait_for_navigation` kehrt teils vor dem
     /// Commit des eigentlichen Dokuments zurück; `goto` wartet auf das Laden.
-    async fn open_page(page: Page, url: &str) -> Result<Self> {
+    async fn open_page(browser: &Browser, page: Page, url: &str) -> Result<Self> {
+        let frames = frames::Frames::connect(browser.websocket_address()).await?;
         // Vor dem Laden starten, damit die Anfragen des Ladens als ausstehend
         // zählen („Seite ruht“ auch über das Netz).
         let mut live = live::Live::start(&page).await?;
@@ -214,7 +214,7 @@ impl Session {
             live.attach().await?;
             let opened = live.settle().await;
             live.take_dirty().await?;
-            let snapshot = capture_retry(&page, "initial").await?;
+            let snapshot = capture_retry(&page, &frames, "initial").await?;
             attempt += 1;
             if snapshot.tree.len() > MIN_NODES || attempt == 6 {
                 break (snapshot, opened);
@@ -225,7 +225,7 @@ impl Session {
         live.take_new_document();
         let document = document_id(1);
         let mut model = perception::from_snapshot(&snapshot, &document);
-        facts::annotate(&page, &mut model).await?;
+        facts::annotate(&page, &frames, &mut model).await?;
         let graph = Graph::build(&model);
         let security_log = match std::env::var_os("RELIEF_LOG") {
             Some(path) => Some(File::options().create(true).append(true).open(path)?),
@@ -244,6 +244,7 @@ impl Session {
             last_stats: None,
             opened,
             session: Dialog::new(),
+            frames,
             security_log,
         })
     }
@@ -268,9 +269,9 @@ impl Session {
                 self.documents += 1;
                 self.document = document_id(self.documents);
             }
-            self.snapshot = capture_retry(&self.page, "current").await?;
+            self.snapshot = capture_retry(&self.page, &self.frames, "current").await?;
             self.model = perception::from_snapshot(&self.snapshot, &self.document);
-            facts::annotate(&self.page, &mut self.model).await?;
+            facts::annotate(&self.page, &self.frames, &mut self.model).await?;
             self.graph = Graph::build(&self.model);
             let why = if navigated {
                 "Navigation"
@@ -300,7 +301,9 @@ impl Session {
             None => mode.clone(),
         };
         if self.verify && !(navigated || dirty || force) {
-            let full = capture::capture(&self.page, "verify").await?.snapshot;
+            let full = capture::capture(&self.page, &self.frames, "verify")
+                .await?
+                .snapshot;
             let full = perception::from_snapshot(&full, &self.document);
             let same = self.graph.signature() == Graph::build(&full).signature();
             line.push_str(if same {
@@ -372,7 +375,7 @@ impl Session {
     async fn perform(&mut self, plan: ActionPlan, label: String) -> Result<String> {
         let before = self.model.clone();
         let before_graph = self.graph.clone();
-        if let Err(e) = act::execute(&self.page, &plan).await {
+        if let Err(e) = act::execute(&self.page, &self.frames, &plan).await {
             return Ok(format!("Aktion fehlgeschlagen: {e} ({label})"));
         }
         let settled = self.live.settle().await;
@@ -399,7 +402,7 @@ impl Session {
     /// DOM-Mutation, die Aufnahme kann ihn also veraltet haben; deshalb das
     /// DOM fragen und über die DOM-ID zuordnen.
     async fn focus(&self) -> Option<NodeRef> {
-        let dom = capture::focus(&self.page, &self.snapshot.tree)
+        let dom = capture::focus(&self.page, &self.frames, &self.snapshot.tree)
             .await
             .ok()?
             .active_backend_node_id?;
@@ -421,10 +424,10 @@ fn document_id(n: u64) -> TreeId {
 const MIN_NODES: usize = 3;
 
 /// Während einer Navigation kann `getFullAXTree` scheitern — kurz nachfassen.
-async fn capture_retry(page: &Page, label: &str) -> Result<AXSnapshot> {
+async fn capture_retry(page: &Page, frames: &frames::Frames, label: &str) -> Result<AXSnapshot> {
     let mut last = None;
     for _ in 0..4 {
-        match capture::capture(page, label).await {
+        match capture::capture(page, frames, label).await {
             Ok(c) if !c.snapshot.tree.is_empty() => return Ok(c.snapshot),
             Ok(_) => {}
             Err(e) => last = Some(e),
@@ -655,7 +658,7 @@ async fn measure(browser: &Browser, urls: &[&String], repeat: usize) -> Result<(
         let mut signatures = Vec::new();
         let mut frames = (0, 0);
         for i in 0..repeat {
-            let c = capture::capture(&session.page, &format!("m{i}")).await?;
+            let c = capture::capture(&session.page, &session.frames, &format!("m{i}")).await?;
             tree_ms.push(c.tree_ms);
             frames = c.frames;
             let started = Instant::now();

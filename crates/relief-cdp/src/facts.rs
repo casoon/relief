@@ -10,16 +10,19 @@
 //!   Werte verdeckt.
 //!
 //! Eine Anfrage (`DOM.getDocument`, Tiefe -1, `pierce`) je Aufnahme, wie
-//! `live.rs`; iframes im selben Renderer-Prozess und Shadow DOM sind dabei.
+//! `live.rs`; iframes im selben Renderer-Prozess und Shadow DOM sind dabei,
+//! Frames in anderen Prozessen über ihre Sitzung (`Frames::document`).
 
 use std::collections::HashMap;
 
 use anyhow::Result;
-use chromiumoxide::cdp::browser_protocol::dom::{GetDocumentParams, Node};
+use chromiumoxide::cdp::browser_protocol::dom::Node;
 use chromiumoxide::Page;
 use relief_interaction::security::{FORM_ACTION, HTML_AUTOCOMPLETE, INPUT_TYPE};
 use relief_model::SemanticGraph;
 use url::Url;
+
+use crate::frames::Frames;
 
 const ELEMENT_NODE: i64 = 1;
 
@@ -28,12 +31,10 @@ type Facts = HashMap<i64, Vec<(&'static str, String)>>;
 
 /// Angaben aus dem DOM holen und an die Knoten des Modells hängen (über die
 /// DOM-ID).
-pub async fn annotate(page: &Page, model: &mut SemanticGraph) -> Result<()> {
-    let document = page
-        .execute(GetDocumentParams::builder().depth(-1).pierce(true).build())
-        .await?;
+pub async fn annotate(page: &Page, frames: &Frames, model: &mut SemanticGraph) -> Result<()> {
+    let (root, _) = frames.document(page).await?;
     let mut facts = Facts::new();
-    scope(&document.result.root, &document.result.root, &mut facts);
+    scope(&root, &root, &mut facts);
     for tree in model.trees.values_mut() {
         for node in tree.nodes.values_mut() {
             if let Some(found) = node.dom_node_id.and_then(|id| facts.get(&id)) {

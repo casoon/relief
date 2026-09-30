@@ -5,11 +5,13 @@
 //!   live abgefragt; dazu das Modell vor der letzten `do:`-Zeile.
 //! - **DOM-Fakten** (nur `namen-wie-accname`): `DOM.getDocument` (mit
 //!   `pierce`) als `DomFacts`, nur die Attribute aus `dom_attribute_needed`;
-//!   iframes im selben Renderer-Prozess als eigene Dokumente, Shadow DOM
+//!   iframes als eigene Dokumente (in einem anderen Renderer-Prozess über
+//!   die Sitzung des Frames, `Frames::document`), Shadow DOM
 //!   (außer dem des Browsers selbst) flach unter dem Host, je Element mit
 //!   seinem ID-Bereich (Dokument oder Shadow-Root). Dazu `display` und
 //!   `visibility` je Element und die Leerraum-Textknoten, die
-//!   `DOM.getDocument` auslässt, aus `DOMSnapshot.captureSnapshot`.
+//!   `DOM.getDocument` auslässt, aus `DOMSnapshot.captureSnapshot` (je
+//!   Prozess eine Anfrage).
 //! - **Tab-Folge** (nur `tabfolge`): echte Tab-Tasten ab Dokumentanfang, nach
 //!   jeder Taste der Fokus. Wie Escape und Scrollen ohne `ActionPlan`: Tab hat
 //!   kein Zielelement und bewegt nur den Fokus.
@@ -18,19 +20,17 @@ use std::collections::{HashMap, HashSet};
 
 use a11y_report::Finding;
 use anyhow::{anyhow, Result};
-use chromiumoxide::cdp::browser_protocol::dom::{
-    DescribeNodeParams, GetDocumentParams, Node, ShadowRootType,
-};
+use chromiumoxide::cdp::browser_protocol::dom::{BackendNodeId, Node, ShadowRootType};
 use chromiumoxide::cdp::browser_protocol::dom_snapshot::{
     CaptureSnapshotParams, CaptureSnapshotReturns,
 };
-use chromiumoxide::cdp::js_protocol::runtime::EvaluateParams;
 use chromiumoxide::Page;
 use relief_interaction::assertions::{
     self, dom_attribute_needed, Assertion, DomFacts, DomFactsBuilder, Observed,
 };
 use relief_model::{NodeRef, SemanticGraph};
 
+use crate::frames::{describe, encode, Doc, Frames};
 use crate::{act, Session};
 
 /// Höchstens so viele Tab-Schritte (Schutz vor Seiten ohne Ende der Folge).
@@ -61,12 +61,12 @@ pub async fn run(session: &mut Session, text: &str) -> Result<(String, Vec<Findi
     };
     session.update(false, None).await?;
     let dom = if assertion.needs_dom() {
-        Some(dom_facts(&session.page).await?)
+        Some(dom_facts(&session.page, &session.frames).await?)
     } else {
         None
     };
     let tabs = if assertion.needs_tab_walk() {
-        Some(tab_walk(&session.page, &session.model).await?)
+        Some(tab_walk(&session.page, &session.frames, &session.model).await?)
     } else {
         None
     };
@@ -89,21 +89,25 @@ const ELEMENT_NODE: i64 = 1;
 const TEXT_NODE: i64 = 3;
 
 /// Seite als DOM-Fakten.
-async fn dom_facts(page: &Page) -> Result<DomFacts> {
+async fn dom_facts(page: &Page, frames: &Frames) -> Result<DomFacts> {
     // Wie `live.rs` (Tiefe -1, pierce): der DOM-Agent bleibt im selben Zustand.
-    let document = page
-        .execute(GetDocumentParams::builder().depth(-1).pierce(true).build())
-        .await?;
-    let snapshot = page
-        .execute(CaptureSnapshotParams::new(vec![
-            "display".to_string(),
-            "visibility".to_string(),
-        ]))
-        .await?;
-    let root = &document.result.root;
+    let (root, grafted) = frames.document(page).await?;
+    let mut layout = Layout::default();
+    let mut docs = vec![Doc::Page(page)];
+    docs.extend(grafted.into_iter().map(|f| Doc::Frame(frames, f)));
+    for doc in &docs {
+        let snapshot = doc
+            .execute(CaptureSnapshotParams::new(vec![
+                "display".to_string(),
+                "visibility".to_string(),
+            ]))
+            .await?;
+        layout.add(&snapshot, doc.index());
+    }
+    let root = &root;
     let html = html_of(root).ok_or_else(|| anyhow!("Dokument ohne Wurzelelement"))?;
     let mut walk = Walk {
-        layout: Layout::from_snapshot(&snapshot.result),
+        layout,
         by_backend: HashMap::new(),
         scopes: HashMap::new(),
     };
@@ -140,13 +144,17 @@ struct Layout {
 }
 
 impl Layout {
-    fn from_snapshot(snapshot: &CaptureSnapshotReturns) -> Self {
+    /// Snapshot eines Prozesses dazunehmen; `frame`: Nummer für
+    /// [`encode`] (`0` für die Seite), damit die Backend-IDs zum Dokument
+    /// aus `Frames::document` passen.
+    fn add(&mut self, snapshot: &CaptureSnapshotReturns, frame: i64) {
+        let layout = self;
+        let key = |b: &BackendNodeId| encode(frame, *b.inner());
         let string = |i: i64| {
             usize::try_from(i)
                 .ok()
                 .and_then(|i| snapshot.strings.get(i))
         };
-        let mut layout = Layout::default();
         for document in &snapshot.documents {
             let nodes = &document.nodes;
             let (Some(backend), Some(types), Some(parents)) = (
@@ -195,12 +203,12 @@ impl Layout {
                 if blank {
                     pending[parent] = true;
                 } else if std::mem::take(&mut pending[parent]) {
-                    layout.whitespace_before.insert(*id.inner());
+                    layout.whitespace_before.insert(key(id));
                 }
             }
             for (i, open) in pending.into_iter().enumerate() {
                 if open {
-                    layout.whitespace_last.insert(*backend[i].inner());
+                    layout.whitespace_last.insert(key(&backend[i]));
                 }
             }
             for (i, id) in backend.iter().enumerate() {
@@ -211,10 +219,9 @@ impl Layout {
                     let display = if renders_below[i] { "contents" } else { "none" };
                     (display.to_string(), None)
                 });
-                layout.styles.insert(*id.inner(), style);
+                layout.styles.insert(key(id), style);
             }
         }
-        layout
     }
 }
 
@@ -277,8 +284,8 @@ impl<'n> Walk<'n> {
         if let Some((display, visibility)) = self.layout.styles.get(&backend) {
             b = b.style(display, visibility.as_deref());
         }
-        // iframe im selben Renderer-Prozess: eigenes Dokument. Frames in
-        // einem anderen Prozess (Site Isolation) liefert `pierce` nicht mit.
+        // iframe: eigenes Dokument (auch aus einem anderen Prozess, von
+        // `Frames::document` eingehängt).
         if let Some(html) = node.content_document.as_deref().and_then(html_of) {
             return self.node(b.frame(), html).end_frame().close();
         }
@@ -337,14 +344,24 @@ impl<'n> Walk<'n> {
 
 /// Tab ab Dokumentanfang, bis der Fokus auf `body` fällt (Ende der Folge),
 /// ein Element zum zweiten Mal kommt oder [`MAX_TABS`] erreicht ist.
-async fn tab_walk(page: &Page, model: &SemanticGraph) -> Result<Vec<Option<NodeRef>>> {
+///
+/// Liegt der Fokus in einem Frame eines anderen Prozesses, zählt das Element
+/// darin (`Frames::active_element`).
+async fn tab_walk(
+    page: &Page,
+    frames: &Frames,
+    model: &SemanticGraph,
+) -> Result<Vec<Option<NodeRef>>> {
     page.evaluate(TAB_START).await?;
-    let body = backend_of(page, "document.body").await?;
+    let body = *describe(&Doc::Page(page), "document.body")
+        .await?
+        .backend_node_id
+        .inner();
     let mut seen = Vec::new();
     let mut sequence = Vec::new();
     for _ in 0..MAX_TABS {
         act::press_tab(page).await?;
-        let focus = backend_of(page, "document.activeElement").await?;
+        let focus = frames.active_element(page).await?;
         if focus == body || seen.contains(&focus) {
             break;
         }
@@ -353,26 +370,6 @@ async fn tab_walk(page: &Page, model: &SemanticGraph) -> Result<Vec<Option<NodeR
     }
     page.evaluate(TAB_END).await?;
     Ok(sequence)
-}
-
-/// Backend-ID des Elements, zu dem `expression` auswertet.
-async fn backend_of(page: &Page, expression: &str) -> Result<i64> {
-    let eval = EvaluateParams::builder()
-        .expression(expression)
-        .build()
-        .map_err(|e| anyhow!(e))?;
-    let object_id = page
-        .execute(eval)
-        .await?
-        .result
-        .result
-        .object_id
-        .clone()
-        .ok_or_else(|| anyhow!("{expression}: kein Element"))?;
-    let described = page
-        .execute(DescribeNodeParams::builder().object_id(object_id).build())
-        .await?;
-    Ok(*described.node.backend_node_id.inner())
 }
 
 fn node_with_dom_id(model: &SemanticGraph, dom: i64) -> Option<NodeRef> {
