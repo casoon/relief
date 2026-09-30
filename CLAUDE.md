@@ -48,7 +48,7 @@ cargo test --workspace
 Browser-Tests (brauchen Chrome, `CHROME` setzt den Pfad):
 
 ```bash
-cargo run -p relief-cdp -- run spike/tasks/01-shop-clean.txt spike/tasks/02-shop-broken.txt spike/tasks/03-form.txt spike/tasks/04-iframe.txt spike/tasks/05-intents.txt
+cargo run -p relief-cdp -- run spike/tasks/01-shop-clean.txt spike/tasks/02-shop-broken.txt spike/tasks/03-form.txt spike/tasks/04-iframe.txt spike/tasks/05-intents.txt spike/tasks/06-form-assertions.txt
 ```
 
 Die Zusammenfassung am Ende muss „0 nicht erfüllt“ melden; dieselben Prüfungen

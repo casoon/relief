@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><title>Statusmeldung – neu eingefügt</title></head>
+<body>
+<main>
+  <h1>Einstellungen</h1>
+  <!-- Für `assert: statusmeldung` (spike/tasks/06-form-assertions.txt): Die
+       Live-Region entsteht erst mit ihrem Text; Screenreader sagen das oft
+       nicht an. Erwartet: ein Befund form/status-message. -->
+  <button type="button" id="save">Speichern</button>
+</main>
+<script>
+  document.getElementById('save').onclick = () => {
+    const status = document.createElement('p');
+    status.setAttribute('role', 'status');
+    status.textContent = 'Einstellungen gespeichert.';
+    document.querySelector('main').append(status);
+  };
+</script>
+</body>
+</html>

@@ -16,18 +16,20 @@
 //! | `fehler-verknüpft [Feld]` | `form/error-linked` | Modell |
 //! | `fokus-auf-erstem-fehler` | `form/focus-first-error` | Modell |
 //! | `bestätigungsdialog` | `form/confirm-dialog*` | Modell |
-//! | `statusmeldung <Text>` | `form/status-message` | Modell |
+//! | `statusmeldung <Text>` | `form/status-message` | Modell + Modell vor dem letzten `do:` |
 //! | `tabfolge <Feld>, <Feld>, …` | `form/tab-order` | beobachtete Tab-Folge |
 //!
 //! Zusicherungen prüfen den **aktuellen** Stand; der Ablauf davor (Absenden,
-//! Dialog öffnen) steht als `do:`-Zeilen in der Aufgabendatei.
+//! Dialog öffnen) steht als `do:`-Zeilen in der Aufgabendatei. Nur
+//! `statusmeldung` vergleicht zusätzlich mit dem Stand vor der letzten
+//! `do:`-Zeile ([`Observed::before`]).
 
 use std::collections::HashMap;
 
 use a11y_dom::{Arena, ArenaBuilder, ArenaNode, Document};
 use a11y_report::{Evidence, Finding, Location, Severity};
 use accname::IdIndex;
-use relief_model::{NodeRef, Role, SemanticGraph, SemanticNode};
+use relief_model::{NodeRef, Role, SemanticGraph, SemanticNode, TreeDelta};
 
 /// Eine Zusicherung aus der Aufgabendatei.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,7 +47,8 @@ pub enum Assertion {
     /// Der offene Dialog hat Namen, Text zum Bestätigten, Fokus und
     /// Abbruchweg.
     ConfirmDialog,
-    /// Der Text steht vollständig in einer Live-Region.
+    /// Der Text steht vollständig in einer Live-Region, und die letzte
+    /// Aktion hat diese Region geändert (nicht mitsamt Text neu eingefügt).
     StatusMessage(String),
     /// Tab erreicht die Felder in dieser Reihenfolge.
     TabOrder(Vec<String>),
@@ -200,6 +203,9 @@ pub struct Observed<'a> {
     /// Aktueller Fokus. Ein Fokuswechsel ist keine DOM-Mutation; der Host
     /// fragt ihn deshalb live ab, statt ihn der letzten Aufnahme zu entnehmen.
     pub focus: Option<NodeRef>,
+    /// Modell vor der letzten Aktion (`do:`-Zeile); nur für
+    /// [`Assertion::StatusMessage`]. `None`: nur der Endzustand wird geprüft.
+    pub before: Option<&'a SemanticGraph>,
     /// Nur für [`Assertion::needs_tab_walk`]: Fokus nach jedem Tab, in
     /// Reihenfolge; `None` = Fokus auf einem Element ohne Knoten im Modell.
     pub tab_sequence: Option<&'a [Option<NodeRef>]>,
@@ -220,7 +226,7 @@ pub fn check(assertion: &Assertion, observed: &Observed) -> Vec<Finding> {
         Assertion::ErrorsLinked(field) => errors_linked(model, field.as_deref()),
         Assertion::FocusFirstError => focus_first_error(model, observed.focus.as_ref()),
         Assertion::ConfirmDialog => confirm_dialog(model, observed.focus.as_ref()),
-        Assertion::StatusMessage(text) => status_message(model, text),
+        Assertion::StatusMessage(text) => status_message(model, observed.before, text),
         Assertion::TabOrder(expected) => match observed.tab_sequence {
             Some(seq) => tab_order(model, expected, seq),
             None => vec![Finding::untested(
@@ -708,19 +714,26 @@ fn is_live(node: &SemanticNode) -> bool {
     )
 }
 
-fn status_message(model: &SemanticGraph, expected: &str) -> Vec<Finding> {
+fn status_message(
+    model: &SemanticGraph,
+    before: Option<&SemanticGraph>,
+    expected: &str,
+) -> Vec<Finding> {
     const RULE: &str = "form/status-message";
     let wanted = norm(expected).to_lowercase();
     let order = model.document_order();
-    let in_region = order.iter().any(|at| {
+    let region = order.iter().find(|at| {
         model.node(at).is_some_and(|n| !n.ignored && is_live(n))
             && texts(model, at, &|_| false)
                 .join(" ")
                 .to_lowercase()
                 .contains(&wanted)
     });
-    if in_region {
-        return Vec::new();
+    if let Some(region) = region {
+        return match before {
+            Some(before) => status_changed(before, model, region, expected),
+            None => Vec::new(),
+        };
     }
     // Irgendwo auf der Seite, aber nicht in einer Live-Region?
     let page = order
@@ -743,6 +756,59 @@ fn status_message(model: &SemanticGraph, expected: &str) -> Vec<Finding> {
         .with_severity(Severity::High)
         .with_wcag(["4.1.3"])
         .with_help("Ergebnis als einen Text in role=\"status\" (oder aria-live) ausgeben.")]
+}
+
+/// Hat die letzte Aktion die Live-Region `region` geändert? Screenreader
+/// sagen Änderungen an einer vorhandenen Region an; eine mitsamt Text neu
+/// eingefügte Region oft nicht. Grundlage ist die Delta des Modells.
+fn status_changed(
+    before: &SemanticGraph,
+    model: &SemanticGraph,
+    region: &NodeRef,
+    expected: &str,
+) -> Vec<Finding> {
+    const RULE: &str = "form/status-message";
+    let delta = TreeDelta::between(before, model);
+    let update = delta.trees.iter().find(|u| u.tree == region.tree);
+    let created = |id| update.is_some_and(|u| u.created.iter().any(|n| n.id == id));
+    // Neu eingefügt nur, wenn der Elternknoten schon vorher wahrnehmbar war.
+    // Ist er es auch nicht (Seite hinter einem modalen Dialog, der jetzt zu
+    // ist; Navigation), trennt das Modell „eingefügt“ nicht von „wieder
+    // wahrnehmbar“: dann kein Befund.
+    let parent = model.node(region).and_then(|n| n.parent);
+    if created(region.node) && parent.is_some_and(|p| !created(p)) {
+        return vec![Finding::fail(
+            RULE,
+            format!(
+                "„{expected}“ steht in einer Live-Region, die die letzte Aktion mitsamt Text \
+                 neu eingefügt hat; Screenreader sagen sie oft nicht an."
+            ),
+        )
+        .with_severity(Severity::High)
+        .with_wcag(["4.1.3"])
+        .with_evidence([Evidence::ax_tree("Live-Region neu angelegt")])
+        .with_help("Die Live-Region leer mit der Seite ausliefern und nur ihren Text ändern.")];
+    }
+    let touched = update.is_some_and(|u| {
+        u.created
+            .iter()
+            .chain(&u.changed)
+            .any(|n| within(model, &NodeRef::new(region.tree.clone(), n.id), region))
+    });
+    if touched {
+        return Vec::new();
+    }
+    vec![Finding::fail(
+        RULE,
+        format!(
+            "„{expected}“ stand schon vor der letzten Aktion in der Live-Region; die Aktion hat \
+             sie nicht geändert, Screenreader sagen nichts an."
+        ),
+    )
+    .with_severity(Severity::Medium)
+    .with_wcag(["4.1.3"])
+    .with_evidence([Evidence::ax_tree("Live-Region unverändert")])
+    .with_help("Die Meldung als Änderung der Live-Region ausgeben.")]
 }
 
 fn tab_order(model: &SemanticGraph, expected: &[String], seq: &[Option<NodeRef>]) -> Vec<Finding> {
@@ -843,6 +909,7 @@ mod tests {
             model: g,
             dom: None,
             focus: None,
+            before: None,
             tab_sequence: None,
         }
     }
@@ -931,6 +998,56 @@ mod tests {
             .contains("keiner Live-Region"));
         node(&mut g, 5).role = Role::Status;
         assert!(check(&a, &observed(&g)).is_empty());
+    }
+
+    #[test]
+    fn statusmeldung_muss_eine_aenderung_sein() {
+        let a = Assertion::StatusMessage("bitte e-mail angeben".into());
+        let mut after = form();
+        node(&mut after, 5).role = Role::Status;
+        let with_before = |before: &SemanticGraph| {
+            check(
+                &a,
+                &Observed {
+                    before: Some(before),
+                    ..observed(&after)
+                },
+            )
+        };
+
+        // Region vorher leer, jetzt mit Text: Änderung, kein Befund.
+        let mut before = after.clone();
+        node(&mut before, 5).children.clear();
+        before
+            .trees
+            .values_mut()
+            .next()
+            .unwrap()
+            .nodes
+            .remove(&NodeId(6));
+        assert!(with_before(&before).is_empty());
+
+        // Region samt Text neu eingefügt.
+        let mut before = after.clone();
+        node(&mut before, 2).children.retain(|c| *c != NodeId(5));
+        let nodes = &mut before.trees.values_mut().next().unwrap().nodes;
+        nodes.remove(&NodeId(5));
+        nodes.remove(&NodeId(6));
+        let f = with_before(&before);
+        assert_eq!(f[0].rule_id, "form/status-message");
+        assert!(f[0].message.contains("neu eingefügt"), "{f:?}");
+
+        // Mitsamt Elternknoten neu wahrnehmbar (Dialog geschlossen): kein
+        // Befund, das Modell trennt es nicht vom Einfügen.
+        let mut before = after.clone();
+        node(&mut before, 1).children.clear();
+        let nodes = &mut before.trees.values_mut().next().unwrap().nodes;
+        nodes.retain(|id, _| *id == NodeId(1));
+        assert!(with_before(&before).is_empty());
+
+        // Text stand schon vorher darin.
+        let f = with_before(&after.clone());
+        assert!(f[0].message.contains("nicht geändert"), "{f:?}");
     }
 
     #[test]
