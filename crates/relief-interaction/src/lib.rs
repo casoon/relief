@@ -15,9 +15,13 @@
 //! | [`validate`] | Bedienelement + Aktion → [`validate::ActionPlan`] mit Risikoklasse |
 //! | [`respond`] | Antworttexte für Abfragen und Aktionsergebnisse |
 //! | [`session`] | Eingabe → Antwort oder auszuführender Plan; Position; Aufgabendateien |
+//! | `assertions` | Formular-Zusicherungen → Befunde (`a11y-report`); nur mit Feature `assertions` |
 
 #![forbid(unsafe_code)]
 
+// Braucht barrierlab-Crates, die der Fork-Build nicht hat.
+#[cfg(feature = "assertions")]
+pub mod assertions;
 pub mod command;
 pub mod graph;
 pub mod page;

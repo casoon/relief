@@ -66,7 +66,7 @@ dem Relief-Graphen.
 
 | Baustein | Paket |
 |---|---|
-| Formular-Zusicherungen: Beschriftung je Feld, Fehlermeldung mit dem Feld verknüpft, Fokus auf dem ersten Fehler, Bestätigung als Live-Region, Tab-Erreichbarkeit und -Reihenfolge | 42 |
+| Formular-Zusicherungen: Beschriftung je Feld, Fehlermeldung mit dem Feld verknüpft, Fokus auf dem ersten Fehler, Bestätigung als Live-Region, Tab-Erreichbarkeit und -Reihenfolge | 42 ✓ (unten), 49 |
 | Echte Screenreader-Ausgabe über gemeinsamen Treiber; zuerst VoiceOver, später NVDA | 43 |
 | Lauf ohne Fenster, Bericht als JUnit für CI | 44 |
 | Playwright-Anbindung: Relief über CDP steuern, Seitenmodell über eine eigene Domäne abfragen | 45 |
@@ -76,6 +76,53 @@ WCAG-Konformitätsversprechen; Befunde sind Befunde, keine Zertifizierung.
 Für reine Funktionstests bleibt Playwright das bessere Werkzeug; Relief
 lohnt sich für den Ablauf aus Sicht von Screenreader- und
 Tastaturnutzenden.
+
+### Formular-Zusicherungen [umgesetzt 2026-09-30, Paket 42]
+
+Aufgabendateien kennen die Zeile `assert: <Zusicherung>`. Sie prüft den
+**aktuellen** Stand der Seite; der Ablauf davor (Absenden, Dialog öffnen)
+steht als `do:`-Zeilen davor. Die Antwort sind Befunde im Format von
+`a11y-report` (`Finding`, Regel-ID, `Outcome`, Schweregrad, WCAG), die
+`expect:` wie jede Antwort prüft; ohne Befund lautet sie „Keine Befunde.“.
+Beispiel mit beiden Seiten: `spike/tasks/06-form-assertions.txt`,
+Testseiten `spike/fixtures/form-clean.html` (keine Befunde) und
+`form-broken.html` (je Zusicherung mindestens ein Befund).
+
+| Zusicherung | Regel | prüft | Daten |
+|---|---|---|---|
+| `feldnamen` | `form/field-name` (fail) | jedes wahrnehmbare Feld (textbox, searchbox, combobox, listbox, spinbutton, slider, checkbox, radio, switch) hat einen nichtleeren Namen | Modell |
+| `namen-wie-accname` | `form/name-accname` (review) | Chromiums Name = `accname::name` auf den DOM-Fakten; jede Abweichung ist ein Befund mit beiden Werten und vermuteter Ursache | Modell + DOM-Fakten |
+| `fehler-verknüpft [Feld]` | `form/error-linked` (fail) | das Feld (ohne Angabe: jedes ungültige) ist `invalid` und hat über `aria-errormessage`/`aria-describedby` eine wahrnehmbare, nichtleere Meldung | Modell |
+| `fokus-auf-erstem-fehler` | `form/focus-first-error` (fail) | der Fokus liegt auf dem ersten ungültigen Feld in Dokumentreihenfolge | Modell + Fokus |
+| `bestätigungsdialog` | `form/confirm-dialog-name` (fail), `-text` (review), `-focus` (fail), `-cancel` (review) | offener Dialog (der mit dem Fokus, sonst der letzte): Name, Text außer Name und Buttons, Fokus darin, Button „Abbrechen“/„Schließen“/„Nein“ … | Modell + Fokus |
+| `statusmeldung <Text>` | `form/status-message` (fail) | der Text steht vollständig in **einer** Live-Region (status, alert, log, timer, marquee oder `aria-live` polite/assertive) | Modell |
+| `tabfolge <Feld>, …` | `form/tab-order` (fail) | beobachtete Tab-Folge ab Dokumentanfang erreicht die Felder in dieser Reihenfolge; fehlend und vertauscht getrennt gemeldet | beobachtete Folge |
+
+- **Aufteilung [Entscheidung]:** Auswertung browserfrei in
+  `relief-interaction` (`assertions.rs`); der CDP-Host (`relief-cdp`,
+  `assertions.rs`) erhebt nur. DOM-Fakten sind eine `a11y-dom`-Arena mit
+  Tag, Text und den Attributen aus `dom_attribute_needed` (`id`, `for`,
+  `role`, `tabindex`, `hidden`, `type`, `title`, `alt`, `placeholder`,
+  `value`, `aria-*`) plus Zuordnung DOM-ID → Knoten; der Host füllt sie aus
+  `DOM.getDocument` des Hauptdokuments.
+- **Outcome statt Certainty [Entscheidung]:** Befunde tragen ihre
+  Belastbarkeit über `a11y-report`: `fail` ist aus AX-Daten belegt,
+  `review` ist Heuristik (Abbruchweg an Wörtern erkannt, „verständlicher“
+  Text nur auf Vorhandensein geprüft, Namensabweichung ohne sichere
+  Ursache), `untested` heißt: Daten fehlten.
+- **Tab ohne `ActionPlan` [Entscheidung]:** Der Host drückt echte
+  Tab-Tasten wie bei Escape und Scrollen; Tab hat kein Zielelement und
+  bewegt nur den Fokus. Start ist ein per Skript fokussiertes, danach
+  entferntes Element am Anfang von `body`; Ende, wenn der Fokus auf `body`
+  fällt, ein Element wiederkommt oder nach 60 Schritten.
+- **Planparameter [Annahme]:** „verständliche Planparameter“ eines
+  Bestätigungsdialogs heißt hier: der Dialog nennt außer Name und Buttons,
+  was bestätigt wird. Ob das verständlich ist, bleibt ein `review`.
+- **Grenzen [belegt im Code]:** Die DOM-Fakten tragen kein Rendering; per CSS
+  verborgener Inhalt zählt für `accname` mit (in `form-broken.html` gewollt
+  als Abweichung). iframes und Shadow DOM fehlen in den DOM-Fakten, Felder
+  dort werden `untested`. `statusmeldung` prüft den Endzustand, nicht die
+  Änderung der Live-Region (→ 49).
 
 ### Relief ersetzt den barrierlab-Reader [Entscheidung 2026-09-30]
 
@@ -100,16 +147,18 @@ Werkzeuge nutzen (`barrierlab/docs/consumers.md`). Regel dort: **zwei
 Konsumenten, dann Bibliothek**; Browserfreiheit bis L3; Pakete nehmen Daten
 entgegen, holen sie nicht.
 
-Heute nutzt Relief `a11y-perception` (Workspace, `Cargo.toml`). Relief ist in
+Heute nutzt Relief `a11y-perception` im Host und in den Aufnahmen sowie
+`a11y-dom`, `accname` und `a11y-report` in `relief-interaction`
+(Formular-Zusicherungen; Workspace, `Cargo.toml`). Relief ist in
 `consumers.md` noch nicht eingetragen (→ 46).
 
 | Richtung | Was | Wann |
 |---|---|---|
 | nutzen | `a11y-rules`, `a11y-report` für Befunde im Inspector | 21 |
-| nutzen | `a11y-dom` und `accname` für DOM-basierte Namensprüfungen; der AX-Graph allein genügt dafür nicht | 42 |
-| nutzen | Diff-Regeln aus `a11y-perception` statt eigener Diff-Logik | 42, 25 |
+| nutzen | `a11y-dom` und `accname` für DOM-basierte Namensprüfungen; der AX-Graph allein genügt dafür nicht | 42 ✓ |
+| nutzen | Diff-Regeln aus `a11y-perception` statt eigener Diff-Logik | 49, 25 |
 | ablegen | Screenreader-Treiber-Interface samt Adaptern und Phrasen-Protokoll, sobald ein zweiter Konsument ihn braucht | 43 |
-| ablegen | Formular-Zusicherungen, sobald ein zweites Werkzeug sie braucht | 42 |
+| ablegen | Formular-Zusicherungen (42 ✓), sobald ein zweites Werkzeug sie braucht | — |
 | ablegen | Interaction Graph für aufgabenbasierte Journeys (→ 00, Kandidat) | nach 24 |
 | nicht ablegen | Fork-Adapter, Bridge, alles mit Chromium-Typen | — |
 

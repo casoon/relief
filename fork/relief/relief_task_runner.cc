@@ -85,6 +85,9 @@ std::vector<ReliefTaskRunner::Line> ReadTasks(
         case bridge::TaskKind::Do:
           out.push_back({Line::Kind::kDo, value});
           break;
+        case bridge::TaskKind::Assert:
+          out.push_back({Line::Kind::kAssert, value});
+          break;
         case bridge::TaskKind::Expect:
           out.push_back({Line::Kind::kExpect, value});
           break;
@@ -130,6 +133,15 @@ void ReliefTaskRunner::Next() {
         }
         Execute(line.text);
         return;
+      case Line::Kind::kAssert:
+        if (!page_open_) {
+          continue;
+        }
+        // Die Zusicherungen brauchen DOM-Fakten, die der Fork nicht erhebt
+        // (→ relief-cdp, Paket 42).
+        last_ = "Zusicherung im Fork nicht verfügbar: " + line.text;
+        Print("\n? " + line.text + "\n" + Indent(last_));
+        continue;
       case Line::Kind::kExpect:
         if (!page_open_) {
           continue;

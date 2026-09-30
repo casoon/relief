@@ -12,6 +12,16 @@ publish.workspace = true
 # nicht der Interaktion (im Fork-Build gibt es ihn nicht).
 relief-model = { path = "../relief-model", default-features = false }
 serde = { workspace = true }
+# Formular-Zusicherungen: DOM-Fakten, Namensberechnung und Befunde aus
+# barrierlab; alle browserfrei, sie nehmen Daten entgegen. Nicht im
+# Fork-Build (Feature `assertions` aus, → fork/relief/BUILD.gn).
+a11y-dom = { workspace = true, optional = true }
+a11y-report = { workspace = true, optional = true }
+accname = { workspace = true, optional = true }
+
+[features]
+default = ["assertions"]
+assertions = ["dep:a11y-dom", "dep:a11y-report", "dep:accname"]
 
 [dev-dependencies]
 # Tests lesen die CDP-Aufnahmen und bringen sie über den Konverter ins Modell.

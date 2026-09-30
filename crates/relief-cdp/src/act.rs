@@ -110,6 +110,11 @@ pub async fn press_escape(page: &Page) -> Result<()> {
     press_key(page, "Escape", 27).await
 }
 
+/// Tab wie eine echte Taste (Formular-Zusicherung `tabfolge`).
+pub async fn press_tab(page: &Page) -> Result<()> {
+    press_key(page, "Tab", 9).await
+}
+
 /// Taste ohne Text (Name = Code) an das fokussierte Element.
 async fn press_key(page: &Page, key: &str, code: i64) -> Result<()> {
     for kind in [

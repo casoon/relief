@@ -344,6 +344,8 @@ pub mod ffi {
     enum TaskKind {
         Url,
         Do,
+        /// Formular-Zusicherung; braucht DOM-Fakten, nur im CDP-Host.
+        Assert,
         Expect,
     }
 
@@ -573,6 +575,10 @@ fn parse_task_file(text: &str) -> Vec<ffi::Task> {
             },
             TaskLine::Do(text) => ffi::Task {
                 kind: ffi::TaskKind::Do,
+                text,
+            },
+            TaskLine::Assert(text) => ffi::Task {
+                kind: ffi::TaskKind::Assert,
                 text,
             },
             TaskLine::Expect(text) => ffi::Task {

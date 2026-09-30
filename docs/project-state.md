@@ -48,6 +48,12 @@ Befehle im REPL: „was ist hier", „wo bin ich", „was kann ich tun",
 Ende", „schließe den Dialog" (vollständig: „hilfe"); `!` davor bestätigt
 riskante Aktionen, `url …` lädt eine andere Seite.
 
+In Aufgabendateien prüft `assert: <Zusicherung>` den aktuellen Stand eines
+Formulars und antwortet mit Befunden (Regel-IDs `form/…`) oder „Keine
+Befunde.“: `feldnamen`, `namen-wie-accname`, `fehler-verknüpft [Feld]`,
+`fokus-auf-erstem-fehler`, `bestätigungsdialog`, `statusmeldung <Text>`,
+`tabfolge <Feld>, …`. Die CI läuft weiter nur über `01`–`05`.
+
 Im Palettenmodus öffnet Strg+Umschalt+Leertaste die Befehlsleiste; riskante
 Aktionen werden mit „ja“ bestätigt. Jede Eingabe landet mit Ergebnisart und
 Tastendrücken, ohne Seiteninhalte, in `relief-protokoll.jsonl` (`RELIEF_LOG`).
@@ -139,7 +145,8 @@ scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurüc
 - Chromium-Fork, eigener Code unter `//relief/`; Ziel macOS, Windows, Linux,
   entwickelt zuerst auf macOS ARM.
 - Semantic Runtime in Rust, browserfrei; baut auf den Crates aus
-  `casoon/barrierlab` auf (`a11y-perception`, `accname`, `a11y-rules`, `a11y-report`).
+  `casoon/barrierlab` auf (`a11y-perception`, `a11y-dom`, `accname`, `a11y-report`
+  in Gebrauch; `a11y-rules` geplant).
 - KI optional in Stufen (OS-Modell, lokal, Cloud-API mit eigenem Key),
   Default ohne Modell. Vertrag, Anbieter-Schnittstelle und Privacy-Filter
   stehen (`relief-ai-contract`); ein Adapter für die Anthropic Messages API
@@ -153,11 +160,11 @@ scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurüc
 |---|---|
 | `crates/relief-model` | browserfrei: semantisches Datenmodell, Delta-Format, Konverter aus `a11y-perception` |
 | `crates/relief-bridge` | browserfrei: Rust-Seite der Grenze zum Fork (`cxx`-Bridge, Mojo-Entwurf), Benchmarks (`cargo bench -p relief-bridge`) |
-| `crates/relief-interaction` | browserfrei, auf `relief-model`: Interaction Graph, Befehle, Zielauflösung, Validierung, Antworttexte |
+| `crates/relief-interaction` | browserfrei, auf `relief-model`: Interaction Graph, Befehle, Zielauflösung, Validierung, Antworttexte, Formular-Zusicherungen (Befunde im Format von `a11y-report`) |
 | `crates/relief-ai-contract` | browserfrei: KI-Vertrag (Hypothesen, Intent-Vorschläge, JSON-Schemas), `ModelProvider` mit Stufen, Privacy-Filter |
 | `crates/relief-resolver` | browserfrei: Resolver fehlender Namen (Ausschnitt, Anthropic-Adapter hinter Feature `anthropic`, Kalibrierung) |
 | `crates/relief-cdp` | Spike-Host: steuert Chrome über CDP, führt Aktionen aus |
-| `spike/fixtures`, `spike/tasks` | Testseiten und Aufgabendateien (`url:`/`do:`/`expect:`) |
+| `spike/fixtures`, `spike/tasks` | Testseiten und Aufgabendateien (`url:`/`do:`/`assert:`/`expect:`); `06-form-assertions.txt` mit `form-clean.html`/`form-broken.html` prüft die Formular-Zusicherungen |
 | `spike/recordings` | AXTree-Aufnahmen als Fixtures für browserfreie Tests |
 | `spike/kalibrierung` | von Hand beschriftete Stichprobe unbenannter Controls mit Soll-Namen und Begründung |
 | `crates/relief-interaction/tests` | Snapshot- und Aufgabentests gegen die Aufnahmen; Erwartungen neu setzen mit `RELIEF_ERWARTUNGEN=neu` |

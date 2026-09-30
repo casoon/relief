@@ -368,11 +368,13 @@ fn is_steppable(c: &Control) -> bool {
 }
 
 /// Aufgabendatei (`spike/tasks/*.txt`) Zeile für Zeile: `url:`, `do:`,
-/// `expect:`; `#` und Leerzeilen fallen weg, Unbekanntes auch.
+/// `assert:` (Formular-Zusicherung), `expect:`; `#` und Leerzeilen fallen
+/// weg, Unbekanntes auch.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TaskLine {
     Url(String),
     Do(String),
+    Assert(String),
     Expect(String),
 }
 
@@ -385,6 +387,8 @@ pub fn parse_tasks(text: &str) -> Vec<TaskLine> {
                 Some(TaskLine::Url(url.trim().to_string()))
             } else if let Some(input) = line.strip_prefix("do:") {
                 Some(TaskLine::Do(input.trim().to_string()))
+            } else if let Some(text) = line.strip_prefix("assert:") {
+                Some(TaskLine::Assert(text.trim().to_string()))
             } else {
                 line.strip_prefix("expect:")
                     .map(|e| TaskLine::Expect(e.trim().to_string()))

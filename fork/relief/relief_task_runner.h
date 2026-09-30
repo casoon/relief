@@ -41,7 +41,7 @@ class ReliefTaskRunner {
   // Zeile einer Aufgabendatei; `kFile` trennt die Dateien in der Ausgabe,
   // `kUrl` trägt die aufgelöste URL.
   struct Line {
-    enum class Kind { kFile, kUrl, kDo, kExpect };
+    enum class Kind { kFile, kUrl, kDo, kAssert, kExpect };
     Kind kind;
     std::string text;
   };

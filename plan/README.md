@@ -28,6 +28,7 @@ Gültige Entscheidungen und Rahmenbedingungen stehen in `docs/decisions.md` und
 | 42–45 | Linie Prüfen (→ spezifikation/12) |
 | 46 | barrierlab |
 | 47–48 | Querschnitt: Relief-Oberfläche und Sicherheitsgrenzen |
+| 49 | Linie Prüfen: Nachtrag zu 42 |
 | 90 | zurückgestellt |
 
 ## Jedes Paket hat
