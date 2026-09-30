@@ -188,6 +188,53 @@ außerhalb von Sectioning-Inhalt) als `banner`/`contentinfo`, Wertebereiche
 (`valuenow` als Wert, `valuemin`/`valuemax`, abweichender Text als
 `valuetext`) wie im CDP-Konverter.
 
+## Rückfragen und Befehlsleiste im Fork (Paket 25) [belegt]
+
+Rückfragen beantwortet die Sitzung selbst, vor der Befehlszerlegung
+(`Session::pending_reply`), für CDP-Host, Spike-Leiste und Fork gleich:
+
+- **Mehrdeutig:** Kandidaten nummeriert („1. [link] Warenkorb (0) in …“);
+  eine Zahl oder ein Text, der genau einen Kandidaten trifft, wählt ihn,
+  und die Aktion läuft weiter (riskant → Rückfrage). Die Auswahl gilt nur
+  für die nächste Eingabe; Relief rät nie.
+- **Bestätigung:** „ja“ löst die gezeigte Rückfrage ein wie „!“ vor
+  demselben Befehl (Einmal-Token aus 48, gebunden an Plan und Graph); ein
+  zweites „ja“ ist nicht verstanden.
+- **Abbrechen:** „abbrechen“/„nein“ verwirft Auswahl und Rückfrage („Nichts
+  ausgeführt“); ohne offene Rückfrage sagt Relief, dass nichts offen ist.
+  Eine laufende Ausführung bricht die Leiste ab: Das Warten endet sofort,
+  bereits gesendete Aktionen werden nicht als ungeschehen dargestellt
+  („Bereits gesendete Aktionen wirken“).
+
+Die **Befehlsleiste im Fork** ist der obere Teil des Relief-Side-Panels
+(dieselbe WebUI wie der Inspector, → 01): Strg+Umschalt+Leertaste auf der
+Seite öffnet das Panel und setzt den Fokus ins Eingabefeld. Zustände stehen
+sichtbar und als Statusmeldung da (bereit, führe aus, Auswahl erwartet,
+Bestätigung erwartet, fertig); Antworten sammelt ein Log (`role=log`,
+höchstens 20). Nach einer Aktion auf der Seite bekommt die Seite den
+Tastaturfokus — dort steht das Ziel; Abfragen lassen ihn in der Leiste.
+Escape bricht eine Ausführung oder Rückfrage ab, sonst schließt es das
+Panel (Chromium gibt den Fokus an die Seite zurück). Während ein Befehl
+läuft, bleibt eine neue Eingabe stehen („noch beschäftigt“).
+
+Entscheidung **Side Panel statt schwebender Leiste**: Eine eigene
+Bubble über der Seite braucht Views-Klassen des Browserfensters, die im
+GN-Graphen über der Tab-Einbindung von `//relief` liegen (Zyklus) oder
+weitere Patches; das Side Panel liegt außerhalb der Seite (kein Eintrag in
+ihrem AXTree, unberührt von modalen Seitendialogen) und bringt Fokus-Rückgabe
+und Schließen mit.
+
+Ausführung (`ReliefExecutor`): Aufgaben-Runner, Leiste und Inspector teilen
+denselben Weg (Schritte, Ruhe, Antwort). Belegt: `relief_browsertests
+--gtest_filter=*Befehlsleiste*` (Kürzel öffnet mit Fokus im Feld, Abfrage,
+Auswahl per Nummer mit Fokus auf dem Ziel, Escape bricht Bestätigung ab ohne
+Wirkung, „ja“ löst genau einmal aus, Escape schließt), `crates/relief-bridge/
+tests/befehle.rs`; Fork-Aufgaben 01–05, 07 weiter ohne Ausfall.
+
+Offen: deiktische Ziele („dieses Feld“, „hier“) kennt der Parser noch
+nicht; Ausgabe pausieren fehlt (die Leiste bündelt nur); manueller
+Tastatur- und VoiceOver-Durchgang (→ 47).
+
 ## Intent-Format [Annahme]
 
 ```json

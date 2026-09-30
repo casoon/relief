@@ -143,8 +143,9 @@ fork/
     ├── relief_attach.h       # AttachToTab: einziger Header, den Chromium einbindet
     ├── relief_tab_helper.*   # WebContentsObserver je Tab: AXMode, Pakete/Positionen → Delta, Lebenszyklus der Bäume, Reset, ActionPlan → AXActionData
     ├── relief_switches.h     # --enable-relief, --relief-log, --relief-activate, --relief-run, --relief-screen-reader-mode
-    ├── relief_task_runner.*  # --relief-run: Aufgabendateien abarbeiten (url/do/expect), Ruhe = keine AX-Pakete
-    ├── inspector/            # Semantic Inspector: Side-Panel-Eintrag kRelief, WebUI chrome://relief-inspector.top-chrome, Ressourcen (embed_resources.py)
+    ├── relief_executor.*     # Antwort der Runtime ausführen: Schritte/Taste/Scrollen, Ruhe = keine AX-Pakete, Antwort; abbrechbar
+    ├── relief_task_runner.*  # --relief-run: Aufgabendateien abarbeiten (url/do/expect)
+    ├── inspector/            # Relief-Panel: Side-Panel-Eintrag kRelief, WebUI chrome://relief-inspector.top-chrome (Befehlsleiste + Inspector), Ressourcen (embed_resources.py)
     ├── bridge/
     │   ├── ax_tree_mirror.*  # eigener ui::AXTree je Tree-ID, AXTreeObserver, AXNodeData → cxx-Strukturen, Seitenkoordinaten
     │   └── runtime_host.*    # Rust-Runtime auf eigener Sequenz, Messprotokoll, activate planen
@@ -180,6 +181,11 @@ flowchart LR
   (`finish_command`). Überschriften und Bereiche werden nicht fokussiert,
   sondern als Startpunkt der Tab-Reihenfolge gesetzt; die Sitzung merkt sich
   dort ihre Position (→ `plan/spezifikation/05`).
+- **Befehlsleiste**: Strg+Umschalt+Leertaste öffnet das Relief-Panel mit
+  Fokus im Befehlsfeld; die Eingabe geht über `ReliefTabHelper::Interact`
+  an die Runtime und den `ReliefExecutor`, Rückfragen (Nummer, „ja“,
+  „abbrechen“) beantwortet die Sitzung. → `plan/spezifikation/05`,
+  „Rückfragen und Befehlsleiste im Fork“.
 - **Inspector**: Strg+Umschalt+I auf der Seite (oder `--relief-inspector`)
   öffnet das Side Panel des Tabs mit der WebUI; sie bekommt nach jeder
   Delta (gebündelt, 250 ms) den Graph als JSON aus der Runtime, wählt mit

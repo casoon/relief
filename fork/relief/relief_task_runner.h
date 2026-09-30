@@ -12,7 +12,6 @@
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
-#include "base/timer/timer.h"
 #include "relief/crates/relief-bridge/src/cxx_bridge.rs.h"
 
 namespace content {
@@ -51,18 +50,8 @@ class ReliefTaskRunner {
   void Next();
   void Open(const std::string& url);
   void Execute(const std::string& input);
-  void OnReply(bridge::Reply reply);
-  void OnScrolled(bridge::ScrollDirection direction, int before);
   void Finish();
   void Answer(std::string text);
-  // Wartet, bis die Seite ruht: mindestens `min`, danach keine Ladeaktivität
-  // und kein AX-Paket für kQuiet, und `ready` (falls gesetzt) gilt;
-  // höchstens `max`. Dann `then`.
-  void WaitForQuiet(base::TimeDelta min,
-                    base::TimeDelta max,
-                    base::OnceClosure then,
-                    base::RepeatingCallback<bool()> ready = {});
-  void CheckQuiet();
 
   const raw_ref<ReliefTabHelper> helper_;
   const raw_ref<content::WebContents> contents_;
@@ -75,13 +64,6 @@ class ReliefTaskRunner {
   base::TimeTicks command_started_;
   int passed_ = 0;
   int failed_ = 0;
-
-  base::RepeatingTimer quiet_timer_;
-  base::TimeTicks wait_started_;
-  base::TimeDelta wait_min_;
-  base::TimeDelta wait_max_;
-  base::OnceClosure after_quiet_;
-  base::RepeatingCallback<bool()> ready_;
 
   base::WeakPtrFactory<ReliefTaskRunner> weak_factory_{this};
 };

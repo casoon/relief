@@ -4,7 +4,6 @@
 
 #include <unistd.h>
 
-#include <algorithm>
 #include <utility>
 
 #include "base/files/file_util.h"
@@ -17,6 +16,7 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/web_contents.h"
 #include "net/base/filename_util.h"
+#include "relief/relief_executor.h"
 #include "relief/relief_tab_helper.h"
 #include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
@@ -25,15 +25,7 @@ namespace relief {
 
 namespace {
 
-// Ruhe: so lange kein AX-Paket (Baum oder Positionen). Blink serialisiert
-// Änderungen gebündelt mit dem nächsten Frame; 300 ms reichen auf den
-// Testseiten auch für Wirkungen aus Event-Handlern mit kurzer Verzögerung.
-constexpr base::TimeDelta kQuiet = base::Milliseconds(300);
-constexpr base::TimeDelta kPoll = base::Milliseconds(50);
-// Nach einer Aktion: erstes Paket abwarten, höchstens 3 s (wie der
-// CDP-Host); Laden einer Seite höchstens 10 s.
-constexpr base::TimeDelta kActionMin = base::Milliseconds(150);
-constexpr base::TimeDelta kActionMax = base::Seconds(3);
+// Laden einer Seite: mindestens so lange, höchstens 10 s.
 constexpr base::TimeDelta kLoadMin = base::Milliseconds(300);
 constexpr base::TimeDelta kLoadMax = base::Seconds(10);
 
@@ -174,7 +166,8 @@ void ReliefTaskRunner::Open(const std::string& url) {
                self->contents_->GetLastCommittedURL() == url;
       },
       weak_factory_.GetWeakPtr(), GURL(url));
-  WaitForQuiet(kLoadMin, kLoadMax,
+  helper_->executor().WaitForQuiet(
+      kLoadMin, kLoadMax,
                base::BindOnce(
                    [](base::WeakPtr<ReliefTaskRunner> self) {
                      if (!self) {
@@ -204,96 +197,14 @@ void ReliefTaskRunner::Open(const std::string& url) {
 void ReliefTaskRunner::Execute(const std::string& input) {
   Print("\n> " + input);
   command_started_ = base::TimeTicks::Now();
-  helper_->RunCommand(input, base::BindOnce(&ReliefTaskRunner::OnReply,
-                                            weak_factory_.GetWeakPtr()));
-}
-
-void ReliefTaskRunner::OnReply(bridge::Reply reply) {
-  auto finish = base::BindOnce(
-      [](base::WeakPtr<ReliefTaskRunner> self) {
-        if (!self) {
-          return;
-        }
-        self->helper_->FinishCommand(
-            base::BindOnce(&ReliefTaskRunner::Answer, self));
-      },
-      weak_factory_.GetWeakPtr());
-  switch (reply.kind) {
-    case bridge::ReplyKind::Answer:
-      Answer(std::string(reply.text));
-      return;
-    case bridge::ReplyKind::Perform:
-      for (const bridge::Step& step : reply.steps) {
-        if (!helper_->PerformStep(step)) {
-          Answer("Aktion fehlgeschlagen: Knoten nicht mehr im Baum.");
-          return;
-        }
-      }
-      WaitForQuiet(kActionMin, kActionMax, std::move(finish));
-      return;
-    case bridge::ReplyKind::Escape:
-      helper_->PressKey(bridge::Key::Escape);
-      WaitForQuiet(kActionMin, kActionMax, std::move(finish));
-      return;
-    case bridge::ReplyKind::Scroll: {
-      const std::optional<ReliefTabHelper::MainScroll> scroll =
-          helper_->GetMainScroll();
-      if (!scroll) {
-        Answer("Scroll: Position des Dokuments unbekannt.");
-        return;
-      }
-      int target = scroll->y;
-      switch (reply.scroll) {
-        case bridge::ScrollDirection::Down:
-          target += scroll->page;
-          break;
-        case bridge::ScrollDirection::Up:
-          target -= scroll->page;
-          break;
-        case bridge::ScrollDirection::Top:
-          target = 0;
-          break;
-        case bridge::ScrollDirection::Bottom:
-          target = scroll->y_max;
-          break;
-      }
-      target = std::clamp(target, 0, std::max(scroll->y_max, 0));
-      if (target != scroll->y && !helper_->ScrollMainTo(target)) {
-        Answer("Scroll: Dokument lässt sich nicht scrollen.");
-        return;
-      }
-      // Chromium meldet die neue Scroll-Position gebündelt mit den
-      // Positionen, teils erst nach der Ruhe-Spanne: auf sie warten.
-      auto moved = base::BindRepeating(
-          [](base::WeakPtr<ReliefTaskRunner> self, int before, int target) {
-            if (!self || target == before) {
-              return true;
-            }
-            const std::optional<ReliefTabHelper::MainScroll> now =
-                self->helper_->GetMainScroll();
-            return now && now->y != before;
-          },
-          weak_factory_.GetWeakPtr(), scroll->y, target);
-      WaitForQuiet(kActionMin, kActionMax,
-                   base::BindOnce(&ReliefTaskRunner::OnScrolled,
-                                  weak_factory_.GetWeakPtr(), reply.scroll,
-                                  scroll->y),
-                   std::move(moved));
-      return;
-    }
-  }
-}
-
-void ReliefTaskRunner::OnScrolled(bridge::ScrollDirection direction,
-                                  int before) {
-  const std::optional<ReliefTabHelper::MainScroll> scroll =
-      helper_->GetMainScroll();
-  if (!scroll) {
-    Answer("Scroll: Position des Dokuments unbekannt.");
-    return;
-  }
-  Answer(std::string(
-      bridge::scrolled_text(direction, before, scroll->y, scroll->y_max)));
+  helper_->Interact(input, base::BindOnce(
+                               [](base::WeakPtr<ReliefTaskRunner> self,
+                                  ReliefExecutor::Result result) {
+                                 if (self) {
+                                   self->Answer(std::move(result.text));
+                                 }
+                               },
+                               weak_factory_.GetWeakPtr()));
 }
 
 void ReliefTaskRunner::Answer(std::string text) {
@@ -310,31 +221,6 @@ void ReliefTaskRunner::Finish() {
                            passed_, failed_));
   // Ein Lauf ohne Fenster-Schließen: der Browser hat seine Aufgabe erledigt.
   base::Process::TerminateCurrentProcessImmediately(failed_ ? 1 : 0);
-}
-
-void ReliefTaskRunner::WaitForQuiet(base::TimeDelta min,
-                                    base::TimeDelta max,
-                                    base::OnceClosure then,
-                                    base::RepeatingCallback<bool()> ready) {
-  wait_started_ = base::TimeTicks::Now();
-  wait_min_ = min;
-  wait_max_ = max;
-  after_quiet_ = std::move(then);
-  ready_ = std::move(ready);
-  quiet_timer_.Start(FROM_HERE, kPoll, this, &ReliefTaskRunner::CheckQuiet);
-}
-
-void ReliefTaskRunner::CheckQuiet() {
-  const base::TimeTicks now = base::TimeTicks::Now();
-  const base::TimeTicks last = std::max(helper_->last_packet(), wait_started_);
-  const bool quiet = now - wait_started_ >= wait_min_ &&
-                     !contents_->IsLoading() && now - last >= kQuiet &&
-                     (!ready_ || ready_.Run());
-  if (!quiet && now - wait_started_ < wait_max_) {
-    return;
-  }
-  quiet_timer_.Stop();
-  std::move(after_quiet_).Run();
 }
 
 }  // namespace relief

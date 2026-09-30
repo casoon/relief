@@ -1,13 +1,15 @@
 <!doctype html>
 <html lang="de"><head><meta charset="utf-8"><title>Inspektor-Testseite</title></head>
 <body>
-<header><nav aria-label="Hauptmenü"><a href="#start">Start</a></nav></header>
+<header><nav aria-label="Hauptmenü"><a href="#start">Start</a> <a href="#korb">Warenkorb (0)</a></nav></header>
 <main>
   <h1>Laufschuh</h1>
   <h2>Bestellung</h2>
   <label>Menge <input type="number" value="1" min="1" max="5"></label>
   <button id="kaufen" onclick="document.getElementById('s').textContent = 'Gekauft.'">In den Warenkorb</button>
   <button id="leer"><img src="data:," alt=""></button>
+  <button id="bestellen" onclick="document.getElementById('b').textContent = String(Number(document.getElementById('b').textContent) + 1)">Jetzt bestellen</button>
   <p id="s" role="status"></p>
+  <p>Bestellt: <span id="b">0</span></p>
 </main>
 </body></html>

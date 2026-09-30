@@ -30,6 +30,10 @@ erfüllen dieselbe verbindliche User-Agent-Baseline (→ spezifikation/13).
   WebUI-Semantikprüfer grün. Offen: manueller Durchgang nur mit Tastatur
   und mit VoiceOver (Fokus nach Schließen, Ansage der Liste beim
   Aktualisieren, Statusmeldungen), 200 % Zoom, hoher Kontrast.
+- Befehlsleiste (25): Browser-Test `Befehlsleiste` grün (Fokus beim Öffnen
+  im Feld, nach Aktion auf dem Ziel, Escape bricht ab bzw. schließt).
+  Offen: manueller Tastatur- und VoiceOver-Durchgang (Ansage von Zustand
+  und Log, Fokus nach Schließen), Kürzelkonflikte mit VoiceOver prüfen.
 
 ## Fertig, wenn
 

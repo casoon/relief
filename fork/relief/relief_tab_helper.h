@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
@@ -22,6 +23,7 @@
 #include "content/public/browser/web_contents_user_data.h"
 #include "relief/bridge/ax_tree_mirror.h"
 #include "relief/bridge/runtime_host.h"
+#include "relief/relief_executor.h"
 #include "ui/accessibility/ax_action_handler_registry.h"
 #include "ui/accessibility/ax_tree_id.h"
 
@@ -76,11 +78,21 @@ class ReliefTabHelper
    public:
     virtual void OnGraphChanged() = 0;
     virtual void OnTabHelperDestroyed() = 0;
+    // Die Befehlsleiste soll den Fokus bekommen (Strg+Umschalt+Leertaste).
+    virtual void OnFocusCommandRequested() {}
   };
   void AddObserver(InspectorObserver* observer);
   void RemoveObserver(InspectorObserver* observer);
   // Graph als JSON (crates/relief-bridge/src/inspector.rs).
   void InspectorJson(base::OnceCallback<void(std::string)> done);
+  // Eingabe der Befehlsleiste: an die Runtime, Antwort ausführen, Wirkung
+  // abwarten; `done` bekommt Antwort und ob auf der Seite gehandelt wurde.
+  void Interact(const std::string& input,
+                base::OnceCallback<void(ReliefExecutor::Result)> done);
+  // Wurde die Befehlsleiste angefordert, bevor ihr Panel bereit war?
+  bool TakeFocusCommandRequest() {
+    return std::exchange(focus_command_requested_, false);
+  }
   // Eintrag im Dokument zeigen (Fokus bzw. Hinbewegen, nichts auslösen);
   // `done` bekommt die Antwort nach kurzer Ruhe.
   void Show(const std::string& key,
@@ -110,6 +122,8 @@ class ReliefTabHelper
   };
   std::optional<MainScroll> GetMainScroll() const;
   bool ScrollMainTo(int y);
+  // Führt Antworten der Runtime aus (Schritte, Ruhe, Antwort); eine je Tab.
+  ReliefExecutor& executor() { return *executor_; }
   // Letztes AX-Paket (Baum oder Positionen); Ruhe = keines seit einer Weile.
   base::TimeTicks last_packet() const { return last_packet_; }
   // Der Baum des aktuellen Hauptdokuments ist in der Runtime.
@@ -172,6 +186,7 @@ class ReliefTabHelper
   base::OneShotTimer reset_timer_;
   int resets_ = 0;
   base::TimeTicks last_packet_;
+  std::unique_ptr<ReliefExecutor> executor_;
   // --relief-run, nur im ersten Tab.
   std::unique_ptr<ReliefTaskRunner> task_runner_;
   base::ObserverList<InspectorObserver> observers_;
@@ -181,6 +196,7 @@ class ReliefTabHelper
   content::RenderWidgetHost::KeyPressEventCallback key_callback_;
   // --relief-inspector: nach dem ersten Laden öffnen (einmal).
   bool open_inspector_ = false;
+  bool focus_command_requested_ = false;
   base::ScopedObservation<ui::AXActionHandlerRegistry,
                           ui::AXActionHandlerObserver>
       registry_observation_{this};
