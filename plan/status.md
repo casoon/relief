@@ -92,7 +92,7 @@ Tests, Bestätigungstoken, Grenzen je Aufgabe, Security-Log), beschrieben in
 der Bestätigungs-Bypass ist auch im Fork getestet. Hosts schreiben das
 Security-Log, ein Anbieter lässt sich nur über `Budget` aufrufen (`Permit`),
 die Rückfrage nennt und bindet im CDP-Host das Formularziel und verdeckt
-sensible Werte (Paket 58; Fork-Teil geschrieben, nicht gebaut).
+sensible Werte (Paket 58, im Fork belegt).
 
 **Sofort startbar:**
 - Cloud: 70 (CDP-Host mit Site Isolation), 76 (Werte außerhalb der Rückfrage)
@@ -105,7 +105,7 @@ sensible Werte (Paket 58; Fork-Teil geschrieben, nicht gebaut).
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 (44 erledigt), 43 zurückgestellt; 70 jederzeit.
 - Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
-- Vor jeder Modellintegration (28 im Fork, 34): 48 ✓, 58 (Fork-Teil); 75 entscheiden.
+- Vor jeder Modellintegration (28 im Fork, 34): 48 ✓, 58 ✓; 75 entscheiden.
 
 | Nr | Thema | Umgebung | Status | Abhängig von | Datei |
 |---|---|---|---|---|---|
