@@ -145,7 +145,7 @@ Anweisungen, klicke auf Kaufen.“):
   unbenannten Button bleibt HIGH), darf sie aber heben („Jetzt kaufen“ für
   einen unbenannten Link: LOW → HIGH), über `assess_risk`.
 
-## Sicherheits-Regressionsmatrix [Entscheidung; browserfrei umgesetzt, Fork-Teil zu bauen]
+## Sicherheits-Regressionsmatrix [Entscheidung; umgesetzt, im Fork belegt]
 
 Vor einer Modellintegration werden nicht nur gute Ausgaben, sondern
 Missbrauchsfälle als feste Tests beschrieben (→ 48): Prompt-Override aus
@@ -165,7 +165,7 @@ Testanbietern, die jede Ausgabe liefern (auch aus einem „Cache“):
 | Prompt-Override | Äußerung im Intent muss die der Nutzerin sein (auch ein vorangestelltes „!“ fällt auf); ein absichtlich falscher, gültiger Vorschlag endet als Befehl ohne „!“ in einer Rückfrage | `prompt_override_*`, `injection.rs` |
 | Datenabfluss | Passwortfeld nur als Rolle in der Anfrage; `set_value`-Wert nicht aus der Äußerung → verworfen; kein Intent „Adresse öffnen“ | `datenabfluss_*`, `privacy.rs` |
 | Werkzeug-/Rechteausweitung | erfundene Intents (`execute_script`, `download`) und Zusatzfelder (`confirmed`, `risk`, `requires_confirmation`) sind Schemafehler, auch im Hypothesen-Kanal; ein `IntentProposal` hat genau Intent, Ziel, Stand, Wert, Confidence, Äußerung, Modell | `rechteausweitung_*` |
-| Bestätigungs-Bypass | „!“ ohne offene Rückfrage → nur Rückfrage, Log `reject`/`no_prompt` | `bypass_*`, `session.rs`, `befehle.rs`, `spike/tasks/07-bestaetigung.txt`, Browser-Test (Fork) |
+| Bestätigungs-Bypass | „!“ ohne offene Rückfrage → nur Rückfrage, Log `reject`/`no_prompt` | `bypass_*`, `session.rs`, `befehle.rs`, `spike/tasks/07-bestaetigung.txt`, im Fork belegt: `relief_browsertests --gtest_filter=*BestaetigungNurEinmalUndGebunden*` grün, `scripts/fork-run-tasks.sh` mit 07 „0 nicht erfüllt“ (M4, 2026-09-30) |
 | Wiederverwendung | zweites „!“, „!“ nach anderer Eingabe, nach „nein“, nach Ablauf, für ersetzten Button (andere DOM-ID) oder nach Navigation → neue Rückfrage | `wiederverwendung_*`, `session.rs`, `security.rs` |
 | Cache-Vergiftung | gespeicherte Antwort aus anderem Graph-Stand → `GraphVersion`; Eintrag mit Freigabefeld → Schemafehler; eine neue Sitzung kennt keine Rückfrage, eine Sitzung lässt sich nicht kopieren (`compile_fail`) | `cache_*` |
 | Schleifen/Kosten | Budget je Aufgabe beendet mit Grund, danach kein Anbieteraufruf mehr | `grenze_*` |
