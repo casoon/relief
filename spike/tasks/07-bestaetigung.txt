@@ -1,0 +1,26 @@
+# Bestätigungs-Bypass und Wiederverwendung (Paket 48): „!“ löst nur die
+# unmittelbar vorher gestellte Rückfrage zu genau dieser Aktion ein, einmal.
+# Läuft in beiden Hosts (CDP, Fork über --relief-run).
+url: ../fixtures/shop-clean.html
+# „!“ ohne Rückfrage bestätigt nichts.
+do: !klicke Jetzt kaufen
+expect: Bestätigung nötig
+expect: keine offene Rückfrage
+# Eine andere Eingabe zwischen Rückfrage und „!“ verwirft die Rückfrage.
+do: klicke Jetzt kaufen
+expect: Bestätigung nötig
+do: Was ist hier?
+expect: Nike Air Max
+do: !klicke Jetzt kaufen
+expect: keine offene Rückfrage
+# Rückfrage, dann „!“: ausgeführt. Die Statusmeldung erscheint erst jetzt,
+# also hat keiner der Versuche davor geklickt.
+do: klicke Jetzt kaufen
+expect: Bestätigung nötig
+expect: Aktion: Activate, Ziel: [button] Jetzt kaufen
+do: !klicke Jetzt kaufen
+expect: Activate auf
+expect: Bestellung ausgelöst
+# Dieselbe Bestätigung ein zweites Mal gilt nicht.
+do: !klicke Jetzt kaufen
+expect: keine offene Rückfrage

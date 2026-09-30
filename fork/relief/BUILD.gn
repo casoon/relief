@@ -45,6 +45,7 @@ rust_static_library("relief_interaction_rs") {
     "crates/relief-interaction/src/page.rs",
     "crates/relief-interaction/src/resolve.rs",
     "crates/relief-interaction/src/respond.rs",
+    "crates/relief-interaction/src/security.rs",
     "crates/relief-interaction/src/session.rs",
     "crates/relief-interaction/src/validate.rs",
   ]

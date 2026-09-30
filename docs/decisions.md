@@ -137,7 +137,9 @@ DOM/Layout → KI → Vision. Ist Semantik vorhanden, läuft kein Modell.
 Modelle erzeugen nur strukturierte Intents und Hypothesen; die Rust-Runtime
 validiert, stuft das Risiko ein (LOW / MEDIUM / HIGH) und führt aus.
 HIGH-Aktionen verlangen explizite Bestätigung; irreversible Aktionen nie
-allein auf Basis einer Inferenz.
+allein auf Basis einer Inferenz. Eine Bestätigung gilt einmal, kurz und nur
+für den angezeigten Plan (Aktion, Wert, Ziel, Graph-Stand, Zieladresse);
+eine pauschale Zustimmung gibt es nicht, auch nicht aus Cache oder Profil.
 
 **Modelle in Stufen, Default ohne**
 Stufen `none` → `os` → `local` → `api` (eigener Key), vom Nutzer gewählt,

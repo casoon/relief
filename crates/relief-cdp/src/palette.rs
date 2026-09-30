@@ -142,12 +142,16 @@ async fn serve(mut session: Session, mut calls: EventStream<EventBindingCalled>)
             .ok();
         session.live.settle().await;
         let (response, kind) = if declined && confirmed.is_none() {
+            // Auch die Rückfrage der Sitzung verwerfen, sonst löste ein
+            // späteres „!“ sie noch ein.
+            session.session.discard_confirmation();
             ("Abgebrochen, nichts ausgeführt.".to_string(), "abgebrochen")
         } else {
             respond(&mut session, &input).await
         };
         if kind == "bestätigung nötig" {
-            pending = Some(text.clone());
+            // „ja“ wiederholt den Befehl mit „!“, auch wenn er schon eins trug.
+            pending = Some(text.trim_start_matches('!').trim().to_string());
         }
 
         let js = if kind == "ausgeführt" {

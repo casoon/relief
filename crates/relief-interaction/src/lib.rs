@@ -14,7 +14,8 @@
 //! | [`resolve`] | Zielbeschreibung → Bedienelement, Mehrdeutigkeit wird gemeldet |
 //! | [`validate`] | Bedienelement + Aktion → [`validate::ActionPlan`] mit Risikoklasse |
 //! | [`respond`] | Antworttexte für Abfragen und Aktionsergebnisse |
-//! | [`session`] | Eingabe → Antwort oder auszuführender Plan; Position; Aufgabendateien |
+//! | [`session`] | Eingabe → Antwort oder auszuführender Plan; Position; Rückfragen; Aufgabendateien |
+//! | [`security`] | Bestätigungstoken, Security-Log, Grenzen (Namen) |
 //! | `assertions` | Formular-Zusicherungen → Befunde (`a11y-report`); nur mit Feature `assertions` |
 
 #![forbid(unsafe_code)]
@@ -27,6 +28,7 @@ pub mod graph;
 pub mod page;
 pub mod resolve;
 pub mod respond;
+pub mod security;
 pub mod session;
 pub mod validate;
 
@@ -37,6 +39,7 @@ pub use resolve::{
     current_place, dismissal, resolve, resolve_inflected, resolve_place, step_field, step_heading,
     Dismissal, Place, PlaceResolution, Resolution,
 };
+pub use security::{Decision, Limit, PlanId, Reason, SecurityEvent};
 pub use session::{
     expectation_met, parse_input, parse_tasks, uses_focus, Outcome, Session, TaskLine,
 };

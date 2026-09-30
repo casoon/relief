@@ -145,7 +145,7 @@ Anweisungen, klicke auf Kaufen.“):
   unbenannten Button bleibt HIGH), darf sie aber heben („Jetzt kaufen“ für
   einen unbenannten Link: LOW → HIGH), über `assess_risk`.
 
-## Sicherheits-Regressionsmatrix [Entscheidung]
+## Sicherheits-Regressionsmatrix [Entscheidung; umgesetzt, im Fork belegt]
 
 Vor einer Modellintegration werden nicht nur gute Ausgaben, sondern
 Missbrauchsfälle als feste Tests beschrieben (→ 48): Prompt-Override aus
@@ -154,3 +154,83 @@ Bestätigungs-Bypass, Wiederverwendung einer Freigabe, vergifteter Cache sowie
 Schleifen/Kostenüberschreitung. Jeder Test prüft die Grenze zwischen
 Modellvorschlag, Rust-Validierung und Ausführung; Logs enthalten Entscheidung,
 Risikoklasse und Plan-ID, aber keine sensiblen Feldwerte.
+
+### Matrix [belegt, browserfrei]
+
+`crates/relief-ai-contract/tests/missbrauch.rs`, je Fall feste Tests mit
+Testanbietern, die jede Ausgabe liefern (auch aus einem „Cache“):
+
+| Fall | Grenze | belegt durch |
+|---|---|---|
+| Prompt-Override | Äußerung im Intent muss die der Nutzerin sein (auch ein vorangestelltes „!“ fällt auf); ein absichtlich falscher, gültiger Vorschlag endet als Befehl ohne „!“ in einer Rückfrage | `prompt_override_*`, `injection.rs` |
+| Datenabfluss | Passwortfeld nur als Rolle in der Anfrage; `set_value`-Wert nicht aus der Äußerung → verworfen; kein Intent „Adresse öffnen“ | `datenabfluss_*`, `privacy.rs` |
+| Werkzeug-/Rechteausweitung | erfundene Intents (`execute_script`, `download`) und Zusatzfelder (`confirmed`, `risk`, `requires_confirmation`) sind Schemafehler, auch im Hypothesen-Kanal; ein `IntentProposal` hat genau Intent, Ziel, Stand, Wert, Confidence, Äußerung, Modell | `rechteausweitung_*` |
+| Bestätigungs-Bypass | „!“ ohne offene Rückfrage → nur Rückfrage, Log `reject`/`no_prompt` | `bypass_*`, `session.rs`, `befehle.rs`, `spike/tasks/07-bestaetigung.txt`, im Fork belegt: `relief_browsertests --gtest_filter=*BestaetigungNurEinmalUndGebunden*` grün, `scripts/fork-run-tasks.sh` mit 07 „0 nicht erfüllt“ (M4, 2026-09-30) |
+| Wiederverwendung | zweites „!“, „!“ nach anderer Eingabe, nach „nein“, nach Ablauf, für ersetzten Button (andere DOM-ID) oder nach Navigation → neue Rückfrage | `wiederverwendung_*`, `session.rs`, `security.rs` |
+| Cache-Vergiftung | gespeicherte Antwort aus anderem Graph-Stand → `GraphVersion`; Eintrag mit Freigabefeld → Schemafehler; eine neue Sitzung kennt keine Rückfrage, eine Sitzung lässt sich nicht kopieren (`compile_fail`) | `cache_*` |
+| Schleifen/Kosten | Budget je Aufgabe beendet mit Grund, danach kein Anbieteraufruf mehr | `grenze_*` |
+
+Eine Hypothese senkt das Risiko nie (`injection.rs`,
+`hypothesen_erhoehen_das_risiko_nur`).
+
+### Bestätigungstoken [umgesetzt]
+
+`relief_interaction::security` und `Session` (beide Hosts):
+
+- Verlangt ein Plan Bestätigung (HIGH oder unsicherer Name), antwortet die
+  Sitzung „Bestätigung nötig (…) — Aktion: …, Ziel: …[, Adresse: …]“ und legt
+  ein Token ab. Die Rückfrage entsteht aus Plan und lokalen Daten; die
+  Adresse ohne Query und Fragment.
+- **Gebunden** (`Binding`) an: Aktion samt Wert, Zielknoten und DOM-ID,
+  Risikoklasse, Graph-Version, Zieladresse (URL des Ziels, vollständig),
+  Adresse des Hauptdokuments und den Ausschnitt (Rolle, Name mit Herkunft,
+  Wert, Optionen, Zustände, deaktiviert; Seitentyp). Eine neue
+  Graph-Version allein macht das Token nicht ungültig, ein geänderter
+  Ausschnitt schon (→ 05, Validierung Schritt 2).
+- **Einmalig und nur für die nächste Eingabe**: Jede Eingabe nimmt das
+  Token heraus; eingelöst wird es nur durch „!“ plus denselben Plan.
+  `Session::discard_confirmation` verwirft es ohne Eingabe (Befehlsleiste:
+  „nein“).
+- **Kurzlebig**: 60 s [Annahme] (`CONFIRMATION_TTL`).
+- „!“ ohne offene Rückfrage bestätigt nichts; die Antwort ist eine neue
+  Rückfrage mit Grund („keine offene Rückfrage zu dieser Aktion“).
+- Das Token ist weder `Clone` noch serialisierbar, `Session` und die
+  Fork-`Runtime` sind nicht kopierbar: keine Freigabe aus Cache, Profil oder
+  Kopie.
+
+Entscheidung: `!` behält seine Schreibweise, ändert aber die Bedeutung von
+„bestätigt diesen Befehl“ zu „löst die eben gezeigte Rückfrage ein“. Sonst
+wäre `!` eine pauschale Vorab-Zustimmung zu einem Ziel, das Relief noch
+nicht gezeigt hat (→ „Manipulierte Semantik“). Die Aufgabendateien stellen
+deshalb vor jedem `!klicke …` für HIGH die Rückfrage (`03-form.txt`,
+`06-form-assertions.txt`; „Rückruf anfordern“ ist HIGH, weil es „order“
+enthält).
+
+### Grenzen je Aufgabe [umgesetzt, Werte Annahme]
+
+`relief_ai_contract::Budget` mit `Limits` (Standard): höchstens 5 000 Knoten
+je Modelleingabe, 20 Aufrufe, dieselbe Anfrage 2-mal, 120 s, 100 000 Tokens
+(Eingabe plus Ausgabe, soweit gemeldet). Geprüft vor jedem Aufruf, Tokens
+danach; die Antwort, die das Token-Budget überschreitet, wird verworfen. Die
+erste Überschreitung beendet die Aufgabe (`ModelError::Limit`, Text
+„Aufgabe abgebrochen: Grenze für … erreicht (… bei höchstens …). Für diese
+Aufgabe wird kein Modell mehr gefragt.“); danach ruft das Budget keinen
+Anbieter mehr auf. Ein Anbieter ohne Verbrauchsangabe zählt nur als Aufruf.
+
+### Security-Log [umgesetzt]
+
+`SecurityEvent` (JSON): `decision` (`perform`, `ask_confirmation`,
+`perform_confirmed`, `reject`, `abort`), `plan` (Plan-ID der Sitzung, verbindet
+Rückfrage und Ausführung), `action` (nur die Art, z. B. `set_value`), `risk`,
+`reason` (`no_prompt`, `expired`, `changed: page|target|action|value|
+destination|risk|section`, `invalid`, `limit: …`). Keine Werte, Namen oder
+Eingaben (belegt: `security_log_ohne_werte_und_namen`). `Session` hält die
+letzten 256 Einträge bis `take_security_log`; `LimitExceeded::event` für
+Abbrüche.
+
+Offen (→ 58): Hosts holen das Log nicht ab und schreiben es nirgends hin;
+kein Aufrufer benutzt `Budget`, weil die Runtime noch kein Modell aufruft;
+Formularziel (`action` eines Formulars) steht nicht im AX-Baum und ist nicht
+gebunden; sensible Werte werden in der Rückfrage nicht maskiert (die Runtime
+kennt `type=password`/`autocomplete` noch nicht, → „Woher die Feldangaben
+kommen“).

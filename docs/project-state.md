@@ -48,18 +48,22 @@ Befehle im REPL: „was ist hier", „wo bin ich", „was kann ich tun",
 „nächster/vorheriger Abschnitt", „nächstes/vorheriges Formularfeld",
 „lies den Abschnitt [ …]", „welche … gibt es", „öffne …", „fülle … mit …",
 „wähle …", „erhöhe/verringere …", „scrolle nach unten/oben/zum Anfang/zum
-Ende", „schließe den Dialog" (vollständig: „hilfe"); `!` davor bestätigt
-riskante Aktionen, `url …` lädt eine andere Seite.
+Ende", „schließe den Dialog" (vollständig: „hilfe"); `url …` lädt eine
+andere Seite. Riskante Aktionen fragen zurück; `!` vor demselben Befehl als
+nächste Eingabe bestätigt genau diese Rückfrage, einmal. `!` ohne offene
+Rückfrage bestätigt nichts.
 
 In Aufgabendateien prüft `assert: <Zusicherung>` den aktuellen Stand eines
 Formulars und antwortet mit Befunden (Regel-IDs `form/…`) oder „Keine
 Befunde.“: `feldnamen`, `namen-wie-accname`, `fehler-verknüpft [Feld]`,
 `fokus-auf-erstem-fehler`, `bestätigungsdialog`, `statusmeldung <Text>`,
 `tabfolge <Feld>, …`. `statusmeldung` verlangt zusätzlich, dass die letzte
-`do:`-Zeile eine vorhandene Live-Region geändert hat.
+`do:`-Zeile eine vorhandene Live-Region geändert hat. `07-bestaetigung.txt`
+prüft, dass sich die Rückfrage nicht umgehen lässt (beide Hosts).
 
 Im Palettenmodus öffnet Strg+Umschalt+Leertaste die Befehlsleiste; riskante
-Aktionen werden mit „ja“ bestätigt. Jede Eingabe landet mit Ergebnisart und
+Aktionen werden mit „ja“ bestätigt, „nein“ verwirft die Rückfrage. Jede
+Eingabe landet mit Ergebnisart und
 Tastendrücken, ohne Seiteninhalte, in `relief-protokoll.jsonl` (`RELIEF_LOG`).
 
 Resolver fehlender Namen kalibrieren (Stichprobe `spike/kalibrierung/`):
@@ -156,7 +160,9 @@ scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurüc
   stehen (`relief-ai-contract`); ein Adapter für die Anthropic Messages API
   (Feature `anthropic`) und das Kalibrierwerkzeug in `relief-resolver`.
   Schwellen sind noch nicht gemessen, Modellnamen bleiben `Uncertain`; die
-  Runtime ruft noch kein Modell auf.
+  Runtime ruft noch kein Modell auf. Missbrauchsfälle an der Modellgrenze
+  sind als feste Tests beschrieben; Modellaufrufe unter Grenzen je Aufgabe
+  gehen über `Budget`.
 
 ## Wo liegt was
 
@@ -164,8 +170,8 @@ scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurüc
 |---|---|
 | `crates/relief-model` | browserfrei: semantisches Datenmodell, Delta-Format, Konverter aus `a11y-perception` |
 | `crates/relief-bridge` | browserfrei: Rust-Seite der Grenze zum Fork (`cxx`-Bridge, Mojo-Entwurf), Benchmarks (`cargo bench -p relief-bridge`) |
-| `crates/relief-interaction` | browserfrei, auf `relief-model`: Interaction Graph, Befehle, Zielauflösung, Validierung, Antworttexte, Formular-Zusicherungen (Befunde im Format von `a11y-report`) |
-| `crates/relief-ai-contract` | browserfrei: KI-Vertrag (Hypothesen, Intent-Vorschläge, JSON-Schemas), `ModelProvider` mit Stufen, Privacy-Filter |
+| `crates/relief-interaction` | browserfrei, auf `relief-model`: Interaction Graph, Befehle, Zielauflösung, Validierung, Bestätigungstoken und Security-Log, Antworttexte, Formular-Zusicherungen (Befunde im Format von `a11y-report`) |
+| `crates/relief-ai-contract` | browserfrei: KI-Vertrag (Hypothesen, Intent-Vorschläge, JSON-Schemas), `ModelProvider` mit Stufen, Privacy-Filter, Grenzen je Aufgabe (`Budget`); Sicherheits-Regressionsmatrix in `tests/missbrauch.rs` |
 | `crates/relief-resolver` | browserfrei: Resolver fehlender Namen (Ausschnitt, Anthropic-Adapter hinter Feature `anthropic`, Kalibrierung) |
 | `crates/relief-cdp` | Spike-Host: steuert Chrome über CDP, führt Aktionen aus |
 | `spike/fixtures`, `spike/tasks` | Testseiten und Aufgabendateien (`url:`/`do:`/`assert:`/`expect:`); `06-form-assertions.txt` mit `form-clean.html`/`form-broken.html`/`status-inserted.html` prüft die Formular-Zusicherungen |

@@ -11,6 +11,7 @@
 //! | [`Hypothesis`], [`HYPOTHESES_SCHEMA`] | fehlende Semantik als Hypothese mit Pflichtmetadaten |
 //! | [`IntentProposal`], [`INTENT_SCHEMA`] | Intent-Vorschlag aus einer Nutzeräußerung |
 //! | [`assess_risk`] | Hypothesen dürfen die Risikoklasse nur erhöhen |
+//! | [`Budget`], [`Limits`] | feste Grenzen je Aufgabe: Baumgröße, Aufrufe, Wiederholungen, Zeit, Tokens |
 //!
 //! # Grenzen, die das Typsystem zieht
 //!
@@ -27,6 +28,7 @@
 
 #![forbid(unsafe_code)]
 
+mod budget;
 mod error;
 mod hypothesis;
 mod intent;
@@ -34,6 +36,7 @@ mod privacy;
 mod provider;
 mod risk;
 
+pub use budget::{Budget, LimitExceeded, Limits};
 pub use error::ValidationError;
 pub use hypothesis::{
     calibrated_threshold, validate_hypotheses, HypothesesOutput, Hypothesis, HypothesisOutput,

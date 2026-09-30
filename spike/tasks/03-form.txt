@@ -13,5 +13,8 @@ do: fülle E-Mail mit erika@example.org
 expect: SetValue
 do: klicke Datenschutzhinweise
 expect: checked
+# „!“ löst nur die unmittelbar vorher gestellte Rückfrage ein.
+do: klicke Nachricht senden
+expect: Bestätigung nötig
 do: !klicke Nachricht senden
 expect: Danke, Nachricht gesendet
