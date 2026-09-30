@@ -110,7 +110,6 @@ async fn serve(mut session: Session, mut calls: EventStream<EventBindingCalled>)
         .append(true)
         .open(&log_path)?;
 
-    let mut pending: Option<String> = None;
     let mut last_keys = 0u64;
     while let Some(call) = calls.next().await {
         if call.name != BINDING {
@@ -124,13 +123,6 @@ async fn serve(mut session: Session, mut calls: EventStream<EventBindingCalled>)
             .to_string();
         let keys = payload["keys"].as_u64().unwrap_or(0);
 
-        let confirmed = pending.take().filter(|_| text.eq_ignore_ascii_case("ja"));
-        let declined = text.eq_ignore_ascii_case("nein");
-        let input = match &confirmed {
-            Some(original) => format!("!{original}"),
-            None => text.clone(),
-        };
-
         // Die offene Leiste macht als modaler Dialog die Seite inert — ihr
         // Accessibility-Baum wäre leer. Deshalb vor jedem Befehl schließen und
         // Ruhe abwarten; der Browser gibt den Fokus dorthin zurück, wo er vor
@@ -141,18 +133,10 @@ async fn serve(mut session: Session, mut calls: EventStream<EventBindingCalled>)
             .await
             .ok();
         session.live.settle().await;
-        let (response, kind) = if declined && confirmed.is_none() {
-            // Auch die Rückfrage der Sitzung verwerfen, sonst löste ein
-            // späteres „!“ sie noch ein.
-            session.session.discard_confirmation();
-            ("Abgebrochen, nichts ausgeführt.".to_string(), "abgebrochen")
-        } else {
-            respond(&mut session, &input).await
-        };
-        if kind == "bestätigung nötig" {
-            // „ja“ wiederholt den Befehl mit „!“, auch wenn er schon eins trug.
-            pending = Some(text.trim_start_matches('!').trim().to_string());
-        }
+        // „ja“, Zahl und „abbrechen“ beantwortet die Sitzung selbst
+        // (`Session::pending_reply`).
+        let (response, kind) = respond(&mut session, &text).await;
+        let pending = matches!(kind, "bestätigung nötig" | "rückfrage");
 
         let js = if kind == "ausgeführt" {
             format!(
@@ -163,7 +147,7 @@ async fn serve(mut session: Session, mut calls: EventStream<EventBindingCalled>)
             format!(
                 "window.__reliefShow && window.__reliefShow({}, {})",
                 json!(response),
-                pending.is_some()
+                pending
             )
         };
         session.page.evaluate(js).await.ok();

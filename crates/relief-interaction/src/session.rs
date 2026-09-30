@@ -103,12 +103,62 @@ pub struct Session {
     confirmation_ttl: Duration,
     plans: u64,
     log: SecurityLog,
+    /// Mehrdeutiges Ziel der letzten Eingabe; gilt nur für die nächste.
+    choices: Option<Choices>,
+    /// Letzte Eingabe als Befehl (ohne „!“): „ja“ bestätigt sie.
+    last_input: Option<String>,
 }
+
+/// Kandidaten einer Rückfrage „Mehrdeutig“.
+#[derive(Debug)]
+enum Choices {
+    Controls(Vec<Control>, ActionKind),
+    Places(Vec<Place>),
+}
+
+/// Was eine Eingabe vor der Befehlszerlegung bewirkt
+/// (→ [`Session::pending_reply`]).
+#[derive(Debug)]
+pub enum Pending {
+    /// Die Eingabe beantwortet eine Rückfrage; das ist das Ergebnis.
+    Done(Outcome),
+    /// „ja“: dieselbe Eingabe mit „!“ verarbeiten (löst die Rückfrage ein).
+    Confirm(String),
+    /// Ein neuer Befehl; offene Rückfragen sind verworfen bzw. gelten nur
+    /// noch für „!“ in dieser Eingabe.
+    Command,
+}
+
+/// Nicht gefunden (Antwort) oder mehrdeutig (Antwort mit Kandidaten).
+enum Miss<T> {
+    Text(String),
+    Many(String, Vec<T>),
+}
+
+impl<T> From<String> for Miss<T> {
+    fn from(text: String) -> Self {
+        Miss::Text(text)
+    }
+}
+
+impl<T> Miss<T> {
+    fn text(self) -> String {
+        match self {
+            Miss::Text(text) | Miss::Many(text, _) => text,
+        }
+    }
+}
+
+/// Wörter, die eine offene Rückfrage verwerfen, bzw. sie bestätigen.
+const CANCEL: &[&str] = &["abbrechen", "abbruch", "nein", "stopp", "stop", "cancel"];
+const CONFIRM: &[&str] = &["ja", "bestätigen", "bestätige", "yes"];
 
 impl Default for Session {
     fn default() -> Self {
         Session {
             position: None,
+            choices: None,
+            last_input: None,
             confirmation: None,
             confirmation_ttl: CONFIRMATION_TTL,
             plans: 0,
@@ -154,9 +204,79 @@ impl Session {
         }
     }
 
+    /// Eingabe vor der Befehlszerlegung gegen offene Rückfragen prüfen: Zahl
+    /// oder Name wählt einen Kandidaten, „ja“ bestätigt die gezeigte
+    /// Rückfrage (wie „!“ vor derselben Eingabe), „abbrechen“ verwirft
+    /// Auswahl und Rückfrage (→ `spezifikation/05`). Hosts rufen das vor
+    /// [`parse_input`] und [`Session::handle`].
+    pub fn pending_reply(&mut self, graph: &Graph, model: &SemanticGraph, input: &str) -> Pending {
+        let text = input
+            .trim()
+            .trim_end_matches(['.', '!'])
+            .trim()
+            .to_lowercase();
+        let choices = self.choices.take();
+        if CANCEL.contains(&text.as_str()) {
+            let open = choices.is_some() || self.confirmation.is_some();
+            self.confirmation = None;
+            self.last_input = None;
+            return Pending::Done(Outcome::Answer(if open {
+                "Abgebrochen. Nichts ausgeführt.".into()
+            } else {
+                "Nichts offen, das sich abbrechen ließe.".into()
+            }));
+        }
+        if CONFIRM.contains(&text.as_str()) && self.confirmation.is_some() {
+            if let Some(last) = self.last_input.take() {
+                return Pending::Confirm(format!("!{last}"));
+            }
+        }
+        match choices {
+            Some(Choices::Controls(controls, kind)) => {
+                let labels: Vec<String> = controls.iter().map(respond::control_line).collect();
+                if let Some(i) = choose(&text, &labels) {
+                    self.confirmation = None;
+                    return Pending::Done(self.plan_control(
+                        graph,
+                        model,
+                        controls[i].clone(),
+                        kind,
+                        false,
+                        None,
+                    ));
+                }
+            }
+            Some(Choices::Places(places)) => {
+                let labels: Vec<String> = places
+                    .iter()
+                    .map(|p| respond::place_label(graph, *p))
+                    .collect();
+                if let Some(i) = choose(&text, &labels) {
+                    self.confirmation = None;
+                    return Pending::Done(self.navigate(graph, places[i]));
+                }
+            }
+            None => {}
+        }
+        self.last_input = Some(input.trim().trim_start_matches('!').trim().to_string());
+        Pending::Command
+    }
+
+    /// Nicht gefunden: Antwort. Mehrdeutig: Kandidaten merken, nummeriert
+    /// antworten.
+    fn ask<T>(&mut self, miss: Miss<T>, keep: impl FnOnce(Vec<T>) -> Choices) -> Outcome {
+        match miss {
+            Miss::Text(text) => Outcome::Answer(text),
+            Miss::Many(text, choices) => {
+                self.choices = Some(keep(choices));
+                Outcome::Answer(text)
+            }
+        }
+    }
+
     /// Einen zerlegten Befehl gegen den aktuellen Stand beantworten oder in
     /// einen geprüften Plan übersetzen. `focus`: Fokus der Seite, nur nötig,
-    /// wenn [`uses_focus`] zutrifft.
+    /// wenn [`uses_focus`] zutrifft. Vorher [`Session::pending_reply`].
     pub fn handle(
         &mut self,
         graph: &Graph,
@@ -187,13 +307,13 @@ impl Session {
                 let field = step_field(graph, here.as_ref(), step)
                     .cloned()
                     .ok_or_else(|| {
-                        format!(
+                        Miss::Text(format!(
                             "Kein {} Formularfeld.",
                             match step {
                                 Step::Next => "weiteres",
                                 Step::Previous => "vorheriges",
                             }
-                        )
+                        ))
                     });
                 (field, ActionKind::Focus)
             }
@@ -214,12 +334,12 @@ impl Session {
             Command::GoToPlace(q) => {
                 return match pick_place(graph, &q) {
                     Ok(place) => self.navigate(graph, place),
-                    Err(msg) => Outcome::Answer(msg),
+                    Err(miss) => self.ask(miss, Choices::Places),
                 }
             }
             Command::Read(q) => {
                 let place = match q {
-                    Some(q) => pick_place(graph, &q),
+                    Some(q) => pick_place(graph, &q).map_err(Miss::text),
                     None => current_place(graph, here.as_ref()).ok_or_else(|| {
                         "Kein Abschnitt am Fokus. „lies den Abschnitt <Name>“ nennt einen.".into()
                     }),
@@ -233,7 +353,7 @@ impl Session {
                 let found = resolve_inflected(graph, &q, |_| true);
                 return Outcome::Answer(match pick_from(graph, &q, found) {
                     Ok(c) => respond::inspect(&c),
-                    Err(msg) => msg,
+                    Err(miss) => miss.text(),
                 });
             }
             // Escape geht an den echten Fokus, nicht an die Position.
@@ -247,10 +367,23 @@ impl Session {
                 }
             },
         };
-        let control = match target {
-            Ok(c) => c,
-            Err(msg) => return Outcome::Answer(msg),
-        };
+        match target {
+            Ok(control) => self.plan_control(graph, model, control, kind, confirmed, offered),
+            Err(miss) => self.ask(miss, |controls| Choices::Controls(controls, kind)),
+        }
+    }
+
+    /// Plan für ein Bedienelement; riskant ohne eingelöste Rückfrage →
+    /// Rückfrage mit Einmal-Bestätigung.
+    fn plan_control(
+        &mut self,
+        graph: &Graph,
+        model: &SemanticGraph,
+        control: Control,
+        kind: ActionKind,
+        confirmed: bool,
+        offered: Option<Confirmation>,
+    ) -> Outcome {
         let label = respond::control_line(&control);
 
         let action = action_name(&kind);
@@ -383,7 +516,8 @@ fn confirmation_prompt(
         .unwrap_or_default();
     format!(
         "Bestätigung nötig ({:?}): {} — Aktion: {:?}, Ziel: {label}{destination}. \
-         Mit „!“ davor bestätigen; gilt einmal und nur für genau diese Aktion.{refused}",
+         „ja“ (oder „!“ vor denselben Befehl) bestätigt einmal und nur genau diese \
+         Aktion, „abbrechen“ verwirft sie.{refused}",
         plan.risk,
         plan.notes.join("; "),
         plan.kind,
@@ -416,31 +550,65 @@ impl Session {
     }
 }
 
-fn pick_place(graph: &Graph, query: &str) -> Result<Place, String> {
+/// Nummerierte Kandidatenliste mit Hinweis, wie gewählt wird.
+fn numbered(head: String, labels: impl Iterator<Item = String>) -> String {
+    let list = labels
+        .enumerate()
+        .map(|(i, l)| format!("  {}. {l}", i + 1))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("{head}\n{list}\nZahl oder Name wählt aus, „abbrechen“ verwirft.")
+}
+
+/// Kandidat zu einer Antwort: Zahl (1-basiert) oder ein Text, der genau
+/// einen Kandidaten trifft.
+fn choose(text: &str, labels: &[String]) -> Option<usize> {
+    if let Ok(n) = text.parse::<usize>() {
+        return (1..=labels.len()).contains(&n).then(|| n - 1);
+    }
+    if text.is_empty() {
+        return None;
+    }
+    let hits: Vec<usize> = labels
+        .iter()
+        .enumerate()
+        .filter(|(_, l)| l.to_lowercase().contains(text))
+        .map(|(i, _)| i)
+        .collect();
+    match hits.as_slice() {
+        [one] => Some(*one),
+        _ => None,
+    }
+}
+
+fn pick_place(graph: &Graph, query: &str) -> Result<Place, Miss<Place>> {
     match resolve_place(graph, query) {
         PlaceResolution::One(place) => Ok(place),
-        PlaceResolution::None => Err(format!(
+        PlaceResolution::None => Err(Miss::Text(format!(
             "Keine Überschrift und kein Bereich „{query}“ gefunden."
-        )),
-        PlaceResolution::Many(places) => Err(format!(
-            "Mehrdeutig, „{query}“ passt auf:\n{}",
-            places
-                .iter()
-                .map(|p| format!("  - {}", respond::place_label(graph, *p)))
-                .collect::<Vec<_>>()
-                .join("\n")
+        ))),
+        PlaceResolution::Many(places) => Err(Miss::Many(
+            numbered(
+                format!("Mehrdeutig, „{query}“ passt auf:"),
+                places.iter().map(|p| respond::place_label(graph, *p)),
+            ),
+            places,
         )),
     }
 }
 
-fn pick(graph: &Graph, query: &str, accept: impl Fn(&Control) -> bool) -> Result<Control, String> {
+fn pick(
+    graph: &Graph,
+    query: &str,
+    accept: impl Fn(&Control) -> bool,
+) -> Result<Control, Miss<Control>> {
     pick_from(graph, query, resolve(graph, query, accept))
 }
 
-fn pick_from(graph: &Graph, query: &str, found: Resolution) -> Result<Control, String> {
+fn pick_from(graph: &Graph, query: &str, found: Resolution) -> Result<Control, Miss<Control>> {
     match found {
         Resolution::One(c) => Ok(c.clone()),
-        Resolution::None => Err(match graph.active_modal() {
+        Resolution::None => Err(Miss::Text(match graph.active_modal() {
             Some(m)
                 if graph.controls.iter().any(|c| {
                     !graph.is_reachable(c.region, &c.node)
@@ -456,22 +624,24 @@ fn pick_from(graph: &Graph, query: &str, found: Resolution) -> Result<Control, S
                 )
             }
             _ => format!("Nichts gefunden für „{query}“."),
-        }),
-        Resolution::Many(cs) => Err(format!(
-            "Mehrdeutig, „{query}“ passt auf:\n{}",
-            cs.iter()
-                .map(|c| format!(
-                    "  - {} in {}",
-                    respond::control_line(c),
-                    graph.region_label(c.region)
-                ))
-                .collect::<Vec<_>>()
-                .join("\n")
+        })),
+        Resolution::Many(cs) => Err(Miss::Many(
+            numbered(
+                format!("Mehrdeutig, „{query}“ passt auf:"),
+                cs.iter().map(|c| {
+                    format!(
+                        "{} in {}",
+                        respond::control_line(c),
+                        graph.region_label(c.region)
+                    )
+                }),
+            ),
+            cs.into_iter().cloned().collect(),
         )),
     }
 }
 
-fn pick_by_option(graph: &Graph, option: &str) -> Result<Control, String> {
+fn pick_by_option(graph: &Graph, option: &str) -> Result<Control, Miss<Control>> {
     // Wie `resolve`: bei offenem modalem Dialog nur dessen Inhalt.
     let hits: Vec<&Control> = graph
         .reachable_controls()
@@ -479,13 +649,15 @@ fn pick_by_option(graph: &Graph, option: &str) -> Result<Control, String> {
         .collect();
     match hits.as_slice() {
         [one] => Ok((*one).clone()),
-        [] => Err(format!("Kein Auswahlfeld mit Option „{option}“.")),
-        many => Err(format!(
-            "Mehrere Auswahlfelder haben „{option}“: {}",
-            many.iter()
-                .map(|c| c.display_name())
-                .collect::<Vec<_>>()
-                .join(", ")
+        [] => Err(Miss::Text(format!(
+            "Kein Auswahlfeld mit Option „{option}“."
+        ))),
+        many => Err(Miss::Many(
+            numbered(
+                format!("Mehrere Auswahlfelder haben „{option}“:"),
+                many.iter().map(|c| c.display_name()),
+            ),
+            many.iter().map(|c| (*c).clone()).collect(),
         )),
     }
 }

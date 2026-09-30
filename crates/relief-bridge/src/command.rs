@@ -70,16 +70,27 @@ impl Runtime {
     /// Modell: Im Fork führt Chromium ihn in den Baumdaten nach.
     pub fn command(&mut self, input: &str) -> Reply {
         self.pending = None;
-        let (confirmed, cmd) = match parse_input(input) {
+        let graph = Graph::build(&self.graph);
+        // Antwort auf eine offene Rückfrage (Zahl, „ja“, „abbrechen“)?
+        let input = match self.session.pending_reply(&graph, &self.graph, input) {
+            relief_interaction::Pending::Done(outcome) => return self.reply(graph, outcome),
+            relief_interaction::Pending::Confirm(again) => again,
+            relief_interaction::Pending::Command => input.to_string(),
+        };
+        let (confirmed, cmd) = match parse_input(&input) {
             Ok(c) => c,
             Err(msg) => return Reply::Answer(msg),
         };
-        let graph = Graph::build(&self.graph);
         let focus = relief_interaction::focused(&self.graph);
-        match self
+        let outcome = self
             .session
-            .handle(&graph, &self.graph, confirmed, cmd, focus.as_ref())
-        {
+            .handle(&graph, &self.graph, confirmed, cmd, focus.as_ref());
+        self.reply(graph, outcome)
+    }
+
+    /// Ergebnis der Sitzung in einen Auftrag an den Fork übersetzen.
+    fn reply(&mut self, graph: Graph, outcome: Outcome) -> Reply {
+        match outcome {
             Outcome::Answer(text) => Reply::Answer(text),
             Outcome::Scroll(direction) => Reply::Scroll(direction),
             Outcome::Escape { target, reaches } => {
