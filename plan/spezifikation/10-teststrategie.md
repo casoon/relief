@@ -136,9 +136,10 @@ Git-Diff-Durchsicht reicht.
 
 ## CI und Cloud-Umgebung
 
-**CI [Entscheidung]:** `.github/workflows/ci.yml`, Auslöser Release-Tags
-(`v*`) und `workflow_dispatch`; vor jedem Push prüft `scripts/verify.sh`
-lokal dasselbe. Runner `ubuntu-24.04` fest statt `ubuntu-latest`
+**CI [Entscheidung]:** `.github/workflows/ci.yml`, Auslöser Pull Requests,
+Push auf `main`, Release-Tags (`v*`) und `workflow_dispatch` (öffentliches
+Repo, Actions ohne Kosten); vor jedem Push prüft `scripts/verify.sh` lokal
+dasselbe. Runner `ubuntu-24.04` fest statt `ubuntu-latest`
 (`ubuntu-latest` wechselt ab 19.10.2026 auf Ubuntu 26; 24.04 entspricht der
 Cloud-Umgebung). Actions per Commit-SHA gepinnt, Tag im Kommentar.
 

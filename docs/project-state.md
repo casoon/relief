@@ -71,8 +71,8 @@ CDP-Verkehr.
 
 ### CI
 
-`.github/workflows/ci.yml` läuft bei Release-Tags (`v*`) und
-per Hand (`workflow_dispatch`) auf `ubuntu-24.04`:
+`.github/workflows/ci.yml` läuft bei Pull Requests, Push auf `main`,
+Release-Tags (`v*`) und per Hand (`workflow_dispatch`) auf `ubuntu-24.04`:
 
 - **rust:** `cargo fmt --all --check`, `cargo clippy --workspace --all-targets
   -- -D warnings`, `cargo test --workspace`.

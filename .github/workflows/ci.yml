@@ -1,4 +1,5 @@
-# Prüfungen je Release-Tag (lokal vorher: scripts/verify.sh): browserfreie Rust-Prüfungen und die file://-Aufgaben
+# Prüfungen je Pull Request und Push auf main (öffentliches Repo; lokal vorher: scripts/verify.sh):
+# browserfreie Rust-Prüfungen und die file://-Aufgaben
 # gegen ein echtes Chrome (zugleich der Linux-Nachweis des CDP-Hosts).
 #
 # Actions sind per Commit-SHA gepinnt (Tag im Kommentar), damit ein
@@ -7,7 +8,9 @@
 name: CI
 
 on:
+  pull_request:
   push:
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
