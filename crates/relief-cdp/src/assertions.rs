@@ -2,7 +2,7 @@
 //! Fakten, `relief_interaction::assertions` wertet sie browserfrei aus.
 //!
 //! - **Modell und Fokus**: aus der Session (Aufnahme wie bei `do:`), Fokus
-//!   live abgefragt.
+//!   live abgefragt; dazu das Modell vor der letzten `do:`-Zeile.
 //! - **DOM-Fakten** (nur `namen-wie-accname`): `DOM.getDocument` des
 //!   Hauptdokuments als `DomFacts`, nur die Attribute aus
 //!   `dom_attribute_needed`; ohne iframes und Shadow DOM.
@@ -64,6 +64,7 @@ pub async fn run(session: &mut Session, text: &str) -> Result<String> {
             model: &session.model,
             dom: dom.as_ref(),
             focus,
+            before: session.before_action.as_ref(),
             tab_sequence: tabs.as_deref(),
         },
     );
