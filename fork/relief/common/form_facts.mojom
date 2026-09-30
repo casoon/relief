@@ -1,0 +1,26 @@
+// Relief. MIT-Lizenz wie das Relief-Repository.
+
+module relief.mojom;
+
+// Autocomplete-Attribut eines Formularfelds, Knoten per AX-ID des Frames.
+struct FieldFact {
+  int32 ax_id;
+  string autocomplete;
+};
+
+// Antwort auf FormFacts.Get.
+struct FormInfo {
+  // Aufgelöstes Formularziel, wenn der Knoten ein Absenden-Button ist.
+  string? form_action;
+  // `autocomplete` der Felder seines Formulars (nur gesetzte).
+  array<FieldFact> fields;
+};
+
+// Was der AXTree nicht trägt (Paket 75): Blink serialisiert weder
+// `action`/`formaction` noch das HTML-Attribut `autocomplete`. Der Browser
+// fragt nur bei einer Rückfrage an.
+interface FormFacts {
+  // Angaben zum Knoten `ax_id` des Frames; nie null (null heißt beim
+  // Browser: keine Antwort).
+  Get(int32 ax_id) => (FormInfo? info);
+};

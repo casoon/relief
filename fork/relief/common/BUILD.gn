@@ -1,0 +1,8 @@
+# Relief. MIT-Lizenz wie das Relief-Repository.
+
+import("//mojo/public/tools/bindings/mojom.gni")
+
+mojom("mojom") {
+  sources = [ "form_facts.mojom" ]
+  visibility = [ "//relief/*" ]
+}

@@ -150,6 +150,22 @@ class ReliefTabHelper
   size_t hosts_for_testing() const { return hosts_.size(); }
 
  private:
+  // Befehlskette mit Angaben des Renderers zum Formular (Paket 75,
+  // → RunCommand in relief_tab_helper.cc).
+  void OnTargetBeforeCommand(const std::string& input,
+                             base::OnceCallback<void(bridge::Reply)> done,
+                             bridge::Found open);
+  void OnCommandReplied(std::optional<std::pair<std::string, int32_t>> asked,
+                        base::OnceCallback<void(bridge::Reply)> done,
+                        bridge::Reply reply);
+  void FinishCommandReply(base::OnceCallback<void(bridge::Reply)> done,
+                          bridge::Reply reply);
+  // Formularziel und `autocomplete` zum Knoten beim Renderer seines Frames;
+  // std::nullopt ohne Frame oder Antwort.
+  void FetchFormFacts(
+      const bridge::Found& target,
+      base::OnceCallback<void(std::optional<bridge::FormFacts>)> done);
+
   friend class content::WebContentsUserData<ReliefTabHelper>;
   explicit ReliefTabHelper(content::WebContents* contents);
 

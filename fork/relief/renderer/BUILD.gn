@@ -1,0 +1,17 @@
+# Relief. MIT-Lizenz wie das Relief-Repository.
+
+# Renderer-Seite von Relief: beantwortet Anfragen des Browsers, die der
+# AXTree nicht abdeckt (Paket 75). Eingehängt über einen Patch in
+# //chrome/renderer (→ spezifikation/01, Eingriffe außerhalb //relief/).
+source_set("renderer") {
+  sources = [
+    "form_facts_agent.cc",
+    "form_facts_agent.h",
+  ]
+  deps = [
+    "//base",
+    "//content/public/renderer",
+    "//relief/common:mojom",
+    "//third_party/blink/public:blink",
+  ]
+}

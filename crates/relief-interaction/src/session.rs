@@ -172,6 +172,11 @@ pub struct Session {
     /// Ziel der offenen Rückfrage: „ja“ plant genau dieses neu und löst
     /// die Rückfrage ein.
     confirm_target: Option<(Control, ActionKind)>,
+    /// Warum die Bestätigung vor der offenen Rückfrage nicht galt; eine
+    /// neu gestellte Rückfrage ([`Session::reconfirm`]) nennt ihn wieder.
+    confirm_refused: Option<Reason>,
+    /// Nur für den einen Aufruf aus [`Session::reconfirm`].
+    carry_refusal: Option<Reason>,
     /// Sprungmarken des zuletzt gezeigten Stands (→ `marks`).
     marks: Vec<Mark>,
     /// Ort vor dem Sprung zum ersten Fehler („zurück“).
@@ -229,6 +234,8 @@ impl Default for Session {
             choices: None,
             last_input: None,
             confirm_target: None,
+            confirm_refused: None,
+            carry_refusal: None,
             marks: Vec::new(),
             return_to: None,
             confirmation: None,
@@ -261,6 +268,30 @@ impl Session {
     /// Nutzerin lehnt ab, → `spezifikation/05`, „Abbrechen“).
     pub fn discard_confirmation(&mut self) {
         self.confirmation = None;
+    }
+
+    /// Ziel der offenen Rückfrage. Der Fork fragt dafür Formularziel und
+    /// `autocomplete` beim Renderer an, weil der AXTree sie nicht trägt
+    /// (Paket 75, → `spezifikation/07`).
+    pub fn confirmation_target(&self) -> Option<&NodeRef> {
+        self.confirmation.as_ref()?;
+        self.confirm_target.as_ref().map(|(c, _)| &c.node)
+    }
+
+    /// Offene Rückfrage gegen den jetzigen Stand neu stellen (neue Plan-ID,
+    /// neue Bindung), etwa nachdem der Host Angaben zum Ziel nachgetragen
+    /// hat. Die bisherige gilt nicht mehr. `None`, wenn keine offen ist.
+    pub fn reconfirm(&mut self, graph: &Graph, model: &SemanticGraph) -> Option<Outcome> {
+        self.confirmation.take()?;
+        let (control, kind) = self.confirm_target.take()?;
+        self.carry_refusal = self.confirm_refused.take();
+        let current = graph
+            .controls
+            .iter()
+            .find(|c| c.node == control.node)
+            .cloned()
+            .unwrap_or(control);
+        Some(self.plan_control(graph, model, current, kind, false, None))
     }
 
     fn next_plan(&mut self) -> PlanId {
@@ -610,7 +641,8 @@ impl Session {
                 .map(|g| form::values(graph, model, g))
                 .unwrap_or_default(),
         );
-        let mut refused = None;
+        // Nur aus `reconfirm` gesetzt: der Grund der verworfenen Rückfrage.
+        let mut refused = self.carry_refusal.take();
         if confirmed {
             let (id, redeemed) = match offered {
                 Some(token) => (
@@ -651,6 +683,7 @@ impl Session {
         }
         self.confirmation = Some(Confirmation::new(id, binding));
         self.confirm_target = Some((control, kind_for_confirm));
+        self.confirm_refused = refused;
         Outcome::Answer(answer)
     }
 

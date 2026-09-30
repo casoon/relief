@@ -200,9 +200,31 @@ Eine Hypothese senkt das Risiko nie (`injection.rs`,
   `rueckfrage_nennt_das_formularziel_und_bindet_es`, `security.rs`
   `jedes_gebundene_feld_verlangt_neue_bestaetigung`). Belegt im Browser:
   `06-form-assertions.txt` erwartet „Formularziel: file://…/form-clean.html“.
-  Im Fork kommt es nicht an: Blink serialisiert `action` nicht,
-  `AXNodeObject::Url` liefert nur Link-Ziel, Dokument- und Bildadresse
-  (`ax_node_object.cc`, 154.0.8037.58) → Paket 75.
+  Im Fork [umgesetzt, Paket 75]: Blink serialisiert weder `action` noch das
+  HTML-`autocomplete` (`AXNodeObject::Url` liefert nur Link-Ziel, Dokument-
+  und Bildadresse; `kAutoComplete` ist `aria-autocomplete`,
+  `ax_node_object.cc`, 154.0.8037.58). Entscheidung (Nutzer, 2026-09-30):
+  Anfrage an den Renderer nur bei einer Rückfrage, kein Blink-Patch.
+  `relief.mojom.FormFacts` (`fork/relief/common/`) beantwortet ein
+  `FormFactsAgent` je RenderFrame (`fork/relief/renderer/`, eingehängt über
+  Patch 7 in `ChromeContentRendererClient::RenderFrameCreated`): zum
+  AX-Knoten das aufgelöste Formularziel (gleiche Regel wie `facts.rs`) und
+  `autocomplete` der Felder seines Formulars. `ReliefTabHelper::RunCommand`
+  fragt an (a) vor jeder Eingabe für das Ziel einer offenen Rückfrage, damit
+  „ja“ bzw. „!“ gegen den aktuellen Stand bindet, und (b) nach einer Eingabe,
+  die eine neue Rückfrage stellt; dann stellt die Runtime sie mit den
+  Angaben neu (`Session::reconfirm`: neue Plan-ID und Bindung, Grund einer
+  verworfenen Bestätigung bleibt). Die Angaben liegen unter denselben
+  Schlüsseln im Modell (`Runtime::apply_form_facts`), bis eine Delta den
+  Knoten ersetzt. Ohne Antwort (Frame weg) geht es ohne Angaben weiter. Das
+  Security-Log enthält dann zwei `ask_confirmation` (die erste Rückfrage
+  sieht niemand). Belegt: `relief_browsertests
+  --gtest_filter=*Formularziel*` (Rückfrage nennt
+  `http://a.test:…/bestellen`, verdeckt das Feld nur wegen
+  `autocomplete=cc-number`, neues `action` vor „ja“ → neue Rückfrage mit
+  neuem Ziel, dann genau ein Absenden), `befehle.rs`
+  `formularziel_nachgetragen_und_gebunden`,
+  `neu_gestellte_rueckfrage_behaelt_den_grund`.
 - **Sensible Werte** [umgesetzt, Paket 58]: Ist das Ziel ein Passwortfeld
   oder trägt es `autocomplete` für Zahlungs- oder Identitätsdaten
   (`is_sensitive_field`, dieselbe Regel wie `FieldHint::is_sensitive`),
@@ -340,7 +362,7 @@ Im Fork (M4) belegt: `relief_browsertests` grün; Fork-Aufgaben 01–05, 07,
 15 ohne Fehlschlag; `16-sensible-werte.txt` mit `--relief-log`: Anzeigename
 und Passwort wie erwartet, Benutzername und Kartennummer (drei
 Erwartungen) nennen den Wert, weil `autocomplete` im Fork nicht ankommt
-(→ 75); die Zeilen `command` lauten „fülle … mit (verdeckt)“, keine
+(außerhalb einer Rückfrage weiter so, → 112); die Zeilen `command` lauten „fülle … mit (verdeckt)“, keine
 Protokollzeile enthält einen der Werte. Panel: „fülle Passwort mit
 geheim123“ erscheint im Log als „fülle Passwort mit (verdeckt):
 SetValue(verdeckt) auf [textbox] Passwort …“.

@@ -579,6 +579,59 @@ IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, BestaetigungNurEinmalUndGebunden) {
   EXPECT_EQ("1", content::EvalJs(web_contents(), kKlicks));
 }
 
+// Formularziel im Fork (Paket 75): Die Rückfrage nennt das Ziel, das der
+// Browser beim Renderer anfragt (der AXTree trägt es nicht), und verdeckt
+// ein Feld nur wegen `autocomplete=cc-number` (Beschriftung und Seite
+// verraten nichts, der Name bleibt lesbar); ein anderes `action` vor „ja“
+// verlangt eine neue Bestätigung. Gezählt wird im DOM der Seite.
+IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, FormularzielInDerRueckfrage) {
+  GraphRecorder graph(helper());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), Url("a.test", "/formular-ziel.html")));
+  const std::string main = TreeOf(web_contents()->GetPrimaryMainFrame());
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return graph.Find("Jetzt kaufen", main) && graph.root() == main; }));
+
+  auto run = [&](const std::string& input) {
+    base::test::TestFuture<bridge::Reply> reply;
+    helper().RunCommand(input, reply.GetCallback());
+    return reply.Take();
+  };
+  constexpr char kAbgeschickt[] = "document.getElementById('s').textContent";
+  const std::string bestellen = Url("a.test", "/bestellen").spec();
+  const std::string anderswo = Url("a.test", "/anderswo").spec();
+
+  bridge::Reply reply = run("klicke Jetzt kaufen");
+  std::string text(reply.text);
+  ASSERT_EQ(bridge::ReplyKind::Answer, reply.kind) << text;
+  EXPECT_TRUE(text.starts_with("Bestätigung nötig")) << text;
+  EXPECT_NE(text.find(bestellen), std::string::npos) << text;
+  EXPECT_EQ(text.find("4111"), std::string::npos) << text;
+  EXPECT_NE(text.find("Nummer = (verdeckt)"), std::string::npos) << text;
+  EXPECT_NE(text.find("„Erika“"), std::string::npos) << text;
+
+  // Das Ziel ändert sich vor „ja“: neue Rückfrage mit dem neuen Ziel.
+  ASSERT_TRUE(content::ExecJs(web_contents(),
+                              "document.getElementById('f').action = "
+                              "'/anderswo'"));
+  reply = run("ja");
+  text = std::string(reply.text);
+  ASSERT_EQ(bridge::ReplyKind::Answer, reply.kind) << text;
+  EXPECT_TRUE(text.starts_with("Bestätigung nötig")) << text;
+  EXPECT_NE(text.find(anderswo), std::string::npos) << text;
+  EXPECT_EQ("0", content::EvalJs(web_contents(), kAbgeschickt));
+
+  // Die neue Rückfrage gilt: genau einmal absenden.
+  reply = run("ja");
+  ASSERT_EQ(bridge::ReplyKind::Perform, reply.kind) << std::string(reply.text);
+  for (const bridge::Step& step : reply.steps) {
+    ASSERT_TRUE(helper().PerformStep(step));
+  }
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(web_contents(), kAbgeschickt).ExtractString() == "1";
+  }));
+}
+
 // Neuaufbau nach kaputtem Paket: ein Reset sofort, ein zweiter frühestens
 // nach der Mindestspanne, danach ist der Baum wieder da.
 //
