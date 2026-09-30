@@ -23,7 +23,7 @@ use std::fmt;
 use std::mem::discriminant;
 use std::time::{Duration, Instant};
 
-use relief_model::{Certainty, GraphVersion, NodeRef, SemanticGraph};
+use relief_model::{Certainty, GraphVersion, NodeRef, SemanticGraph, Toggle};
 use serde::Serialize;
 
 use crate::graph::Control;
@@ -102,6 +102,9 @@ pub struct Binding {
     pub page: Option<String>,
     /// Relevanter Ausschnitt: gilt, wenn die Graph-Version sich geändert hat.
     pub section: Section,
+    /// Werte der Felder im Formular des Ziels (Knoten, Wert, angehakt); nur
+    /// im Speicher, nie im Log.
+    pub form: Vec<(NodeRef, Option<String>, Option<Toggle>)>,
 }
 
 /// Was an Ziel und Seite für die Entscheidung zählt. Indizes in den Graphen
@@ -134,6 +137,8 @@ pub enum Changed {
     Risk,
     /// Graph-Version neu und Ziel oder Seitentyp verändert.
     Section,
+    /// Ein Feldwert im Formular des Ziels hat sich geändert.
+    Form,
 }
 
 impl Binding {
@@ -164,7 +169,14 @@ impl Binding {
                 page_type: page.kind.value,
                 page_certainty: page.kind.certainty,
             },
+            form: Vec::new(),
         }
+    }
+
+    /// Werte der Formularfelder dazunehmen (→ [`Binding::form`]).
+    pub fn with_form(mut self, form: Vec<(NodeRef, Option<String>, Option<Toggle>)>) -> Self {
+        self.form = form;
+        self
     }
 
     /// Deckt eine Bestätigung für `self` auch `now`? `None`: ja. Die
@@ -183,6 +195,8 @@ impl Binding {
             Some(Changed::Destination)
         } else if self.risk != now.risk {
             Some(Changed::Risk)
+        } else if self.form != now.form {
+            Some(Changed::Form)
         } else if self.version != now.version && self.section != now.section {
             Some(Changed::Section)
         } else {
@@ -274,6 +288,7 @@ impl fmt::Display for Reason {
                 Changed::Destination => "andere Zieladresse",
                 Changed::Risk => "andere Risikoklasse",
                 Changed::Section => "Ziel oder Seite hat sich geändert",
+                Changed::Form => "ein Feldwert im Formular hat sich geändert",
             }),
             Reason::Invalid => f.write_str("Aktion abgelehnt"),
             Reason::Limit(l) => write!(f, "Grenze für {} erreicht", l.label()),
@@ -539,4 +554,20 @@ mod tests {
         assert_eq!(log.take().len(), LOG_CAPACITY);
         assert!(log.take().is_empty());
     }
+
+    #[test]
+    fn geaenderter_feldwert_im_formular_macht_die_bestaetigung_ungueltig() {
+        let model = crate::graph::sample_tree();
+        let graph = Graph::build(&model);
+        let control = graph.controls[0].clone();
+        let plan = plan(&control, ActionKind::Activate).unwrap();
+        let field = crate::graph::at(20);
+        let before = Binding::new(&plan, &control, &graph.page, &model)
+            .with_form(vec![(field.clone(), Some("1".into()), None)]);
+        let after = Binding::new(&plan, &control, &graph.page, &model)
+            .with_form(vec![(field, Some("2".into()), None)]);
+        assert_eq!(before.changed(&before.clone()), None);
+        assert_eq!(before.changed(&after), Some(Changed::Form));
+    }
+
 }

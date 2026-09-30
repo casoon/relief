@@ -26,6 +26,7 @@
 #[cfg(feature = "assertions")]
 pub mod assertions;
 pub mod command;
+pub mod form;
 pub mod graph;
 pub mod marks;
 pub mod overlay;

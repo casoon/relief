@@ -1,0 +1,31 @@
+# Formular-Assistent (Paket 39): offene Pflichtfelder, Zusammenfassung vor
+# dem Absenden, Fehler nach dem Absenden ansagen, zum Fehler und zurück.
+# Läuft im CDP-Host und im Fork (scripts/fork-run-tasks.sh).
+url: ../fixtures/form.html
+do: was fehlt noch
+expect: E-Mail (Pflicht, leer)
+do: fülle Name mit Erika Muster
+expect: SetValue
+do: klicke Nachricht senden
+expect: Bestätigung nötig
+expect: Formular „Kontaktformular“: Name = „Erika Muster“
+expect: E-Mail = leer (Pflicht)
+do: ja
+expect: Fokus jetzt auf textbox „E-Mail“
+expect: 1 Feld fehlerhaft im Formular: E-Mail („Bitte E-Mail angeben.“)
+do: fehler vorlesen
+expect: E-Mail: „Bitte E-Mail angeben.“
+do: gehe zur Überschrift Kontakt
+expect: NavigateTo
+do: zum ersten fehler
+expect: Focus auf [textbox] E-Mail
+do: zurück
+expect: NavigateTo auf Abschnitt H1 „Kontakt“
+do: was fehlt noch
+expect: E-Mail (fehlerhaft): „Bitte E-Mail angeben.“
+do: fülle E-Mail mit erika@example.org
+expect: SetValue
+do: klicke Nachricht senden
+expect: Bestätigung nötig
+do: ja
+expect: Danke, Nachricht gesendet
