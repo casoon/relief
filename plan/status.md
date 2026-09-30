@@ -147,7 +147,7 @@ beschrieben in
 **Sofort startbar:**
 - Cloud: 105 (Frames anderer Prozesse beim Laden), 106 (`tabfolge` sporadisch)
 - Cloud + M4: 26 (Sprache), 29 (Semantic View), 111 (Branding-Reste), 112 (`autocomplete` im Fork)
-- M4: 43 (VoiceOver im Test), 141 (Diff im Fork)
+- M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
@@ -176,4 +176,3 @@ beschrieben in
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
 | 105 | CDP-Host: Frames anderer Prozesse schon beim Laden anhängen (Ruhe nach dem Laden) | Cloud | offen | 85 ✓ | [105](105-cdp-host-frames-beim-laden.md) |
 | 106 | CDP-Host: `tabfolge` in einen fremden Frame sporadisch verfehlt | Cloud | offen | 85 ✓ | [106](106-tabfolge-fremder-frame-sporadisch.md) |
-| 141 | Fork meldet nach einer Aktion Knoten als „nicht mehr wahrnehmbar“, die CDP nicht meldet | M4 | offen | — | [141](141-fork-diff-verschwundene-knoten.md) |
