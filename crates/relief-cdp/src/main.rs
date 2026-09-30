@@ -15,16 +15,23 @@
 //! (mit `!` davor bestätigt), `expect: …`
 //! (Teilstring der letzten Antwort), `assert: …` (Formular-Zusicherung, Befunde
 //! als Antwort → `assertions.rs`), `#` Kommentar.
+//!
+//! Security-Log: Mit `RELIEF_LOG=<datei>` hängt jede Eingabe die
+//! Entscheidungen der Sitzung als JSON-Zeilen an (`{"t":…,"security":{…}}`,
+//! ohne Werte und Namen); `palette` schreibt sie in ihr Protokoll.
 
 mod act;
 mod assertions;
 mod capture;
+mod facts;
 mod live;
 mod palette;
 mod record;
 mod report;
 mod server;
 
+use std::fs::File;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -178,6 +185,8 @@ struct Session {
     opened: live::Settle,
     /// Befehlszustand (Position) zwischen den Eingaben.
     session: Dialog,
+    /// Ziel des Security-Logs (`RELIEF_LOG`, in `palette` deren Protokoll).
+    security_log: Option<File>,
 }
 
 impl Session {
@@ -215,8 +224,13 @@ impl Session {
         // Das geladene Dokument ist Dokument 1, kein ersetztes.
         live.take_new_document();
         let document = document_id(1);
-        let model = perception::from_snapshot(&snapshot, &document);
+        let mut model = perception::from_snapshot(&snapshot, &document);
+        facts::annotate(&page, &mut model).await?;
         let graph = Graph::build(&model);
+        let security_log = match std::env::var_os("RELIEF_LOG") {
+            Some(path) => Some(File::options().create(true).append(true).open(path)?),
+            None => None,
+        };
         Ok(Session {
             page,
             live,
@@ -230,6 +244,7 @@ impl Session {
             last_stats: None,
             opened,
             session: Dialog::new(),
+            security_log,
         })
     }
 
@@ -255,6 +270,7 @@ impl Session {
             }
             self.snapshot = capture_retry(&self.page, "current").await?;
             self.model = perception::from_snapshot(&self.snapshot, &self.document);
+            facts::annotate(&self.page, &mut self.model).await?;
             self.graph = Graph::build(&self.model);
             let why = if navigated {
                 "Navigation"
@@ -297,8 +313,24 @@ impl Session {
         Ok(())
     }
 
-    /// Eine Eingabe verarbeiten. `!` am Anfang bestätigt riskante Aktionen.
+    /// Eine Eingabe verarbeiten und die Entscheidungen dazu ins
+    /// Security-Log schreiben.
     async fn handle(&mut self, input: &str) -> Result<String> {
+        let answer = self.answer(input).await;
+        let events = self.session.take_security_log();
+        if let Some(log) = self.security_log.as_mut() {
+            let t = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_millis() as u64;
+            for event in events {
+                writeln!(log, "{}", serde_json::json!({ "t": t, "security": event }))?;
+            }
+        }
+        answer
+    }
+
+    /// Eine Eingabe beantworten. `!` am Anfang bestätigt riskante Aktionen.
+    async fn answer(&mut self, input: &str) -> Result<String> {
         // Die Seite kann sich seit der letzten Aufnahme geändert haben.
         self.update(false, None).await?;
         self.before_action = Some(self.model.clone());

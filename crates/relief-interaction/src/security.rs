@@ -13,6 +13,10 @@
 //!   Eingabe.
 //! - **Grenzen** ([`Limit`]): welche Grenze eine Aufgabe beendet hat; gezählt
 //!   wird im Modellvertrag (`relief_ai_contract::Budget`).
+//! - **Angaben der Hosts** ([`FORM_ACTION`], [`INPUT_TYPE`],
+//!   [`HTML_AUTOCOMPLETE`]): was der Accessibility-Tree nicht trägt, legt der
+//!   Host in `SemanticNode::extra` ab; [`is_sensitive_field`] entscheidet
+//!   daraus, ob ein Wert in der Rückfrage verdeckt wird.
 
 use std::collections::VecDeque;
 use std::fmt;
@@ -34,6 +38,47 @@ pub const CONFIRMATION_TTL: Duration = Duration::from_secs(60);
 /// fallen weg.
 pub const LOG_CAPACITY: usize = 256;
 
+/// Schlüssel in `SemanticNode::extra`: Formularziel eines Absenden-Buttons,
+/// vollständige Adresse (`formaction` des Buttons, sonst `action` des
+/// Formulars, aufgelöst gegen die Basisadresse). Füllt der CDP-Host aus dem
+/// DOM; Chromium serialisiert es nicht in `AXNodeData`.
+pub const FORM_ACTION: &str = "formAction";
+/// Schlüssel in `SemanticNode::extra`: HTML-`type` eines `<input>`
+/// (Chromium: `kInputType`, CDP-Host: DOM).
+pub const INPUT_TYPE: &str = "inputType";
+/// Schlüssel in `SemanticNode::extra`: HTML-`autocomplete` (nicht
+/// `aria-autocomplete`, das unter `autocomplete` steht). Nur der CDP-Host
+/// kennt es.
+pub const HTML_AUTOCOMPLETE: &str = "htmlAutocomplete";
+
+/// `autocomplete`-Token für Zugangs- und Identitätsdaten; dazu alle `cc-*`.
+const SENSITIVE_AUTOCOMPLETE: &[&str] = &[
+    "current-password",
+    "new-password",
+    "one-time-code",
+    "username",
+    "webauthn",
+    "bday",
+    "bday-day",
+    "bday-month",
+    "bday-year",
+    "sex",
+];
+
+/// Passwortfeld (`type=password`) oder `autocomplete` für Zahlungs- und
+/// Identitätsdaten (→ `plan/spezifikation/07`). Gilt für die Rückfrage wie
+/// für den Privacy-Filter.
+pub fn is_sensitive_field(input_type: Option<&str>, autocomplete: Option<&str>) -> bool {
+    let password = input_type.is_some_and(|t| t.eq_ignore_ascii_case("password"));
+    let autocomplete = autocomplete.is_some_and(|a| {
+        a.split_ascii_whitespace().any(|token| {
+            let token = token.to_ascii_lowercase();
+            token.starts_with("cc-") || SENSITIVE_AUTOCOMPLETE.contains(&token.as_str())
+        })
+    });
+    password || autocomplete
+}
+
 /// Nummer eines Plans in einer Sitzung; verbindet Rückfrage, Bestätigung
 /// und Ausführung im Log.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -50,7 +95,8 @@ pub struct Binding {
     pub risk: Risk,
     /// Stand, auf dem die Rückfrage entstand.
     pub version: GraphVersion,
-    /// Zieladresse des Ziels (Link), vollständig.
+    /// Zieladresse des Ziels, vollständig: Link-Ziel oder Formularziel
+    /// eines Absenden-Buttons ([`FORM_ACTION`]).
     pub destination: Option<String>,
     /// Adresse des Hauptdokuments.
     pub page: Option<String>,
@@ -98,7 +144,9 @@ impl Binding {
             dom_node_id: plan.dom_node_id,
             risk: plan.risk,
             version: model.version,
-            destination: model.node(&plan.target).and_then(|n| n.url.clone()),
+            destination: model
+                .node(&plan.target)
+                .and_then(|n| n.url.clone().or_else(|| n.extra.get(FORM_ACTION).cloned())),
             page: model
                 .root
                 .as_ref()
@@ -405,6 +453,38 @@ mod tests {
             Some(Changed::Destination)
         );
 
+        // Formularziel: derselbe Absenden-Button schickt jetzt woandershin.
+        let with_action = |url: &str| {
+            let mut m = model.clone();
+            m.trees
+                .values_mut()
+                .next()
+                .unwrap()
+                .nodes
+                .get_mut(&at(21).node)
+                .unwrap()
+                .extra
+                .insert(FORM_ACTION.into(), url.into());
+            m
+        };
+        let shop = binding(
+            &with_action("https://shop.example/bestellung"),
+            "Bestellen",
+            ActionKind::Activate,
+        );
+        assert_eq!(
+            shop.destination.as_deref(),
+            Some("https://shop.example/bestellung")
+        );
+        assert_eq!(
+            shop.changed(&binding(
+                &with_action("https://evil.example/bestellung"),
+                "Bestellen",
+                ActionKind::Activate
+            )),
+            Some(Changed::Destination)
+        );
+
         // Andere Seite.
         let mut c = model.clone();
         c.trees.values_mut().next().unwrap().data.url = Some("https://shop.example/kasse".into());
@@ -429,6 +509,15 @@ mod tests {
             order.changed(&binding(&d, "Bestellen", ActionKind::Activate)),
             Some(Changed::Section)
         );
+    }
+
+    #[test]
+    fn sensible_felder() {
+        assert!(is_sensitive_field(Some("Password"), None));
+        assert!(is_sensitive_field(None, Some("shipping cc-number")));
+        assert!(is_sensitive_field(Some("text"), Some("one-time-code")));
+        assert!(!is_sensitive_field(Some("text"), Some("name")));
+        assert!(!is_sensitive_field(None, None));
     }
 
     #[test]

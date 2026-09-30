@@ -59,7 +59,8 @@ class RuntimeHost {
   void Log(const std::string& line);
 
   // Befehle in Sprache (→ crates/relief-bridge/src/command.rs), gegen den
-  // Graphen nach allen bis dahin angewandten Deltas.
+  // Graphen nach allen bis dahin angewandten Deltas. Die Entscheidungen der
+  // Sitzung dazu stehen danach als `security`-Zeilen im Protokoll.
   bridge::Reply RunCommand(const std::string& input);
   std::string FinishCommand();
   std::string DescribePage();
@@ -70,6 +71,10 @@ class RuntimeHost {
 
  private:
   void MaybeActivate();
+  // Security-Log der Sitzung abholen und je Eintrag eine Zeile
+  // "security\t<JSON>" schreiben (Entscheidung, Plan-ID, Aktionsart, Risiko,
+  // Grund; keine Werte, keine Namen).
+  void LogSecurity();
   void LogDiff(const bridge::Delta& delta, base::TimeTicks now);
   void LogNodes(const bridge::Delta& delta);
 

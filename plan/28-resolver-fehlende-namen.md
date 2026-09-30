@@ -33,6 +33,10 @@ Kalibrierwerkzeug (→ `spezifikation/06`, „Resolver fehlender Namen“).
    (`crates/relief-ai-contract/src/hypothesis.rs`) eintragen, Messung
    (Trefferquote je Band, Tokens und Kosten je Anfrage und Seite) in
    `spezifikation/06`.
+5. Grenzwerte (`Limits::default`, Annahme) am Messlauf prüfen: Die
+   Kalibrierung fragt über ein `Budget` je Seite; der Bericht zählt Einträge
+   „an einer Grenze“. Tokens je Seite gegen `max_tokens`, Aufrufe je Seite
+   gegen `max_calls`; Ergebnis in `spezifikation/07`, „Grenzen je Aufgabe“.
 
 ## Fertig, wenn
 

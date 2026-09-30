@@ -5,7 +5,8 @@
 # `assert: …` prüft den aktuellen Stand; die Antwort sind die Befunde
 # (Regel-ID im Format von a11y-report), `expect:` prüft sie wie sonst.
 # „Rückruf anfordern“ enthält „order“ und ist HIGH: Erst die Rückfrage, dann
-# löst „!“ sie ein (Paket 48).
+# löst „!“ sie ein (Paket 48). Die Rückfrage nennt das Formularziel (Paket
+# 58; das Formular hat kein `action`, also die Adresse der Seite).
 
 url: ../fixtures/form-clean.html
 assert: feldnamen
@@ -16,6 +17,8 @@ assert: tabfolge Name, Telefon, PLZ, Anliegen, Rückruf anfordern
 expect: Keine Befunde
 do: klicke Rückruf anfordern
 expect: Bestätigung nötig
+expect: Formularziel: file://
+expect: fixtures/form-clean.html.
 do: !klicke Rückruf anfordern
 assert: fehler-verknüpft Telefon
 expect: Keine Befunde

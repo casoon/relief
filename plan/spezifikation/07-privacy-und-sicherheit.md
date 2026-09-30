@@ -95,12 +95,21 @@ die behaltenen Knoten; Ungefiltertes kann so nicht hinzukommen (belegt in
 
 Offen:
 
-- **Woher die Feldangaben kommen**: `type` und HTML-`autocomplete` stehen
-  nicht im Accessibility-Tree des CDP-Hosts (sein `autocomplete` ist
-  `aria-autocomplete`). CDP: `DOM.describeNode` über die Backend-DOM-ID;
-  Fork: [validieren], ob `kInputType`/`kProtected` bzw. HTML-Attribute im
-  `AXNodeData` ankommen. Ohne Angaben fallen Werte und Feldinhalte trotzdem
-  weg, ein Passwortfeld behält dann aber Beschriftung und Zustände.
+- **Woher die Feldangaben kommen** [belegt, Paket 58]: `type` und
+  HTML-`autocomplete` stehen nicht im Accessibility-Tree des CDP-Hosts (sein
+  `autocomplete` ist `aria-autocomplete`). Der CDP-Host liest sie nach jeder
+  Aufnahme aus dem DOM (`crates/relief-cdp/src/facts.rs`, ein
+  `DOM.getDocument`) und legt sie als `extra["inputType"]` bzw.
+  `extra["htmlAutocomplete"]` am Knoten ab. Im Fork kommt `type` an: Blink
+  serialisiert `kInputType` für jedes `<input>` und `kProtected` für
+  Passwortfelder (`third_party/blink/renderer/modules/accessibility/
+  ax_object.cc`, `AXObject::SerializeUnignoredAttributes`, Zeilen 2383 und
+  2473 in 154.0.8037.58); der Mirror legt `kInputType` als `extra["inputType"]`
+  ab. HTML-`autocomplete` kommt im Fork nicht an: `kAutoComplete` ist
+  `aria-autocomplete` oder „list“ (`AXNodeObject::AutoComplete`). Noch
+  offen: diese Angaben in `PrivacyContext::fields` übernehmen, sobald ein
+  Aufrufer den Filter benutzt; ohne Angaben fallen Werte und Feldinhalte
+  trotzdem weg, ein Passwortfeld behält dann aber Beschriftung und Zustände.
 - Screenshots (Crop, Schwärzung) und Consent-Anzeige sind nicht gebaut.
 
 ## Threat Model (Skizze) [Annahme]
@@ -178,11 +187,32 @@ Eine Hypothese senkt das Risiko nie (`injection.rs`,
 `relief_interaction::security` und `Session` (beide Hosts):
 
 - Verlangt ein Plan Bestätigung (HIGH oder unsicherer Name), antwortet die
-  Sitzung „Bestätigung nötig (…) — Aktion: …, Ziel: …[, Adresse: …]“ und legt
-  ein Token ab. Die Rückfrage entsteht aus Plan und lokalen Daten; die
-  Adresse ohne Query und Fragment.
+  Sitzung „Bestätigung nötig (…) — Aktion: …, Ziel: …[, Adresse: …|,
+  Formularziel: …]“ und legt ein Token ab. Die Rückfrage entsteht aus Plan
+  und lokalen Daten; Adresse und Formularziel ohne Query und Fragment.
+- **Formularziel** [umgesetzt im CDP-Host, Paket 58]: Ein Absenden-Button
+  trägt es als `extra["formAction"]` (`FORM_ACTION`), vom Host gesetzt:
+  `formaction` des Buttons, sonst `action` des Formulars (Vorfahre oder
+  `form=`-ID), sonst die Dokumentadresse, gegen die Basisadresse aufgelöst;
+  bei `method=dialog` keines (`crates/relief-cdp/src/facts.rs`). Es ist die
+  Zieladresse der Bindung: Zeigt das Formular zwischen Rückfrage und „!“
+  woandershin, gilt die Bestätigung nicht („andere Zieladresse“, belegt:
+  `rueckfrage_nennt_das_formularziel_und_bindet_es`, `security.rs`
+  `jedes_gebundene_feld_verlangt_neue_bestaetigung`). Belegt im Browser:
+  `06-form-assertions.txt` erwartet „Formularziel: file://…/form-clean.html“.
+  Im Fork kommt es nicht an: Blink serialisiert `action` nicht,
+  `AXNodeObject::Url` liefert nur Link-Ziel, Dokument- und Bildadresse
+  (`ax_node_object.cc`, 154.0.8037.58) → Paket 75.
+- **Sensible Werte** [umgesetzt, Paket 58]: Ist das Ziel ein Passwortfeld
+  oder trägt es `autocomplete` für Zahlungs- oder Identitätsdaten
+  (`is_sensitive_field`, dieselbe Regel wie `FieldHint::is_sensitive`),
+  zeigt die Rückfrage `SetValue(verdeckt)` bzw. `Select(verdeckt)` und das
+  Ziel ohne bisherigen Wert; gebunden bleibt der Wert trotzdem (belegt:
+  `sensible_werte_stehen_nicht_in_der_rueckfrage`). Im Fork nur für
+  Passwortfelder (`type` kommt an, `autocomplete` nicht).
 - **Gebunden** (`Binding`) an: Aktion samt Wert, Zielknoten und DOM-ID,
-  Risikoklasse, Graph-Version, Zieladresse (URL des Ziels, vollständig),
+  Risikoklasse, Graph-Version, Zieladresse (URL des Ziels bzw.
+  Formularziel, vollständig),
   Adresse des Hauptdokuments und den Ausschnitt (Rolle, Name mit Herkunft,
   Wert, Optionen, Zustände, deaktiviert; Seitentyp). Eine neue
   Graph-Version allein macht das Token nicht ungültig, ein geänderter
@@ -208,6 +238,21 @@ enthält).
 
 ### Grenzen je Aufgabe [umgesetzt, Werte Annahme]
 
+**Einziger Weg zu einem Anbieter** (Typ, Paket 58): `ModelProvider::complete`
+verlangt eine `Permit`; die stellt nur `Budget` aus, nachdem es seine Grenzen
+geprüft hat. Sie hat ein privates Feld und keinen öffentlichen Konstruktor
+(`compile_fail`-Doctest an `Permit`), ein umhüllender Anbieter
+(`replay::Recording`) reicht sie nur weiter. Die freien Funktionen
+`resolve_missing`/`propose_intent` gibt es nicht mehr; aufgerufen wird
+`Budget::resolve_missing`, `Budget::propose_intent` oder, für Messläufe mit
+ungeprüfter Antwort, `Budget::complete`. `relief_resolver::resolve_node`
+nimmt das Budget der Aufgabe; die Kalibrierung legt eines je Seite an und
+zählt Überschreitungen als „an einer Grenze“. Ein künftiger Modellaufruf der
+Runtime kann `Budget` also nicht umgehen; wo die Runtime ihr Budget je
+Aufgabe/Seite hält und den Abbruch ins Log schreibt
+(`LimitExceeded::event`), entsteht erst mit dem ersten Aufruf (28 im Fork,
+34).
+
 `relief_ai_contract::Budget` mit `Limits` (Standard): höchstens 5 000 Knoten
 je Modelleingabe, 20 Aufrufe, dieselbe Anfrage 2-mal, 120 s, 100 000 Tokens
 (Eingabe plus Ausgabe, soweit gemeldet). Geprüft vor jedem Aufruf, Tokens
@@ -228,9 +273,23 @@ Eingaben (belegt: `security_log_ohne_werte_und_namen`). `Session` hält die
 letzten 256 Einträge bis `take_security_log`; `LimitExceeded::event` für
 Abbrüche.
 
-Offen (→ 58): Hosts holen das Log nicht ab und schreiben es nirgends hin;
-kein Aufrufer benutzt `Budget`, weil die Runtime noch kein Modell aufruft;
-Formularziel (`action` eines Formulars) steht nicht im AX-Baum und ist nicht
-gebunden; sensible Werte werden in der Rückfrage nicht maskiert (die Runtime
-kennt `type=password`/`autocomplete` noch nicht, → „Woher die Feldangaben
-kommen“).
+**In den Hosts** (Paket 58): Beide holen das Log nach jeder Eingabe ab.
+CDP-Host: mit `RELIEF_LOG=<datei>` je Eintrag eine JSON-Zeile
+`{"t":<ms>,"security":{…}}` (`run`, `repl`; `palette` in ihr Protokoll).
+Fork: `RuntimeHost::RunCommand` schreibt je Eintrag `security\t<JSON>` ins
+Protokoll (`--relief-log`, sonst `LOG(INFO)`); über die Bridge
+`take_security_log` (JSON je Eintrag). Belegt im CDP-Host: Lauf 01–07 mit
+`RELIEF_LOG` ergibt 55 Zeilen, keine mit Feldwert, Name oder Adresse; die
+letzten neun (07) lauten der Reihe nach `reject/no_prompt`,
+`ask_confirmation` (Plan 1, 2), `reject/no_prompt`, `ask_confirmation` (3,
+4), `perform_confirmed` (4), `reject/no_prompt`, `ask_confirmation` (5).
+Belegt browserfrei für die Fork-Runtime: `crates/relief-bridge/tests/
+befehle.rs`. Im Fork belegt (M4, 2026-09-30): `RELIEF_LOG=… scripts/
+fork-run-tasks.sh` mit 01–05, 07 → 79/79, die `security`-Zeilen zu 07 in
+derselben Folge wie im CDP-Host, keine mit „kaufen“, „erika“ oder
+„file:“; `relief_browsertests` 15/15.
+
+Grenzen: Die Protokolle, in denen die Zeilen stehen, enthalten daneben die
+Eingabe selbst (Fork: Zeile `command`, Befehlsleiste: `eingabe`), also auch
+einen eingegebenen Wert; die Antwort nach einer Aktion nennt den Wert
+(`SetValue("…") auf …`) auch bei sensiblen Feldern → Paket 76.

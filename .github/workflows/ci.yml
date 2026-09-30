@@ -51,7 +51,7 @@ jobs:
           chrome-version: ${{ env.CHROME_VERSION }}
           install-dependencies: true
       - run: cargo build -p relief-cdp
-      - name: Aufgaben 01–05 gegen Chrome
+      - name: Aufgaben 01–07 gegen Chrome
         env:
           CHROME: ${{ steps.chrome.outputs.chrome-path }}
         run: |
@@ -60,7 +60,7 @@ jobs:
           # Chromes Sandbox braucht sie (sonst FATAL in der Zygote). Freigeben
           # statt --no-sandbox.
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          tasks=(spike/tasks/0[1-6]-*.txt)
+          tasks=(spike/tasks/0[1-7]-*.txt)
           target/debug/relief-cdp run "${tasks[@]}" | tee relief-run.txt
           # `run` endet auch bei verfehlten Erwartungen mit 0 und überspringt
           # Erwartungen nicht ladbarer Seiten; deshalb hier gegen die Zahl

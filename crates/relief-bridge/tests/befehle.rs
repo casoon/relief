@@ -97,6 +97,15 @@ fn bestaetigung_ohne_rueckfrage_und_zweimal_ergibt_keine_schritte() {
         rt.command("!klicke Jetzt kaufen"),
         Reply::Answer(_)
     ));
+
+    // Das Security-Log trägt Entscheidung, Plan-ID und Grund, keine Namen.
+    let log = serde_json::to_string(&rt.take_security_log()).unwrap();
+    assert_eq!(
+        log,
+        r#"[{"decision":"reject","action":"activate","risk":"High","reason":"no_prompt"},{"decision":"ask_confirmation","plan":1,"action":"activate","risk":"High"},{"decision":"ask_confirmation","plan":2,"action":"activate","risk":"High"},{"decision":"reject","action":"activate","risk":"High","reason":"no_prompt"},{"decision":"ask_confirmation","plan":3,"action":"activate","risk":"High"},{"decision":"perform_confirmed","plan":3,"action":"activate","risk":"High"},{"decision":"reject","action":"activate","risk":"High","reason":"no_prompt"},{"decision":"ask_confirmation","plan":4,"action":"activate","risk":"High"}]"#
+    );
+    assert!(!log.contains("kaufen"));
+    assert!(rt.take_security_log().is_empty());
 }
 
 #[test]

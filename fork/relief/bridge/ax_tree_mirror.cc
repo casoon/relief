@@ -148,6 +148,16 @@ bridge::Node ToNode(const ui::AXNode& node,
     }
   }
   OptionalText(data, StringAttribute::kUrl, out.has_url, out.url);
+  // HTML-`type` eines <input> (Blink: AXObject::Serialize...Attributes,
+  // kInputType), Schlüssel `relief_interaction::security::INPUT_TYPE`: Die
+  // Rückfrage verdeckt dann Werte von Passwortfeldern. HTML-`autocomplete`
+  // kommt nicht an (kAutoComplete ist aria-autocomplete), das Formularziel
+  // auch nicht (AXNodeObject::Url kennt nur Links, Dokument, Bilder).
+  if (data.HasStringAttribute(StringAttribute::kInputType)) {
+    out.extra.push_back(bridge::Attribute{
+        "inputType",
+        Text(data.GetStringAttribute(StringAttribute::kInputType))});
+  }
   OptionalText(data, StringAttribute::kChildTreeId, out.has_child_tree,
                out.child_tree);
 

@@ -89,10 +89,13 @@ Relief ersetzt in barrierlab den Reader-Host als Konsument
 Sicherheits-Regressionsmatrix umgesetzt (Missbrauchsfälle als
 Tests, Bestätigungstoken, Grenzen je Aufgabe, Security-Log), beschrieben in
 [spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#sicherheits-regressionsmatrix-entscheidung-umgesetzt-im-fork-belegt);
-der Bestätigungs-Bypass ist auch im Fork getestet.
+der Bestätigungs-Bypass ist auch im Fork getestet. Hosts schreiben das
+Security-Log, ein Anbieter lässt sich nur über `Budget` aufrufen (`Permit`),
+die Rückfrage nennt und bindet im CDP-Host das Formularziel und verdeckt
+sensible Werte (Paket 58; Fork-Teil geschrieben, nicht gebaut).
 
 **Sofort startbar:**
-- Cloud: 58 (Sicherheitsgrenzen im Host), 70 (CDP-Host mit Site Isolation)
+- Cloud: 70 (CDP-Host mit Site Isolation), 76 (Werte außerhalb der Rückfrage)
 - Cloud + M4: 26 (Sprache), 29 (Semantic View), 38 (Sprungmarken), 39 (Formular-Assistent), 21 (Befunde im Inspector), 40 (Overlay und Consent), 36 (Branding), 45 (Playwright)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
@@ -102,7 +105,7 @@ der Bestätigungs-Bypass ist auch im Fork getestet.
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 (44 erledigt), 43 zurückgestellt; 70 jederzeit.
 - Produkt: 36 jederzeit; 37 erst vor einer Weitergabe an Dritte.
-- Vor jeder Modellintegration (28 im Fork, 34): 48, dann 58.
+- Vor jeder Modellintegration (28 im Fork, 34): 48 ✓, 58 (Fork-Teil); 75 entscheiden.
 
 | Nr | Thema | Umgebung | Status | Abhängig von | Datei |
 |---|---|---|---|---|---|
@@ -123,6 +126,7 @@ der Bestätigungs-Bypass ist auch im Fork getestet.
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
 | 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 ✓ | [45](45-playwright-anbindung.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 ✓ | [47](47-relief-ui-accessibility.md) |
-| 58 | Sicherheitsgrenzen in Hosts und Modellaufruf verdrahten (Log, Budget, Formularziel) | Cloud + M4 | offen | 48 ✓, vor Modellintegration | [58](58-sicherheitsgrenzen-im-host.md) |
 | 70 | CDP-Host mit Site Isolation: Frames in anderem Prozess (Aufnahme, DOM-Fakten, Aktionen) | Cloud | offen | 64 ✓ | [70](70-cdp-host-site-isolation.md) |
+| 75 | Formularziel und HTML-`autocomplete` im Fork | Cloud + M4 | Entscheidung nötig | 58 ✓ | [75](75-formularziel-im-fork.md) |
+| 76 | Sensible Werte außerhalb der Rückfrage (Antwort, Protokolle) | Cloud + M4 | offen | 58 ✓ | [76](76-werte-ausserhalb-der-rueckfrage.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |

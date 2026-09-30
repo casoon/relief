@@ -42,34 +42,15 @@ pub struct FieldHint {
     pub autocomplete: Option<String>,
 }
 
-/// `autocomplete`-Token für Zugangs- und Identitätsdaten; dazu alle `cc-*`.
-const SENSITIVE_AUTOCOMPLETE: &[&str] = &[
-    "current-password",
-    "new-password",
-    "one-time-code",
-    "username",
-    "webauthn",
-    "bday",
-    "bday-day",
-    "bday-month",
-    "bday-year",
-    "sex",
-];
-
 impl FieldHint {
-    /// Passwortfeld oder `autocomplete` für Zahlungs-/Identitätsdaten.
+    /// Passwortfeld oder `autocomplete` für Zahlungs-/Identitätsdaten
+    /// (dieselbe Regel wie für die Rückfrage,
+    /// `relief_interaction::security::is_sensitive_field`).
     pub fn is_sensitive(&self) -> bool {
-        let password = self
-            .input_type
-            .as_deref()
-            .is_some_and(|t| t.eq_ignore_ascii_case("password"));
-        let autocomplete = self.autocomplete.as_deref().is_some_and(|a| {
-            a.split_ascii_whitespace().any(|token| {
-                let token = token.to_ascii_lowercase();
-                token.starts_with("cc-") || SENSITIVE_AUTOCOMPLETE.contains(&token.as_str())
-            })
-        });
-        password || autocomplete
+        relief_interaction::security::is_sensitive_field(
+            self.input_type.as_deref(),
+            self.autocomplete.as_deref(),
+        )
     }
 }
 
@@ -159,11 +140,12 @@ pub struct PageInfo {
 /// Der vorgesehene Weg:
 ///
 /// ```
-/// use relief_ai_contract::{filter, resolve_missing, NoModel, PrivacyContext};
+/// use relief_ai_contract::{filter, Budget, Limits, NoModel, PrivacyContext};
 /// use relief_model::SemanticGraph;
 ///
 /// let input = filter(&SemanticGraph::default(), &PrivacyContext::default());
-/// assert!(resolve_missing(&NoModel, input).unwrap().is_empty());
+/// let mut budget = Budget::new(Limits::default());
+/// assert!(budget.resolve_missing(&NoModel, input).unwrap().is_empty());
 /// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct FilteredInput {

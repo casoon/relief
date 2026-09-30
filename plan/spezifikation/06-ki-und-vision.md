@@ -106,10 +106,12 @@ Anbieter und kein Netzwerkcode.
 ```text
 filter(&SemanticGraph, &PrivacyContext) → FilteredInput        // einziger Weg (→ 07)
 ModelRequest::resolve_missing(input) | ::parse_intent(utterance, input)
-trait ModelProvider { tier() → Tier; complete(&ModelRequest) → Result<Option<ModelReply>, ProviderError> }
+trait ModelProvider { tier() → Tier; complete(&ModelRequest, Permit) → Result<Option<ModelReply>, ProviderError> }
 Tier = none (Default) | os | local | api;   NoModel: Stufe none, liefert nie etwas
-resolve_missing(provider, input) → Vec<Hypothesis>                         // none: leer
-propose_intent(provider, &UserUtterance, input) → Option<IntentProposal>   // none: None
+Budget::new(Limits) → Budget                                                // einziger Aussteller einer Permit (→ 07)
+budget.resolve_missing(provider, input) → Vec<Hypothesis>                         // none: leer
+budget.propose_intent(provider, &UserUtterance, input) → Option<IntentProposal>   // none: None
+budget.complete(provider, &ModelRequest) → Option<ModelReply>                     // ungeprüft, für Messläufe
 ```
 
 - **Anbieter liefern nur Text** (`ModelReply { model, text }`). Zu
@@ -163,7 +165,7 @@ ruft ihn noch nicht auf.
 
 ```text
 FilteredInput::excerpt(id, max_nodes) → Option<FilteredInput>   // relief-ai-contract, nimmt nur weg
-resolve_node(provider, &input, id) → Option<Hypothesis>        // Ausschnitt (40) → resolve_missing → Name von id
+resolve_node(&mut budget, provider, &input, id) → Option<Hypothesis>  // Ausschnitt (40) → Budget::resolve_missing → Name von id
 anthropic::AnthropicProvider::from_env()                        // Stufe api, nur mit Feature `anthropic`
 relief-resolver kalibrieren [--aufzeichnen D] [--wiedergeben D] // Trefferquote, Schwellenvorschlag, Tokens
 ```

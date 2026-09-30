@@ -376,6 +376,9 @@ pub mod ffi {
         /// Antwort auf die ausgeführten Schritte bzw. Escape, gegen den
         /// jetzigen Graphen (`Runtime::finish`).
         fn finish_command(runtime: &mut Runtime) -> String;
+        /// Security-Log seit dem letzten Abholen, ein JSON-Objekt je Eintrag
+        /// (`Runtime::take_security_log`).
+        fn take_security_log(runtime: &mut Runtime) -> Vec<String>;
         /// Seitenbeschreibung („was ist hier“).
         fn describe_page(runtime: &Runtime) -> String;
         /// Antwort nach dem Scrollen: Position vorher, nachher, größte
@@ -565,6 +568,14 @@ fn step_to_ffi(step: Step) -> ffi::Step {
 
 fn finish_command(runtime: &mut Runtime) -> String {
     runtime.finish()
+}
+
+fn take_security_log(runtime: &mut Runtime) -> Vec<String> {
+    runtime
+        .take_security_log()
+        .iter()
+        .map(|e| serde_json::to_string(e).expect("SecurityEvent ist serialisierbar"))
+        .collect()
 }
 
 fn describe_page(runtime: &Runtime) -> String {

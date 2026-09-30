@@ -30,6 +30,7 @@ Gültige Entscheidungen und Rahmenbedingungen stehen in `docs/decisions.md` und
 | 47–48 | Querschnitt: Relief-Oberfläche und Sicherheitsgrenzen |
 | 58 | Querschnitt: Sicherheitsgrenzen in Hosts (Nachtrag zu 48) |
 | 70 | Linie Prüfen: CDP-Host mit Site Isolation (Nachtrag zu 64) |
+| 75–76 | Querschnitt: Nachträge zu 58 (Formularziel im Fork, Werte außerhalb der Rückfrage) |
 | 90 | zurückgestellt |
 
 ## Jedes Paket hat

@@ -6,6 +6,10 @@
 //! Anfragen, Zeit und Tokens und prüft die Größe der Eingabe. Die erste
 //! Überschreitung beendet die Aufgabe: Danach ruft das Budget keinen Anbieter
 //! mehr auf und liefert nur noch dieselbe [`LimitExceeded`].
+//!
+//! Das Budget ist der einzige Weg zu einem Anbieter: Nur es stellt die
+//! [`Permit`] aus, die [`ModelProvider::complete`] verlangt. Ein
+//! Modellaufruf der Runtime kann es also nicht umgehen.
 
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
@@ -17,7 +21,7 @@ use relief_interaction::{Limit, SecurityEvent};
 
 use crate::{
     validate_hypotheses, validate_intent, FilteredInput, Hypothesis, IntentProposal, ModelError,
-    ModelProvider, ModelReply, ModelRequest, UserUtterance,
+    ModelProvider, ModelReply, ModelRequest, Permit, UserUtterance,
 };
 
 /// Obergrenzen für eine Aufgabe.
@@ -116,20 +120,22 @@ impl Budget {
         self.stopped
     }
 
-    /// Wie [`crate::resolve_missing`], innerhalb der Grenzen.
+    /// Fehlende Semantik erfragen und die Ausgabe streng prüfen. Mit `none`
+    /// immer leer.
     pub fn resolve_missing(
         &mut self,
         provider: &dyn ModelProvider,
         input: FilteredInput,
     ) -> Result<Vec<Hypothesis>, ModelError> {
         let request = ModelRequest::resolve_missing(input);
-        let Some(reply) = self.ask(provider, &request)? else {
+        let Some(reply) = self.complete(provider, &request)? else {
             return Ok(Vec::new());
         };
         validate_hypotheses(&reply.text, request.input(), &reply.model).map_err(ModelError::Invalid)
     }
 
-    /// Wie [`crate::propose_intent`], innerhalb der Grenzen.
+    /// Eine Äußerung der Nutzerin in einen Intent-Vorschlag übersetzen lassen.
+    /// Mit `none` immer `None`; dann bleibt es beim deterministischen Parser.
     pub fn propose_intent(
         &mut self,
         provider: &dyn ModelProvider,
@@ -137,7 +143,7 @@ impl Budget {
         input: FilteredInput,
     ) -> Result<Option<IntentProposal>, ModelError> {
         let request = ModelRequest::parse_intent(utterance.clone(), input);
-        let Some(reply) = self.ask(provider, &request)? else {
+        let Some(reply) = self.complete(provider, &request)? else {
             return Ok(None);
         };
         validate_intent(&reply.text, request.input(), utterance, &reply.model)
@@ -145,8 +151,12 @@ impl Budget {
             .map_err(ModelError::Invalid)
     }
 
-    /// Grenzen vor dem Aufruf prüfen, aufrufen, Tokens danach zählen.
-    fn ask(
+    /// Grenzen vor dem Aufruf prüfen, aufrufen, Tokens danach zählen. Die
+    /// Antwort ist ungeprüfter Text; zu Hypothese oder Intent wird sie nur
+    /// über [`Budget::resolve_missing`] bzw. [`Budget::propose_intent`] (oder
+    /// [`crate::validate_hypotheses`]). Für Messläufe, die jede Antwort sehen
+    /// müssen (Kalibrierung).
+    pub fn complete(
         &mut self,
         provider: &dyn ModelProvider,
         request: &ModelRequest,
@@ -178,7 +188,9 @@ impl Budget {
         }
 
         self.calls += 1;
-        let reply = provider.complete(request).map_err(ModelError::Provider)?;
+        let reply = provider
+            .complete(request, Permit::new())
+            .map_err(ModelError::Provider)?;
         if let Some(usage) = reply.as_ref().and_then(|r| r.usage) {
             self.tokens += usage.input_tokens + usage.output_tokens;
             if self.tokens > limits.max_tokens {
