@@ -24,6 +24,7 @@
 #include "relief/bridge/ax_tree_mirror.h"
 #include "relief/bridge/runtime_host.h"
 #include "relief/relief_executor.h"
+#include "relief/speech/speech_output.h"
 #include "ui/accessibility/ax_action_handler_registry.h"
 #include "ui/accessibility/ax_tree_id.h"
 
@@ -122,6 +123,11 @@ class ReliefTabHelper
                     const std::string& kind,
                     const std::string& value,
                     base::OnceCallback<void(ReliefExecutor::Result)> done);
+  // Erkannte Sprache (Paket 26): Abbruchwörter vorrangig (Ausgabe stoppen,
+  // Erkennung verwerfen, Rückfrage schließen), sonst wie Interact; die
+  // Antwort wird gesprochen (stumm neben einem Screenreader).
+  void Hear(const std::string& text,
+            base::OnceCallback<void(ReliefExecutor::Result)> done);
   void FinishCommand(base::OnceCallback<void(std::string)> done);
   // Methode der CDP-Domäne `Relief.*` gegen den aktuellen Graphen
   // (Paket 45, → devtools/relief_devtools.h).
@@ -242,6 +248,7 @@ class ReliefTabHelper
   // Hauptbaum, wie zuletzt an die Runtime gemeldet.
   ui::AXTreeID root_;
   base::SequenceBound<RuntimeHost> runtime_;
+  speech::SpeechOutput speech_output_;
   base::TimeDelta reset_interval_;
   base::TimeTicks last_reset_;
   base::OneShotTimer reset_timer_;

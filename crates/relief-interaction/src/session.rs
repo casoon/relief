@@ -609,8 +609,12 @@ impl Session {
         if let Some(Choices::Controls(controls, ActionKind::SetValue(_) | ActionKind::Select(_))) =
             &self.choices
         {
-            let text = input.trim().trim_end_matches(['.', '!']).trim();
-            if let Ok(n) = text.parse::<usize>() {
+            let text = input
+                .trim()
+                .trim_end_matches(['.', '!'])
+                .trim()
+                .to_lowercase();
+            if let Some(n) = choice_number(&text) {
                 return controls.get(n.checked_sub(1)?).map(|c| c.node.clone());
             }
         }
@@ -909,8 +913,41 @@ fn numbered(head: String, labels: impl Iterator<Item = String>) -> String {
 
 /// Kandidat zu einer Antwort: Zahl (1-basiert) oder ein Text, der genau
 /// einen Kandidaten trifft.
+/// Zahl einer Wahl in Sprache: „2“, „zwei“, „das zweite“, „nimm den
+/// zweiten“, „nummer zwei“ (Paket 26, Dialogkontext ohne Modell).
+fn choice_number(text: &str) -> Option<usize> {
+    const WORDS: &[(&str, &[&str])] = &[
+        ("1", &["eins", "erste", "ersten", "erstes", "erster"]),
+        ("2", &["zwei", "zweite", "zweiten", "zweites", "zweiter"]),
+        ("3", &["drei", "dritte", "dritten", "drittes", "dritter"]),
+        ("4", &["vier", "vierte", "vierten", "viertes", "vierter"]),
+        ("5", &["fünf", "fünfte", "fünften", "fünftes", "fünfter"]),
+        (
+            "6",
+            &["sechs", "sechste", "sechsten", "sechstes", "sechster"],
+        ),
+        ("7", &["sieben", "siebte", "siebten", "siebtes", "siebter"]),
+        ("8", &["acht", "achte", "achten", "achtes", "achter"]),
+        ("9", &["neun", "neunte", "neunten", "neuntes", "neunter"]),
+        ("10", &["zehn", "zehnte", "zehnten", "zehntes", "zehnter"]),
+    ];
+    let mut rest = text.trim();
+    for prefix in [
+        "nimm ", "wähle ", "nummer ", "nr. ", "nr ", "das ", "den ", "die ", "der ",
+    ] {
+        rest = rest.strip_prefix(prefix).unwrap_or(rest).trim();
+    }
+    if let Ok(n) = rest.trim_end_matches('.').parse::<usize>() {
+        return Some(n);
+    }
+    WORDS
+        .iter()
+        .find(|(_, words)| words.contains(&rest))
+        .and_then(|(n, _)| n.parse().ok())
+}
+
 fn choose(text: &str, labels: &[String]) -> Option<usize> {
-    if let Ok(n) = text.parse::<usize>() {
+    if let Some(n) = choice_number(text) {
         return (1..=labels.len()).contains(&n).then(|| n - 1);
     }
     if text.is_empty() {
@@ -1121,6 +1158,12 @@ pub enum TaskLine {
     Assert(String),
     Expect(String),
     Wait(u64),
+    /// Gesprochene Eingabe (Paket 26): im Fork über eine Audiodatei
+    /// (`audio:`, von `scripts/fork-run-speech.sh` aus `sprich:` erzeugt),
+    /// sonst wie `do:` mit diesem Text.
+    Speak(String),
+    /// Audiodatei für die Spracherkennung (nur im Fork).
+    Audio(String),
 }
 
 pub fn parse_tasks(text: &str) -> Vec<TaskLine> {
@@ -1134,6 +1177,10 @@ pub fn parse_tasks(text: &str) -> Vec<TaskLine> {
                 Some(TaskLine::Do(input.trim().to_string()))
             } else if let Some(text) = line.strip_prefix("assert:") {
                 Some(TaskLine::Assert(text.trim().to_string()))
+            } else if let Some(text) = line.strip_prefix("sprich:") {
+                Some(TaskLine::Speak(text.trim().to_string()))
+            } else if let Some(path) = line.strip_prefix("audio:") {
+                Some(TaskLine::Audio(path.trim().to_string()))
             } else if let Some(ms) = line.strip_prefix("wait:") {
                 ms.trim().parse().ok().map(TaskLine::Wait)
             } else {
@@ -1152,6 +1199,17 @@ pub fn expectation_met(answer: &str, expected: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn wahl_in_sprache() {
+        use super::choice_number;
+        assert_eq!(choice_number("2"), Some(2));
+        assert_eq!(choice_number("nimm das zweite"), Some(2));
+        assert_eq!(choice_number("den ersten"), Some(1));
+        assert_eq!(choice_number("nummer drei"), Some(3));
+        assert_eq!(choice_number("die fünfte"), Some(5));
+        assert_eq!(choice_number("warenkorb"), None);
+    }
+
     use super::*;
 
     #[test]

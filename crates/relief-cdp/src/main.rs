@@ -482,7 +482,7 @@ async fn run_files(
         // Zustand, auf den sich Antwort und Befunde beziehen.
         let mut state = String::from("Laden");
         let mut page_url = String::new();
-        for line in parse_tasks(&text) {
+        for line in parse_tasks(&text).into_iter().filter_map(spoken_as_typed) {
             match line {
                 TaskLine::Url(url) => {
                     let url = match url.strip_prefix(server::PREFIX) {
@@ -531,6 +531,9 @@ async fn run_files(
                             .map(|l| format!("; {l}"))
                             .unwrap_or_default()
                     );
+                }
+                TaskLine::Speak(_) | TaskLine::Audio(_) => {
+                    unreachable!("spoken_as_typed")
                 }
                 TaskLine::Assert(text) => {
                     let Some(s) = session.as_mut() else { continue };
@@ -727,4 +730,23 @@ fn indent(s: &str) -> String {
         .map(|l| format!("  {l}"))
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// `sprich:` ohne Spracherkennung (Paket 26): der Text wie getippt, nach
+/// denselben Regeln wie im Fork (Abbruchwörter → „abbrechen“). `audio:`
+/// braucht die Spracherkennung des Forks und entfällt hier.
+fn spoken_as_typed(line: TaskLine) -> Option<TaskLine> {
+    use relief_interaction::speech::{route, Heard};
+    match line {
+        TaskLine::Speak(text) => match route(&text) {
+            Heard::Cancel => Some(TaskLine::Do("abbrechen".into())),
+            Heard::Command(c) => Some(TaskLine::Do(c)),
+            Heard::Nothing => None,
+        },
+        TaskLine::Audio(path) => {
+            println!("\n… {path}: Audiodatei nur im Fork (Spracherkennung)");
+            None
+        }
+        other => Some(other),
+    }
 }

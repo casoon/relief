@@ -153,13 +153,17 @@ Graph, jede Bedienung als validierte Aktion auf die Originalseite,
 beschrieben in
 [spezifikation/08](spezifikation/08-assistenz-und-capabilities.md#umsetzung-im-fork-paket-29-belegt).
 
+Sprache: gesprochene Befehle (Apples Spracherkennung, auf dem Gerät) und
+gesprochene Antworten (Chromium-TTS), „abbrechen“ vorrangig, beschrieben in
+[spezifikation/08](spezifikation/08-assistenz-und-capabilities.md#umsetzung-paket-26-belegt).
+
 **Sofort startbar:**
-- Cloud + M4: 26 (Sprache)
+- Cloud + M4: 114 (Sprache live), 41 (Fähigkeitsprofile)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
-- Linie A: 26 → 41 (29 erledigt, Nachtrag 113) (40, 80, 91, 110 erledigt);
+- Linie A: 41 (26 erledigt, Nachtrag 114) (29 erledigt, Nachtrag 113) (40, 80, 91, 110 erledigt);
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 und 44 erledigt, 43 zurückgestellt; 130 wartet auf ein erneutes Auftreten (85, 105, 106 erledigt).
 - Produkt: 37 erst vor einer Weitergabe an Dritte.
@@ -168,14 +172,14 @@ beschrieben in
 | Nr | Thema | Umgebung | Status | Abhängig von | Datei |
 |---|---|---|---|---|---|
 | 10 | Cloud-Setup: Nachweis in einer Cloud-Session (CI unter Linux grün) | Cloud | blockiert: Cloud-Sessions HTTP 403 | Zugang | [10](10-cloud-umgebung-und-ci.md) |
-| 26 | Sprachschicht | Cloud + M4 | offen | 25 ✓ | [26](26-sprache.md) |
+| 114 | Sprache: Live-Mikrofon, Cloud-STT, „dieses Feld“ | Cloud + M4 | offen | 26 ✓ | [114](114-sprache-live.md) |
 | 28 | Resolver: Messlauf und Schwellen | lokal / Cloud (API-Key) | wartet auf API-Key | 27 ✓, 12 ✓ | [28](28-resolver-fehlende-namen.md) |
 | 113 | Vereinfachte Ansicht und Semantic View über die ganze Tab-Breite | Cloud + M4 | zurückgestellt (Nutzer, 2026-10-01) | 29 ✓ | [113](113-vereinfachte-ansicht.md) |
 | 30 | CDP-Host: barrierlab-Release übernehmen (Nachladen erledigt) | Cloud | wartet auf barrierlab-Release | barrierlab | [30](30-cdp-host-pflege.md) |
 | 31 | Plattformen Linux und Windows (Build-Hosts) | offen | zurückgestellt (Nutzer, 2026-09-30) | 14 ✓, 17 ✓ | [31](31-plattformen.md) |
 | 34 | Bridge-Variante B (Utility-Prozess) bauen und messen | Cloud + M4 | später | 19 ✓, vor KI-Code in der Runtime | [34](34-bridge-utility-prozess.md) |
 | 37 | Updates und Auslieferung (Signatur, Notarisierung) | M4 + Entscheidung | zurückgestellt (Nutzer, 2026-09-30) | 36 | [37](37-updates-und-auslieferung.md) |
-| 41 | Fähigkeitsprofile | Cloud + M4 | offen | 25 ✓, 26, 29 ✓ | [41](41-faehigkeitsprofile.md) |
+| 41 | Fähigkeitsprofile | Cloud + M4 | offen | 25 ✓, 26 ✓, 29 ✓ | [41](41-faehigkeitsprofile.md) |
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 ✓ | [47](47-relief-ui-accessibility.md) |
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |

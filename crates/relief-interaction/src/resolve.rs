@@ -32,6 +32,15 @@ pub fn resolve<'g>(
     query: &str,
     accept: impl Fn(&Control) -> bool,
 ) -> Resolution<'g> {
+    resolve_scored(graph, query, accept).1
+}
+
+/// Wie `resolve`, mit der Güte des besten Treffers (→ `name_score`).
+fn resolve_scored<'g>(
+    graph: &'g Graph,
+    query: &str,
+    accept: impl Fn(&Control) -> bool,
+) -> (u8, Resolution<'g>) {
     let q = normalize(query);
     let mut best = 0;
     let mut hits: Vec<&Control> = Vec::new();
@@ -54,34 +63,38 @@ pub fn resolve<'g>(
     // Konflikt (z. B. doppelt gemeldeter Knoten).
     hits.dedup_by_key(|c| c.dom_node_id);
 
-    match hits.len() {
+    let resolution = match hits.len() {
         0 => Resolution::None,
         1 => Resolution::One(hits[0]),
         _ => Resolution::Many(hits),
-    }
+    };
+    (best, resolution)
 }
 
-/// Wie `resolve`, versucht bei keinem Treffer aber gebeugte Formen:
-/// „Größen“ → „Größe“, „sizes“ → „size“ (für „welche Größen gibt es?“).
+/// Wie `resolve`, versucht aber auch gebeugte Formen: „Größen“ → „Größe“,
+/// „sizes“ → „size“ (für „welche Größen gibt es?“); die bessere Güte gilt.
 pub fn resolve_inflected<'g>(
     graph: &'g Graph,
     query: &str,
     accept: impl Fn(&Control) -> bool,
 ) -> Resolution<'g> {
-    let first = resolve(graph, query, &accept);
-    if !matches!(first, Resolution::None) {
-        return first;
-    }
+    // Ein Treffer auf die gebeugte Form zählt nur, wenn er besser ist als
+    // der auf die Eingabe: „Größen“ trifft „Größentabelle“ am Wortanfang,
+    // der Stamm „Größe“ das Feld „Größe“ genau (spezifikation/08, „Welche
+    // Größen gibt es?“).
+    let (mut best, mut found) = resolve_scored(graph, query, &accept);
     let lower = query.to_lowercase();
     for suffix in ["en", "n", "s", "e"] {
         if lower.ends_with(suffix) && lower.chars().count() > suffix.len() + 2 {
-            let found = resolve(graph, &query[..query.len() - suffix.len()], &accept);
-            if !matches!(found, Resolution::None) {
-                return found;
+            let (score, stem) =
+                resolve_scored(graph, &query[..query.len() - suffix.len()], &accept);
+            if score > best {
+                best = score;
+                found = stem;
             }
         }
     }
-    Resolution::None
+    found
 }
 
 /// Ziel einer Navigation oder eines Vorlesebefehls: ein Abschnitt unter
