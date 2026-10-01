@@ -30,7 +30,7 @@ Gültige Entscheidungen und Rahmenbedingungen stehen in `docs/decisions.md` und
 | 47–48 | Querschnitt: Relief-Oberfläche und Sicherheitsgrenzen |
 | 58 | Querschnitt: Sicherheitsgrenzen in Hosts (Nachtrag zu 48) |
 | 75–76 | Querschnitt: Nachträge zu 58 (Formularziel im Fork, Werte außerhalb der Rückfrage) |
-| 114 | Linie A: Nachtrag zu 26 (Live-Mikrofon, Cloud-STT) |
+| 116 | Linie A: Nachtrag zu 114 (Cloud-STT) |
 | 113 | Linie A: Nachtrag zu 29 (vereinfachte Ansicht, ganze Tab-Breite) |
 | 80 | Linie A: Nachtrag zu 40 (Consent) |
 | 92 | Linie A: Nachtrag zu 39 (echte Formulare) |

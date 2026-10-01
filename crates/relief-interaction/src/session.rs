@@ -130,17 +130,28 @@ fn redact_unparsed(input: &str) -> String {
 /// Braucht der Befehl den aktuellen Fokus? Hosts, die ihn erst erfragen
 /// müssen (CDP), tun das nur dann.
 pub fn uses_focus(cmd: &Command) -> bool {
-    matches!(
-        cmd,
-        Command::WhereAmI
-            | Command::FieldStep(_)
-            | Command::SectionStep(_)
-            | Command::Read(None)
-            | Command::Dismiss
-            | Command::MissingFields
-            | Command::ReadErrors
-            | Command::FirstError
-    )
+    let target = match cmd {
+        Command::Focus(q)
+        | Command::Activate(q)
+        | Command::SetValue(q, _)
+        | Command::Select(Some(q), _)
+        | Command::Increment(q)
+        | Command::Decrement(q)
+        | Command::Inspect(q) => Some(q.as_str()),
+        _ => None,
+    };
+    target.is_some_and(is_deictic)
+        || matches!(
+            cmd,
+            Command::WhereAmI
+                | Command::FieldStep(_)
+                | Command::SectionStep(_)
+                | Command::Read(None)
+                | Command::Dismiss
+                | Command::MissingFields
+                | Command::ReadErrors
+                | Command::FirstError
+        )
 }
 
 /// Position nach einem Hinbewegen: das Ziel und der Fokus, der danach galt.
@@ -560,16 +571,31 @@ impl Session {
             }
             Command::RejectConsent => (reject_consent(graph), ActionKind::Activate),
             Command::ConsentSettings => (consent_settings(graph), ActionKind::Activate),
-            Command::Focus(q) => (pick(graph, &q, |_| true), ActionKind::Focus),
-            Command::Activate(q) => (pick(graph, &q, |_| true), ActionKind::Activate),
-            Command::SetValue(q, v) => (pick(graph, &q, is_editable), ActionKind::SetValue(v)),
+            Command::Focus(q) => (
+                pick_here(graph, here.as_ref(), &q, |_| true),
+                ActionKind::Focus,
+            ),
+            Command::Activate(q) => (
+                pick_here(graph, here.as_ref(), &q, |_| true),
+                ActionKind::Activate,
+            ),
+            Command::SetValue(q, v) => (
+                pick_here(graph, here.as_ref(), &q, is_editable),
+                ActionKind::SetValue(v),
+            ),
             Command::Select(Some(q), v) => (
-                pick(graph, &q, |c| !c.options.is_empty()),
+                pick_here(graph, here.as_ref(), &q, |c| !c.options.is_empty()),
                 ActionKind::Select(v),
             ),
             Command::Select(None, v) => (pick_by_option(graph, &v), ActionKind::Select(v)),
-            Command::Increment(q) => (pick(graph, &q, is_steppable), ActionKind::Increment),
-            Command::Decrement(q) => (pick(graph, &q, is_steppable), ActionKind::Decrement),
+            Command::Increment(q) => (
+                pick_here(graph, here.as_ref(), &q, is_steppable),
+                ActionKind::Increment,
+            ),
+            Command::Decrement(q) => (
+                pick_here(graph, here.as_ref(), &q, is_steppable),
+                ActionKind::Decrement,
+            ),
             Command::FieldStep(step) => {
                 let field = step_field(graph, here.as_ref(), step)
                     .cloned()
@@ -617,8 +643,12 @@ impl Session {
                 });
             }
             Command::Inspect(q) => {
-                let found = resolve_inflected(graph, &q, |_| true);
-                return Outcome::Answer(match pick_from(graph, &q, found) {
+                let picked = if is_deictic(&q) {
+                    pick_here(graph, here.as_ref(), &q, |_| true)
+                } else {
+                    pick_from(graph, &q, resolve_inflected(graph, &q, |_| true))
+                };
+                return Outcome::Answer(match picked {
                     Ok(c) => respond::inspect(&c),
                     Err(miss) => miss.text(),
                 });
@@ -645,7 +675,12 @@ impl Session {
     /// Renderer an, bevor die Eingabe geplant wird. Auch die Wahl aus einer
     /// nummerierten Rückfrage zum Ausfüllen. `None`: kein solcher Befehl oder
     /// kein eindeutiges Ziel.
-    pub fn fill_target(&self, graph: &Graph, input: &str) -> Option<NodeRef> {
+    pub fn fill_target(
+        &self,
+        graph: &Graph,
+        input: &str,
+        focus: Option<&NodeRef>,
+    ) -> Option<NodeRef> {
         if let Some(Choices::Controls(controls, ActionKind::SetValue(_) | ActionKind::Select(_))) =
             &self.choices
         {
@@ -659,9 +694,12 @@ impl Session {
             }
         }
         let (_, cmd) = parse_input(input).ok()?;
+        let here = self.position(focus);
         let control = match cmd {
-            Command::SetValue(q, _) => pick(graph, &q, is_editable).ok()?,
-            Command::Select(Some(q), _) => pick(graph, &q, |c| !c.options.is_empty()).ok()?,
+            Command::SetValue(q, _) => pick_here(graph, here.as_ref(), &q, is_editable).ok()?,
+            Command::Select(Some(q), _) => {
+                pick_here(graph, here.as_ref(), &q, |c| !c.options.is_empty()).ok()?
+            }
             Command::Select(None, v) => pick_by_option(graph, &v).ok()?,
             _ => return None,
         };
@@ -1161,6 +1199,51 @@ fn consent_button(
             ),
             several.iter().map(|c| (*c).clone()).collect(),
         )),
+    }
+}
+
+/// „dieses Feld“, „hier“: Bezug auf Fokus bzw. Position statt auf einen
+/// Namen (Paket 114, Dialogkontext ohne Modell).
+pub fn is_deictic(query: &str) -> bool {
+    const WORDS: &[&str] = &[
+        "dieses feld",
+        "diesem feld",
+        "das feld",
+        "dieses",
+        "diesen",
+        "diese",
+        "dies",
+        "das hier",
+        "hier",
+    ];
+    WORDS.contains(&query.trim().to_lowercase().as_str())
+}
+
+/// Wie [`pick`], „dieses Feld“/„hier“ meint das Element an Fokus bzw.
+/// Position.
+fn pick_here(
+    graph: &Graph,
+    here: Option<&NodeRef>,
+    query: &str,
+    accept: impl Fn(&Control) -> bool,
+) -> Result<Control, Miss<Control>> {
+    if !is_deictic(query) {
+        return pick(graph, query, accept);
+    }
+    let Some(at) = here else {
+        return Err(Miss::Text(format!(
+            "„{query}“: Kein Fokus und keine Position. Erst zu einem Element gehen."
+        )));
+    };
+    match graph.controls.iter().find(|c| c.node == *at) {
+        Some(c) if accept(c) => Ok(c.clone()),
+        Some(c) => Err(Miss::Text(format!(
+            "„{query}“ ist {}; das passt nicht zu diesem Befehl.",
+            respond::control_line(c)
+        ))),
+        None => Err(Miss::Text(format!(
+            "„{query}“: Am Fokus steht kein Bedienelement."
+        ))),
     }
 }
 

@@ -24,6 +24,7 @@
 #include "relief/os_settings.h"
 #include "relief/profile_store.h"
 #include "relief/relief_tab_helper.h"
+#include "relief/speech/speech_recognition.h"
 
 namespace relief {
 
@@ -77,6 +78,12 @@ class InspectorHandler : public content::WebUIMessageHandler,
         "profilePreset",
         base::BindRepeating(&InspectorHandler::OnProfilePreset,
                             base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "listen", base::BindRepeating(&InspectorHandler::OnListen,
+                                      base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "listenCancel", base::BindRepeating(&InspectorHandler::OnListenCancel,
+                                            base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "viewCommand", base::BindRepeating(&InspectorHandler::OnViewCommand,
                                            base::Unretained(this)));
@@ -280,6 +287,39 @@ class InspectorHandler : public content::WebUIMessageHandler,
         args[0].GetString(), args[1].GetString(), args[2].GetString(),
         base::BindOnce(&InspectorHandler::SendViewAnswer,
                        weak_factory_.GetWeakPtr(), args[3].GetString()));
+  }
+
+  // Sprechtaste im Panel (Paket 114): Zuhören bzw. Äußerung beenden; die
+  // Antwort kommt wie eine Eingabe der Leiste, Fokus bleibt im Panel.
+  void OnListen(const base::ListValue& args) {
+    ReliefTabHelper* helper = Helper();
+    if (!helper) {
+      return;
+    }
+    const bool started = !speech::IsListening();
+    helper->ToggleListening(base::BindOnce(
+        [](base::WeakPtr<InspectorHandler> self, std::string text,
+           ReliefExecutor::Result result) {
+          if (!self) {
+            return;
+          }
+          self->FireWebUIListener(
+              "answer", base::Value(std::move(result.text)),
+              base::Value(false),
+              base::Value(text.empty() ? std::string("(gesprochen)")
+                                       : "(gesprochen) " + text));
+          self->FireWebUIListener("listening", base::Value(false));
+        },
+        weak_factory_.GetWeakPtr()));
+    FireWebUIListener("listening", base::Value(started));
+  }
+
+  void OnListenCancel(const base::ListValue& args) {
+    if (speech::CancelRecognition()) {
+      FireWebUIListener("answer", base::Value("Zuhören abgebrochen."),
+                        base::Value(false), base::Value("(gesprochen)"));
+    }
+    FireWebUIListener("listening", base::Value(false));
   }
 
   // „ja“/„abbrechen“ aus der Ansicht: wie ein Befehl, Antwort an die

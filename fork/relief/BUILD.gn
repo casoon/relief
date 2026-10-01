@@ -154,6 +154,7 @@ source_set("relief") {
     "speech/speech_recognition_mac.mm",
   ]
   frameworks = [
+    "AVFoundation.framework",
     "AppKit.framework",
     "Speech.framework",
   ]

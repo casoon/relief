@@ -266,7 +266,7 @@ void ReliefTaskRunner::Speak(const std::string& text) {
 void ReliefTaskRunner::Listen(const std::string& path) {
   Print("\n> (Audio) " + base::FilePath(path).BaseName().AsUTF8Unsafe());
   command_started_ = base::TimeTicks::Now();
-  speech::RecognizeFile(
+  speech::Listen(
       base::FilePath(path),
       base::BindOnce(
           [](base::WeakPtr<ReliefTaskRunner> self,

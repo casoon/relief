@@ -241,9 +241,25 @@ Randbedingungen [Annahme]:
 - **Belegt:** `spike/tasks/17-sprache.txt` im Fork 10/10, alle Äußerungen
   „auf dem Gerät“ erkannt; „Abbrechen“ und „Stopp“ unterbrachen eine
   laufende Ausgabe (Protokoll `tts stop speaking=1`); im CDP-Host 10/10.
-- **Offen (→ 114):** Live-Mikrofon (Sprechtaste im Panel), Cloud-STT per
-  eigenem Key, „dieses Feld“ als Bezug, Koexistenz mit VoiceOver manuell
-  (→ 47).
+- **Live (Paket 114) [belegt]:** Erkennung als Datenstrom
+  (`SFSpeechAudioBufferRecognitionRequest`, Zwischenergebnisse): bis zum
+  ersten Wort 6 s, danach beendet 1,5 s Stille die Äußerung, höchstens
+  15 s. Mikrofon über `AVAudioEngine` nach Freigabe; Audiodateien (`audio:`)
+  gehen denselben Weg, damit die automatischen Läufe den Live-Pfad bis auf
+  das Mikrofon prüfen. Sprechtaste im Panel („Sprechen“/„Fertig
+  gesprochen“, `aria-pressed`) und Strg+Umschalt+S auf der Seite; Escape
+  beim Zuhören verwirft die Äußerung. „dieses Feld“, „hier“, „dies …“
+  meinen das Element an Fokus bzw. Position (`is_deictic`, auch beim
+  Vorab-Ziel für `autocomplete`); „Was ist hier?“ bleibt die
+  Seitenbeschreibung. Belegt: `17-sprache.txt` im Fork über den
+  Datenstrom und im CDP-Host je 14/14 (erkannt „auf dem Gerät“; der Wert
+  hängt an der Erkennung, „Laufschuhe“ statt „Laufschuh“, geprüft werden
+  Aktion und Ziel); Live-Test mit Mikrofon durch den Nutzer
+  (2026-10-01): erkannt und beantwortet, nachdem die erste Fassung mit
+  1,5 s ab Start zu früh abbrach („No speech detected“).
+- **Offen:** Cloud-STT per eigenem Key (→ Paket 116), Koexistenz mit
+  VoiceOver manuell (→ 47); der Freigabetext fürs Mikrofon nennt noch
+  „Chromium“ (übersetzter Text aus `InfoPlist.strings`).
 
 | | macOS | Windows | Linux |
 |---|---|---|---|

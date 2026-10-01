@@ -305,6 +305,21 @@ function cancel() {
 }
 cancelButton.addEventListener('click', cancel);
 
+// Sprechtaste (Paket 114): Zuhören bzw. die Äußerung beenden.
+const listenButton = document.getElementById('listen');
+let listening = false;
+listenButton.addEventListener('click', () => {
+  chrome.send('listen');
+});
+addWebUiListener('listening', (on) => {
+  listening = on;
+  listenButton.setAttribute('aria-pressed', String(on));
+  listenButton.textContent = on ? 'Fertig gesprochen' : 'Sprechen';
+  if (on) {
+    setState('Höre zu … Escape bricht ab.');
+  }
+});
+
 // Escape: laufende Ausführung oder offene Rückfrage abbrechen, sonst das
 // Panel schließen (Chromium gibt den Fokus an die Seite zurück).
 document.addEventListener('keydown', (event) => {
@@ -312,7 +327,9 @@ document.addEventListener('keydown', (event) => {
     return;
   }
   event.preventDefault();
-  if (busy || pending) {
+  if (listening) {
+    chrome.send('listenCancel');
+  } else if (busy || pending) {
     cancel();
   } else {
     chrome.send('close');

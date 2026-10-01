@@ -57,9 +57,14 @@
             aria-describedby="cmd-hint">
         <button type="submit">Ausführen</button>
         <button type="button" id="cancel" disabled>Abbrechen</button>
+        <button type="button" id="listen" aria-pressed="false"
+            aria-describedby="listen-hint">Sprechen</button>
       </form>
       <p id="cmd-hint" class="hint">Zum Beispiel „was kann ich tun“, „gehe
         zu Suche“ oder „hilfe“. Escape bricht ab bzw. schließt das Panel.</p>
+      <p id="listen-hint" class="hint">Sprechen: einmal drücken und den Befehl
+        sagen; nach kurzer Stille ist die Eingabe fertig (auf der Seite:
+        Strg+Umschalt+S).</p>
       <p id="cmd-state" role="status">Bereit.</p>
       <h3 id="log-title">Antworten</h3>
       <ol id="log" role="log" aria-labelledby="log-title"></ol>
