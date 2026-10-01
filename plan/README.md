@@ -35,7 +35,7 @@ Gültige Entscheidungen und Rahmenbedingungen stehen in `docs/decisions.md` und
 | 80 | Linie A: Nachtrag zu 40 (Consent) |
 | 92 | Linie A: Nachtrag zu 39 (echte Formulare) |
 | 90 | zurückgestellt |
-| 106 | Linie Prüfen: CDP-Host, Nachtrag zu 85 (`tabfolge` sporadisch) |
+| 130 | Linie Prüfen: CDP-Host, Nachtrag zu 106 (`tabfolge`, Ursache des seltenen Ausfalls) |
 
 ## Jedes Paket hat
 

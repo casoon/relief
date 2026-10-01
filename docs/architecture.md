@@ -317,7 +317,11 @@ flowchart LR
   und Backend-ID: Aktionen (`act.rs`) laufen über die Sitzung des Frames,
   Tasten über die Seite (der Browser leitet sie an den fokussierten Frame).
   Fokus: meldet die Seite ein `iframe` eines angehängten Frames als
-  `activeElement`, wird im Frame weitergefragt. DOM-Fakten (`facts.rs`,
+  `activeElement`, wird im Frame weitergefragt. Meldet sie `body`, zählt
+  ein angehängter Frame, dessen `activeElement` nicht sein `body` ist: Hat
+  die Seite den Fokus abgegeben (Tab über das letzte Element hinaus),
+  setzt `focus()` im Frame das `activeElement` der Seite nicht mehr auf
+  dessen `iframe`. DOM-Fakten (`facts.rs`,
   `assertions.rs`) bekommen die Dokumente dieser Frames als
   `contentDocument` ihres `iframe` eingehängt (`Frames::document`), mit
   denselben IDs; `DOMSnapshot` je Prozess. iframes im Prozess eines
