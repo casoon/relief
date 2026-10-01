@@ -134,6 +134,12 @@ class ReliefTabHelper
   // Neuen Stand speichern und für diesen Tab sofort anwenden (andere Tabs
   // folgen über die Benachrichtigung).
   void ApplyAfterChange(std::string json, base::OnceClosure done);
+  // Sprechtaste (Paket 114): Zuhören über das Mikrofon starten bzw. die
+  // Äußerung beenden. `done` bekommt den erkannten Text (leer, wenn nichts)
+  // und die Antwort; beim Beenden einer laufenden Äußerung wird `done` nicht
+  // gerufen (die erste Anfrage antwortet).
+  void ToggleListening(
+      base::OnceCallback<void(std::string, ReliefExecutor::Result)> done);
   // Erkannte Sprache (Paket 26): Abbruchwörter vorrangig (Ausgabe stoppen,
   // Erkennung verwerfen, Rückfrage schließen), sonst wie Interact; die
   // Antwort wird gesprochen (stumm neben einem Screenreader).

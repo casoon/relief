@@ -153,7 +153,8 @@ Graph, jede Bedienung als validierte Aktion auf die Originalseite,
 beschrieben in
 [spezifikation/08](spezifikation/08-assistenz-und-capabilities.md#umsetzung-im-fork-paket-29-belegt).
 
-Sprache: gesprochene Befehle (Apples Spracherkennung, auf dem Gerät) und
+Sprache: gesprochene Befehle live über das Mikrofon (Sprechtaste) oder
+aus Audiodateien (Apples Spracherkennung, auf dem Gerät) und
 gesprochene Antworten (Chromium-TTS), „abbrechen“ vorrangig, beschrieben in
 [spezifikation/08](spezifikation/08-assistenz-und-capabilities.md#umsetzung-paket-26-belegt).
 
@@ -164,12 +165,12 @@ Medienmerkmale, beschrieben in
 [spezifikation/08](spezifikation/08-assistenz-und-capabilities.md#umsetzung-paket-41-belegt).
 
 **Sofort startbar:**
-- Cloud + M4: 114 (Sprache live)
+- Cloud + M4: 116 (Cloud-STT, Anbieter wählen)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
-- Linie A: 41, 26, 29 erledigt (Nachträge 113, 114; 115 erledigt) (40, 80, 91, 110 erledigt);
+- Linie A: 41, 26, 29 erledigt (Nachträge 113, 116; 114, 115 erledigt) (40, 80, 91, 110 erledigt);
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 und 44 erledigt, 43 zurückgestellt; 130 wartet auf ein erneutes Auftreten (85, 105, 106 erledigt).
 - Produkt: 37 erst vor einer Weitergabe an Dritte.
@@ -178,7 +179,7 @@ Medienmerkmale, beschrieben in
 | Nr | Thema | Umgebung | Status | Abhängig von | Datei |
 |---|---|---|---|---|---|
 | 10 | Cloud-Setup: Nachweis in einer Cloud-Session (CI unter Linux grün) | Cloud | blockiert: Cloud-Sessions HTTP 403 | Zugang | [10](10-cloud-umgebung-und-ci.md) |
-| 114 | Sprache: Live-Mikrofon, Cloud-STT, „dieses Feld“ | Cloud + M4 | offen | 26 ✓ | [114](114-sprache-live.md) |
+| 116 | Sprache: Cloud-STT per eigenem Key | Cloud + M4 | offen (Anbieter wählen) | 114 ✓ | [116](116-cloud-stt.md) |
 | 28 | Resolver: Messlauf und Schwellen | lokal / Cloud (API-Key) | wartet auf API-Key | 27 ✓, 12 ✓ | [28](28-resolver-fehlende-namen.md) |
 | 113 | Vereinfachte Ansicht und Semantic View über die ganze Tab-Breite | Cloud + M4 | zurückgestellt (Nutzer, 2026-10-01) | 29 ✓ | [113](113-vereinfachte-ansicht.md) |
 | 30 | CDP-Host: barrierlab-Release übernehmen (Nachladen erledigt) | Cloud | wartet auf barrierlab-Release | barrierlab | [30](30-cdp-host-pflege.md) |

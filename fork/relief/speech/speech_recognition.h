@@ -16,12 +16,20 @@ using RecognizedCallback =
     base::OnceCallback<void(std::optional<std::string> text,
                             std::string note)>;
 
-// Spracherkennung einer Audiodatei, Deutsch (Paket 26; macOS:
-// SFSpeechRecognizer, auf dem Gerät, wenn verfügbar). Fragt beim ersten
-// Mal nach der Freigabe. `done` läuft auf der aufrufenden Sequenz.
-void RecognizeFile(const base::FilePath& path, RecognizedCallback done);
+// Spracherkennung, Deutsch (Pakete 26, 114; macOS: SFSpeechRecognizer als
+// Datenstrom, auf dem Gerät, wenn verfügbar). Ohne `file` vom Mikrofon,
+// sonst aus der Audiodatei über denselben Weg (für Tests). Die Äußerung
+// endet nach kurzer Stille, mit StopListening oder nach 15 s. Fragt beim
+// ersten Mal nach den Freigaben. `done` läuft auf der aufrufenden Sequenz.
+void Listen(std::optional<base::FilePath> file, RecognizedCallback done);
 
-// Laufende Erkennung verwerfen; true, wenn eine lief.
+// Äußerung beenden und das bisher Erkannte liefern; false, wenn keine lief.
+bool StopListening();
+
+// Hört gerade zu.
+bool IsListening();
+
+// Laufende Erkennung verwerfen (ohne Ergebnis); true, wenn eine lief.
 bool CancelRecognition();
 
 // Ein Screenreader (VoiceOver) ist an: Relief spricht dann nicht selbst.

@@ -192,7 +192,8 @@ impl Runtime {
     pub fn facts_target(&self, input: &str) -> Option<NodeRef> {
         self.confirmation_target().or_else(|| {
             let graph = Graph::build(&self.graph);
-            self.session.fill_target(&graph, input)
+            let focus = relief_interaction::focused(&self.graph);
+            self.session.fill_target(&graph, input, focus.as_ref())
         })
     }
 

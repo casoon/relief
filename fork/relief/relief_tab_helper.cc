@@ -377,12 +377,35 @@ bool ReliefTabHelper::OnKeyPress(const input::NativeWebKeyboardEvent& event) {
   }
   const bool command = event.windows_key_code == ui::VKEY_SPACE;
   const bool marks = event.windows_key_code == ui::VKEY_M;
+  const bool listen = event.windows_key_code == ui::VKEY_S;
   if (event.GetType() != blink::WebInputEvent::Type::kRawKeyDown ||
-      (event.windows_key_code != ui::VKEY_I && !command && !marks) ||
+      (event.windows_key_code != ui::VKEY_I && !command && !marks &&
+       !listen) ||
       (event.GetModifiers() & kModifiers) !=
           (blink::WebInputEvent::kControlKey |
            blink::WebInputEvent::kShiftKey)) {
     return false;
+  }
+  if (listen) {
+    // Sprechtaste (Strg+Umschalt+S): Antwort gesprochen und im Panel wie
+    // eine Sprungmarke (Rückfragen lassen sich dort beantworten).
+    runtime_.AsyncCall(&RuntimeHost::Log).WithArgs("sprechen\ttaste");
+    ToggleListening(base::BindOnce(
+        [](base::WeakPtr<ReliefTabHelper> self, std::string text,
+           ReliefExecutor::Result result) {
+          if (!self) {
+            return;
+          }
+          const std::string input =
+              text.empty() ? "(gesprochen)" : "(gesprochen) " + text;
+          self->external_answer_ = std::pair(input, result);
+          for (InspectorObserver& observer : self->observers_) {
+            observer.OnExternalAnswer(input, result);
+            self->external_answer_.reset();
+          }
+        },
+        weak_factory_.GetWeakPtr()));
+    return true;
   }
   if (marks) {
     runtime_.AsyncCall(&RuntimeHost::Log).WithArgs("marken\ttaste");
@@ -1133,6 +1156,43 @@ void ReliefTabHelper::DevToolsCommand(
   runtime_.AsyncCall(&RuntimeHost::DevToolsCommand)
       .WithArgs(method, params)
       .Then(std::move(done));
+}
+
+void ReliefTabHelper::ToggleListening(
+    base::OnceCallback<void(std::string, ReliefExecutor::Result)> done) {
+  if (speech::IsListening()) {
+    speech::StopListening();
+    return;
+  }
+  speech_output_.Stop();
+  runtime_.AsyncCall(&RuntimeHost::Log).WithArgs(std::string("stt\tstart"));
+  speech::Listen(
+      std::nullopt,
+      base::BindOnce(
+          [](base::WeakPtr<ReliefTabHelper> self,
+             base::OnceCallback<void(std::string, ReliefExecutor::Result)> done,
+             std::optional<std::string> text, std::string note) {
+            if (!self) {
+              return;
+            }
+            self->runtime_.AsyncCall(&RuntimeHost::Log)
+                .WithArgs("stt\tende\t" + note);
+            if (!text) {
+              std::move(done).Run(std::string(),
+                                  {"Nicht erkannt: " + note, false});
+              return;
+            }
+            self->Hear(*text,
+                       base::BindOnce(
+                           [](base::OnceCallback<void(
+                                  std::string, ReliefExecutor::Result)> done,
+                              std::string text, ReliefExecutor::Result result) {
+                             std::move(done).Run(std::move(text),
+                                                 std::move(result));
+                           },
+                           std::move(done), *text));
+          },
+          weak_factory_.GetWeakPtr(), std::move(done)));
 }
 
 void ReliefTabHelper::Hear(

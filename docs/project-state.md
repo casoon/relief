@@ -33,8 +33,9 @@ auf die Semantic View (die Seite als bedienbare Ansicht, jede Bedienung als
 validierte Aktion auf die Originalseite). Dazu Tastatur-Sprungmarken über der Seite
 (Strg+Umschalt+M). Über CDP beantwortet der Build die Domäne `Relief.*`
 (Seitenmodell, Formular-Zusicherungen); `examples/playwright/` nutzt sie
-aus Playwright. Gesprochene Befehle erkennt der Fork aus Audiodateien
-(Apples Spracherkennung, auf dem Gerät) und spricht die Antworten über
+aus Playwright. Gesprochene Befehle erkennt der Fork live über das Mikrofon (Sprechtaste
+im Panel, Strg+Umschalt+S) oder aus Audiodateien (Apples
+Spracherkennung, auf dem Gerät) und spricht die Antworten über
 Chromiums TTS; „abbrechen“/„stopp“ unterbricht sofort
 (`scripts/fork-run-speech.sh`). Ein Fähigkeitsprofil (Abschnitt
 „Fähigkeiten“ im Panel, global oder je Website, lokal gespeichert) ändert

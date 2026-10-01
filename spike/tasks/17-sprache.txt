@@ -28,3 +28,13 @@ sprich: Was ist auf dieser Seite?
 expect: Nike Air Max
 sprich: Stopp.
 expect: Nichts offen, das sich abbrechen ließe
+
+# Bezug auf den Ort statt auf einen Namen (Paket 114). Der Wert hängt an
+# der Erkennung (auch „Laufschuhe“), geprüft werden Aktion und Ziel.
+sprich: Gehe zur Suche.
+expect: Suche
+sprich: Fülle dieses Feld mit Laufschuh.
+expect: SetValue(
+expect: auf [searchbox] Suche
+sprich: Details zu diesem Feld.
+expect: [searchbox] Suche
