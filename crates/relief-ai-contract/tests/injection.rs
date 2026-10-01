@@ -144,12 +144,14 @@ fn control(graph: &SemanticGraph, id: i32, name: Option<(&str, bool)>) -> Contro
         },
         region: None,
         value: None,
+        sensitive: false,
         options: vec![],
         selected_option: None,
         disabled: false,
         focusable: true,
         clickable: false,
         states: vec![],
+        expandable: false,
         heading: None,
     }
 }

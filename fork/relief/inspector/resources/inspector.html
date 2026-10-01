@@ -12,6 +12,13 @@
     <p id="page">Warte auf die Seite …</p>
   </header>
   <main>
+    <fieldset id="mode">
+      <legend>Ansicht</legend>
+      <label><input type="radio" name="mode" value="inspector" checked>
+        Befehle und Inspector</label>
+      <label><input type="radio" name="mode" value="semantic">
+        Semantische Ansicht</label>
+    </fieldset>
     <section aria-labelledby="cmd-title">
       <h2 id="cmd-title">Befehl</h2>
       <form id="cmd-form">
@@ -27,6 +34,20 @@
       <h3 id="log-title">Antworten</h3>
       <ol id="log" role="log" aria-labelledby="log-title"></ol>
     </section>
+    <section id="semantic" aria-labelledby="semantic-title" hidden>
+      <h2 id="semantic-title" tabindex="-1">Semantische Ansicht</h2>
+      <p class="hint">Bedienung hier wirkt auf die Originalseite, mit
+        Rückfrage bei riskanten Aktionen. „Befehle und Inspector“ oben führt
+        zurück; die Seite bleibt, wie sie ist.</p>
+      <p id="semantic-status" role="status"></p>
+      <div id="semantic-confirm" hidden>
+        <p id="semantic-question" tabindex="-1"></p>
+        <button type="button" id="semantic-yes">Ja, ausführen</button>
+        <button type="button" id="semantic-no">Abbrechen</button>
+      </div>
+      <div id="semantic-body"></div>
+    </section>
+    <div id="inspector">
     <h2 id="inspector-title">Seite</h2>
     <label for="nodes">Knoten der Seite</label>
     <select id="nodes" size="14" aria-describedby="nodes-hint"></select>
@@ -47,6 +68,7 @@
         <ul id="checks-not-run"></ul>
       </details>
     </section>
+    </div>
     <p id="status" role="status"></p>
     <p>
       <label><input type="checkbox" id="announce" checked> Änderungen der Seite

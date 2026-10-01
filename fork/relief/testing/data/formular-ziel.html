@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Bestellung</title></head>
+<body>
+<main>
+  <h1>Bestellung</h1>
+  <form id="f" action="/bestellen" method="post">
+    <label>Name <input name="name" value="Erika"></label>
+    <label>Nummer <input name="karte" autocomplete="cc-number" value="4111111111111111"></label>
+    <button id="kaufen">Jetzt kaufen</button>
+  </form>
+  <p role="status" id="s">0</p>
+</main>
+<script>
+  let abgeschickt = 0;
+  document.getElementById('f').onsubmit = (e) => {
+    e.preventDefault();
+    document.getElementById('s').textContent = String(++abgeschickt);
+  };
+</script>
+</body></html>

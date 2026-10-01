@@ -52,7 +52,7 @@ RUST_CRATES=(relief-model relief-interaction relief-bridge)
 # (barrierlab ist die Quelle, → CLAUDE.md), holt das Skript die Quellen der
 # in Cargo.lock festgelegten Version aus der lokalen Cargo-Registry
 # (`cargo fetch` legt sie an).
-BARRIERLAB_CRATES=(a11y-dom a11y-report a11y-rules)
+BARRIERLAB_CRATES=(a11y-dom a11y-report a11y-rules accname)
 
 copy_barrierlab() {
   (cd "$ROOT" && cargo fetch --quiet)

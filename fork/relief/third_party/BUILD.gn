@@ -1,4 +1,5 @@
-# barrierlab-Crates für Befunde im Inspector (Paket 21). MIT-Lizenz wie
+# barrierlab-Crates für Befunde im Inspector (Paket 21) und Zusicherungen
+# über `Relief.assert` (Paket 45, accname). MIT-Lizenz wie
 # barrierlab. Die Quellen legt scripts/fork-apply.sh aus der lokalen
 # Cargo-Registry nach <crate>/src/ (Version aus Cargo.lock); die Dateilisten
 # unten gelten für 0.13.3 und sind bei einem Versionswechsel nachzuziehen.
@@ -54,4 +55,18 @@ rust_static_library("a11y_rules") {
     ":a11y_dom",
     ":a11y_report",
   ]
+}
+
+rust_static_library("accname") {
+  visibility = [ "//relief/*" ]
+  crate_name = "accname"
+  crate_root = "accname/src/lib.rs"
+  edition = "2024"
+  sources = [
+    "accname/src/index.rs",
+    "accname/src/lib.rs",
+    "accname/src/name.rs",
+    "accname/src/role.rs",
+  ]
+  deps = [ ":a11y_dom" ]
 }
