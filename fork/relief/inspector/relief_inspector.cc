@@ -141,20 +141,26 @@ void RegisterAction(BrowserWindowInterface& browser) {
           .Build());
 }
 
-// Registriert den Eintrag, falls der Tab ihn noch nicht hat; nullptr ohne
-// Browserfenster.
+// Registriert den Eintrag beim aktiven Tab des Fensters, falls er ihn noch
+// nicht hat; nullptr ohne Browserfenster. Das Side Panel zeigt immer den
+// Eintrag des aktiven Tabs: Beim Start mit wiederhergestellten Tabs ist der
+// erste Tab nicht unbedingt der aktive (sonst CHECK in SidePanelUIBase).
 SidePanelUI* PrepareInspector(tabs::TabInterface& tab) {
   RegisterInspectorWebUI();
   BrowserWindowInterface* browser = tab.GetBrowserWindowInterface();
-  SidePanelRegistry* registry = SidePanelRegistry::From(&tab);
-  if (!browser || !registry) {
+  tabs::TabInterface* active =
+      browser ? (tab.IsActivated() ? &tab : browser->GetActiveTabInterface())
+              : nullptr;
+  SidePanelRegistry* registry =
+      active ? SidePanelRegistry::From(active) : nullptr;
+  if (!registry) {
     return nullptr;
   }
   RegisterAction(*browser);
   if (!registry->GetEntryForKey(InspectorKey())) {
     registry->Register(std::make_unique<SidePanelEntry>(
         InspectorKey(),
-        base::BindRepeating(&CreateInspectorView, tab.GetWeakPtr()),
+        base::BindRepeating(&CreateInspectorView, active->GetWeakPtr()),
         /*default_content_width_callback=*/base::NullCallback()));
   }
   return SidePanelUI::From(browser);

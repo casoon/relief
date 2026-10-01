@@ -31,7 +31,6 @@ Gültige Entscheidungen und Rahmenbedingungen stehen in `docs/decisions.md` und
 | 58 | Querschnitt: Sicherheitsgrenzen in Hosts (Nachtrag zu 48) |
 | 75–76 | Querschnitt: Nachträge zu 58 (Formularziel im Fork, Werte außerhalb der Rückfrage) |
 | 114 | Linie A: Nachtrag zu 26 (Live-Mikrofon, Cloud-STT) |
-| 115 | Linie A: Nachtrag zu 41 (OS-Vorbelegung, Kontrast und Bewegung für Webseiten) |
 | 113 | Linie A: Nachtrag zu 29 (vereinfachte Ansicht, ganze Tab-Breite) |
 | 80 | Linie A: Nachtrag zu 40 (Consent) |
 | 92 | Linie A: Nachtrag zu 39 (echte Formulare) |

@@ -676,6 +676,9 @@ const FAEHIGKEITEN = {
     {full: 'vollständig', reduced: 'kurz, Rest auf Nachfrage', none: 'sehr kurz'}],
 };
 
+// Fähigkeiten, die Relief noch nicht nutzt (sichtbar statt verschwiegen).
+const OHNE_WIRKUNG = ['color_discrimination', 'speech_input', 'switch_input'];
+
 const profileFields = document.getElementById('profile-fields');
 const profileStatus = document.getElementById('profile-status');
 const presetSelect = document.getElementById('preset');
@@ -742,8 +745,9 @@ function renderProfile() {
     const origin = document.createElement('span');
     origin.className = 'origin';
     origin.id = `${id}-origin`;
-    origin.textContent = f.site !== null ? ' (nur diese Website)' :
-        f.global !== null ? ' (geändert, alle Websites)' : ' (Standard)';
+    origin.textContent = (f.site !== null ? ' (nur diese Website)' :
+        f.global !== null ? ' (geändert, alle Websites)' : ' (Standard)') +
+        (OHNE_WIRKUNG.includes(f.field) ? ' · noch ohne Wirkung' : '');
     control.setAttribute('aria-describedby', origin.id);
     control.addEventListener('change', () => {
       const value = names ? JSON.stringify(control.value) : control.value;
@@ -783,9 +787,38 @@ for (const radio of document.querySelectorAll('input[name="mode"]')) {
   });
 }
 
-addWebUiListener('profile', (json, effects) => {
+// Vorschlag aus den Systemeinstellungen (Paket 115): nur anbieten; bis
+// zum Schließen des Panels abgelehnt, wenn „Nicht übernehmen“.
+let suggestion = {};
+let suggestionDismissed = false;
+
+function renderSuggestion() {
+  const box = document.getElementById('profile-suggestion');
+  const entries = Object.entries(suggestion);
+  box.hidden = suggestionDismissed || entries.length === 0;
+  document.getElementById('profile-suggestion-text').textContent =
+      'Vorschlag aus den Systemeinstellungen (alle Websites): ' +
+      entries.map(([f, v]) =>
+          `${FAEHIGKEITEN[f][0]} „${valueText(f, v)}“`).join(', ') + '.';
+}
+
+document.getElementById('suggestion-apply').addEventListener('click', () => {
+  for (const [field, value] of Object.entries(suggestion)) {
+    chrome.send('profileSet', ['global', field, JSON.stringify(value)]);
+  }
+  suggestionDismissed = true;
+  renderSuggestion();
+});
+document.getElementById('suggestion-dismiss').addEventListener('click', () => {
+  suggestionDismissed = true;
+  renderSuggestion();
+});
+
+addWebUiListener('profile', (json, effects, suggested) => {
   profileView = JSON.parse(json);
+  suggestion = JSON.parse(suggested || '{}');
   renderProfile();
+  renderSuggestion();
   const root = document.documentElement;
   root.style.setProperty('--scale', String(effects.zoom));
   root.classList.toggle('contrast', effects.contrast);

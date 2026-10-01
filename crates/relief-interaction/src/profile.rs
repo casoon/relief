@@ -287,6 +287,29 @@ pub fn present(answer: &str, effects: &Effects) -> (String, Option<String>) {
     }
 }
 
+/// Systemeinstellungen, aus denen ein Startwert vorgeschlagen wird
+/// (Paket 115). Ein laufender Screenreader gehört bewusst nicht dazu: Er
+/// sagt nichts über Fähigkeiten aus (Relief spricht dann ohnehin nicht
+/// selbst, → `speech`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct OsSettings {
+    pub reduce_motion: bool,
+    pub increase_contrast: bool,
+}
+
+/// Vorschlag aus den Systemeinstellungen: nur Felder, die global noch auf
+/// dem Standard stehen. Wird nie von selbst übernommen.
+pub fn suggestion(store: &Store, os: OsSettings) -> Overrides {
+    let mut out = Overrides::new();
+    if os.reduce_motion && !store.global.contains_key("motion_tolerance") {
+        out.insert("motion_tolerance".into(), "reduced".into());
+    }
+    if os.increase_contrast && !store.global.contains_key("contrast") {
+        out.insert("contrast".into(), "increased".into());
+    }
+    out
+}
+
 /// Wirkungen in Worten.
 pub fn describe_effects(e: &Effects) -> String {
     let mut parts = Vec::new();
@@ -414,6 +437,22 @@ mod tests {
         assert_eq!(c.motion_tolerance, Level::Full);
         s.reset_all();
         assert_eq!(s.effective(""), Capabilities::default());
+    }
+
+    #[test]
+    fn vorschlag_nur_fuer_standardwerte() {
+        let os = OsSettings {
+            reduce_motion: true,
+            increase_contrast: true,
+        };
+        let mut s = Store::default();
+        assert_eq!(suggestion(&s, os).len(), 2);
+        s.set("", "contrast", json!("maximum")).unwrap();
+        assert_eq!(
+            suggestion(&s, os).keys().collect::<Vec<_>>(),
+            vec!["motion_tolerance"]
+        );
+        assert!(suggestion(&s, OsSettings::default()).is_empty());
     }
 
     #[test]

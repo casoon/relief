@@ -338,6 +338,28 @@ impl Session {
         answer
     }
 
+    /// Wirkungen des Fähigkeitsprofils auf die Seite (Paket 115):
+    /// Medienmerkmale `prefers-reduced-motion` und `prefers-contrast` über
+    /// `Emulation.setEmulatedMedia`; leere Werte heben die Emulation auf.
+    async fn apply_effects(&self) -> Result<()> {
+        use chromiumoxide::cdp::browser_protocol::emulation::{
+            MediaFeature, SetEmulatedMediaParams,
+        };
+        let e = self.session.effects();
+        let params = SetEmulatedMediaParams::builder()
+            .feature(MediaFeature::new(
+                "prefers-reduced-motion",
+                if e.reduced_motion { "reduce" } else { "" },
+            ))
+            .feature(MediaFeature::new(
+                "prefers-contrast",
+                if e.increased_contrast { "more" } else { "" },
+            ))
+            .build();
+        self.page.execute(params).await?;
+        Ok(())
+    }
+
     /// Eine Eingabe beantworten. `!` am Anfang bestätigt riskante Aktionen.
     async fn answer(&mut self, input: &str) -> Result<String> {
         // Die Seite kann sich seit der letzten Aufnahme geändert haben.
@@ -512,6 +534,9 @@ async fn run_files(
                         Ok(mut s) => {
                             println!("{}", respond::describe(&s.graph));
                             s.session.set_effects(profile.effective("").effects());
+                            if let Err(e) = s.apply_effects().await {
+                                println!("!! Profil nicht anwendbar: {e}");
+                            }
                             session = Some(s);
                         }
                         Err(e) => {
@@ -546,6 +571,18 @@ async fn run_files(
                     };
                     if let Some(s) = session.as_mut() {
                         s.session.set_effects(profile.effective("").effects());
+                        // Die Seite reagiert auf Medienmerkmale wie auf eine
+                        // Aktion: Ruhe abwarten, neu aufnehmen.
+                        let applied = match s.apply_effects().await {
+                            Ok(()) => {
+                                let settled = s.live.settle().await;
+                                s.update(true, Some(settled)).await
+                            }
+                            Err(e) => Err(e),
+                        };
+                        if let Err(e) = applied {
+                            last = format!("Fehler: {e}");
+                        }
                     }
                     println!("\n§ {line}\n{}", indent(&last));
                 }

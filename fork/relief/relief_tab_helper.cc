@@ -36,6 +36,7 @@
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "relief/common/form_facts.mojom.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
+#include "chrome/browser/relief_hooks.h"
 #include "relief/branding_strings.h"
 #include "relief/inspector/relief_inspector.h"
 #include "relief/relief_attach.h"
@@ -46,6 +47,8 @@
 #include "relief/relief_task_runner.h"
 #include "relief/speech/speech_recognition.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
+#include "third_party/blink/public/common/web_preferences/web_preferences.h"
+#include "third_party/blink/public/mojom/css/preferred_contrast.mojom-shared.h"
 #include "ui/accessibility/ax_action_data.h"
 #include "ui/accessibility/ax_action_handler_base.h"
 #include "ui/accessibility/ax_enum_util.h"
@@ -104,9 +107,28 @@ ax::mojom::Action ToAXAction(bridge::Action action) {
 
 }  // namespace
 
+// Fähigkeitsprofil (Paket 115): Medienmerkmale je Tab, über den Hook in
+// ChromeContentBrowserClient::OverrideWebPreferences bei jeder
+// Neuberechnung.
+void OverrideWebPreferences(content::WebContents* contents,
+                            blink::web_pref::WebPreferences* prefs) {
+  ReliefTabHelper* helper = ReliefTabHelper::FromWebContents(contents);
+  if (!helper) {
+    return;
+  }
+  const bridge::ProfileEffects& effects = helper->effects();
+  if (effects.reduced_motion) {
+    prefs->prefers_reduced_motion = true;
+  }
+  if (effects.increased_contrast) {
+    prefs->preferred_contrast = blink::mojom::PreferredContrast::kMore;
+  }
+}
+
 base::CallbackListSubscription AttachToTab(tabs::TabInterface& tab) {
   // Produktname in übersetzten Texten, unabhängig von --enable-relief.
   ApplyBrandingStrings();
+  relief_hooks::SetWebPreferencesHook(&OverrideWebPreferences);
   if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableRelief)) {
     return {};
@@ -439,7 +461,14 @@ void ReliefTabHelper::ApplyProfile(base::OnceClosure done) {
 
 void ReliefTabHelper::OnProfileEffects(base::OnceClosure done,
                                        bridge::ProfileEffects effects) {
+  const bool media_changed =
+      effects.reduced_motion != effects_.reduced_motion ||
+      effects.increased_contrast != effects_.increased_contrast;
   effects_ = effects;
+  if (media_changed) {
+    // Neuberechnung: OverrideWebPreferences setzt die Merkmale.
+    web_contents()->NotifyPreferencesChanged();
+  }
   // Zoom nur für dieses Dokument (temporär), nicht als Website-Einstellung
   // in Chromium gespeichert.
   content::HostZoomMap* zoom =
@@ -473,9 +502,21 @@ void ReliefTabHelper::ProfileLine(const std::string& line,
     std::move(done).Run("Fehler: " + text);
     return;
   }
-  // Ohne Benachrichtigung setzen: Die Wirkung kommt hier mit Rückmeldung.
-  ApplyAfterChange(std::string(change.store),
-                   base::BindOnce(std::move(done), std::move(text)));
+  // Die Seite reagiert auf Medienmerkmale wie auf eine Aktion: Ruhe
+  // abwarten, dann antworten.
+  ApplyAfterChange(
+      std::string(change.store),
+      base::BindOnce(
+          [](base::WeakPtr<ReliefTabHelper> self,
+             base::OnceCallback<void(std::string)> done, std::string text) {
+            if (!self) {
+              return;
+            }
+            self->executor().WaitForQuiet(
+                base::Milliseconds(150), base::Seconds(3),
+                base::BindOnce(std::move(done), std::move(text)));
+          },
+          weak_factory_.GetWeakPtr(), std::move(done), std::move(text)));
 }
 
 void ReliefTabHelper::ApplyAfterChange(std::string json,
