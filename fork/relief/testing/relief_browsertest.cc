@@ -52,6 +52,7 @@
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "relief/inspector/relief_inspector_ui.h"
 #include "relief/relief_switches.h"
+#include "relief/inspector/relief_inspector.h"
 #include "relief/relief_tab_helper.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
@@ -952,6 +953,65 @@ IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, Faehigkeitsprofil) {
           << ui::ToString(node.role);
     }
   }
+}
+
+// Panel für einen nicht aktiven Tab (Start mit wiederhergestellten Tabs
+// und --relief-inspector): Es gilt dem aktiven Tab, kein CHECK in
+// SidePanelUIBase.
+IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, InspectorFuerInaktivenTab) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
+                                           Url("a.test", "/medien.html")));
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), Url("b.test", "/medien.html"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  tabs::TabInterface* first = browser()->tab_strip_model()->GetTabAtIndex(0);
+  ASSERT_FALSE(first->IsActivated());
+  ASSERT_TRUE(ShowInspector(*first));
+  SidePanelUI* side_panel = SidePanelUI::From(browser());
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return side_panel->IsSidePanelEntryShowing(
+        SidePanelEntry::Key(SidePanelEntry::Id::kRelief));
+  }));
+}
+
+// Fähigkeitsprofil für Webseiten (Paket 115): „wenig Bewegung“ und
+// „Kontrast erhöht“ erscheinen der Seite als prefers-reduced-motion und
+// prefers-contrast: more, auch nach einer Neuberechnung der
+// WebPreferences; „standard“ nimmt beides zurück.
+IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, FaehigkeitenFuerWebseiten) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
+                                           Url("a.test", "/medien.html")));
+  auto media = [&](const std::string& query) {
+    return content::EvalJs(web_contents(),
+                           "matchMedia('" + query + "').matches")
+        .ExtractBool();
+  };
+  auto line = [&](const std::string& text) {
+    base::test::TestFuture<std::string> answer;
+    helper().ProfileLine(text, answer.GetCallback());
+    return answer.Take();
+  };
+  ASSERT_FALSE(media("(prefers-reduced-motion: reduce)"));
+  ASSERT_FALSE(media("(prefers-contrast: more)"));
+
+  EXPECT_NE(line("motion_tolerance=reduced, contrast=increased")
+                .find("wenig Bewegung"),
+            std::string::npos);
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return media("(prefers-reduced-motion: reduce)") &&
+           media("(prefers-contrast: more)");
+  }));
+  // Eine Neuberechnung (Theme, Schriften) setzt sie nicht zurück.
+  web_contents()->NotifyPreferencesChanged();
+  EXPECT_TRUE(media("(prefers-reduced-motion: reduce)"));
+  EXPECT_TRUE(media("(prefers-contrast: more)"));
+
+  line("standard");
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return !media("(prefers-reduced-motion: reduce)") &&
+           !media("(prefers-contrast: more)");
+  }));
 }
 
 // Semantic View (Paket 29): Wechsel der Ansicht löst auf der Seite nichts

@@ -135,6 +135,8 @@ source_set("relief") {
     "inspector/relief_inspector_ui.cc",
     "inspector/relief_inspector_ui.h",
     "marks_overlay.cc",
+    "os_settings.h",
+    "os_settings_mac.mm",
     "profile_store.cc",
     "profile_store.h",
     "marks_overlay.h",

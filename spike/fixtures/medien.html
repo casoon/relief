@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Medienmerkmale</title></head>
+<body>
+<main>
+  <h1>Medienmerkmale</h1>
+  <p id="m"></p>
+</main>
+<script>
+  // Zeigt, was die Seite über prefers-reduced-motion und prefers-contrast
+  // erfährt (Paket 115).
+  const motion = matchMedia('(prefers-reduced-motion: reduce)');
+  const contrast = matchMedia('(prefers-contrast: more)');
+  const show = () => {
+    document.getElementById('m').textContent =
+        `Bewegung ${motion.matches ? 'reduziert' : 'normal'}, ` +
+        `Kontrast ${contrast.matches ? 'mehr' : 'normal'}.`;
+  };
+  motion.addEventListener('change', show);
+  contrast.addEventListener('change', show);
+  show();
+</script>
+</body></html>

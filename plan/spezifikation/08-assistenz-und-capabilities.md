@@ -73,10 +73,35 @@ Increase Contrast, VoiceOver aktiv, Textgröße) — naheliegend, spart Onboardi
   wirkt nur dort, globaler Zoom, „Standard wiederherstellen“ setzt Zoom
   und Stand zurück, Datei geschrieben, alle Bedienelemente benannt);
   Unit-Tests in `profile.rs`.
-- **Offen:** Vorbelegung aus OS-Einstellungen, Zoom der Seite im CDP-Host,
-  seitenweiter Kontrast und reduzierte Bewegung (`forced-colors`,
-  `prefers-reduced-motion` für Webseiten) → Paket 115; welche Kombinationen
-  zuerst zählen, entscheidet der Nutzennachweis (→ 90).
+- **Webseiten (Paket 115) [belegt]:** „Bewegung nicht voll verträglich“
+  → `prefers-reduced-motion: reduce`, „Kontrastbedarf erhöht/maximal“ →
+  `prefers-contrast: more`. Im Fork über einen Hook am Ende von
+  `ChromeContentBrowserClient::OverrideWebPreferences` (Patch 11,
+  `chrome/browser/relief_hooks.*`; `//relief` setzt ihn zur Laufzeit, weil
+  `//relief` an `//chrome/browser` hängt), damit eine Neuberechnung der
+  WebPreferences die Werte nicht verliert; bei Änderung
+  `NotifyPreferencesChanged`. Im CDP-Host über
+  `Emulation.setEmulatedMedia`. Beide Hosts warten nach `profil:` auf Ruhe
+  wie nach einer Aktion. Belegt: `18-faehigkeiten.txt` mit
+  `spike/fixtures/medien.html` in beiden Hosts 30/30;
+  `relief_browsertests --gtest_filter=*FaehigkeitenFuerWebseiten*` (auch
+  nach `NotifyPreferencesChanged`). `forced-colors` bleibt aus: erzwungene
+  Farben brauchen den Farbanbieter des Systems, nicht nur ein Merkmal
+  [Entscheidung].
+- **Vorschlag aus den Systemeinstellungen (Paket 115):** macOS „Bewegung
+  reduzieren“ und „Kontrast erhöhen“ (`NSWorkspace`) ergeben einen
+  Vorschlag für Felder, die global noch auf dem Standard stehen
+  (`profile::suggestion`); das Panel zeigt ihn mit „Vorschlag übernehmen“
+  und „Nicht übernehmen“, übernommen wird nie von selbst. Ein laufender
+  Screenreader ist bewusst kein Hinweis auf einen Fähigkeitswert. Belegt
+  im Unit-Test `vorschlag_nur_fuer_standardwerte`; die Anzeige mit
+  eingeschalteten Systemeinstellungen ist nicht automatisch geprüft.
+  Fähigkeiten ohne eigene Wirkung (Farbunterscheidung, Spracheingabe,
+  Schalter) stehen im Panel als „noch ohne Wirkung“.
+- **Offen:** Zoom der Seite im CDP-Host (CDP kennt keinen CSS-Zoom ohne
+  Eingriff in die Seite); macOS-Textgröße hat keine systemweite
+  Einstellung; welche Kombinationen zuerst zählen, entscheidet der
+  Nutzennachweis (→ 90).
 
 ## Visual Assist
 

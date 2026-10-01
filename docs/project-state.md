@@ -15,7 +15,7 @@ unverändert). Zwei Linien: Assistenz im Browser und Prüfen im echten Browser;
 Relief ersetzt den geplanten barrierlab-Reader. Es gibt
 einen CDP-Spike gegen ein normales Chrome: Rust-Workspace mit sechs Crates,
 siehe `docs/architecture.md`. Dazu das Fork-Grundgerüst: Chromium
-154.0.8037.58 mit `//relief/` und acht Patches (`fork/`), lokal gebaut in
+154.0.8037.58 mit `//relief/` und neun Patches (`fork/`), lokal gebaut in
 `~/chromium/src/out/Relief`. Mit `--enable-relief` liest er den AXTree samt
 Positionen im Browser-Prozess, auch aus cross-site-iframes, führt ihn als
 `SemanticGraph` in der Rust-Runtime nach (über Navigation, Back-Forward-Cache
@@ -39,7 +39,8 @@ Chromiums TTS; „abbrechen“/„stopp“ unterbricht sofort
 (`scripts/fork-run-speech.sh`). Ein Fähigkeitsprofil (Abschnitt
 „Fähigkeiten“ im Panel, global oder je Website, lokal gespeichert) ändert
 Ansage (kurz mit „mehr“, gesprochen), Eingabe (mehr Rückfragen) und
-Darstellung (Zoom, Kontrast, Startansicht).
+Darstellung (Zoom, Kontrast, Startansicht); Webseiten erfahren Bewegung
+und Kontrast als `prefers-reduced-motion`/`prefers-contrast`.
 
 ## Ausführen
 
@@ -241,7 +242,7 @@ scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurüc
 | `spike/recordings` | AXTree-Aufnahmen als Fixtures für browserfreie Tests |
 | `spike/kalibrierung` | von Hand beschriftete Stichprobe unbenannter Controls mit Soll-Namen und Begründung |
 | `crates/relief-interaction/tests` | Snapshot- und Aufgabentests gegen die Aufnahmen; Erwartungen neu setzen mit `RELIEF_ERWARTUNGEN=neu` |
-| `fork/` | Fork-Inhalt für einen Chromium-Checkout: Patch-Serie (`patches/`, `series`, 8 Patches), Basisversion (`UPSTREAM`), `//relief/` (`relief/`: Tab-Helfer, eigener AXTree, Runtime-Sequenz, Aufgaben-Runner, Inspector (`inspector/`), `BUILD.gn`, GN-Ziele für barrierlab-Crates (`third_party/`), Renderer-Agent für Formularangaben (`common/`, `renderer/`), CDP-Domäne `Relief.*` (`devtools/`), Sprache (`speech/`), Browser-Tests in `testing/`); Format in `fork/README.md` |
+| `fork/` | Fork-Inhalt für einen Chromium-Checkout: Patch-Serie (`patches/`, `series`, 9 Patches), Basisversion (`UPSTREAM`), `//relief/` (`relief/`: Tab-Helfer, eigener AXTree, Runtime-Sequenz, Aufgaben-Runner, Inspector (`inspector/`), `BUILD.gn`, GN-Ziele für barrierlab-Crates (`third_party/`), Renderer-Agent für Formularangaben (`common/`, `renderer/`), CDP-Domäne `Relief.*` (`devtools/`), Sprache (`speech/`), Browser-Tests in `testing/`); Format in `fork/README.md` |
 | `scripts/fork-apply.sh`, `scripts/fork-export.sh` | Fork auf einen Checkout anwenden (inkl. Kopie der Crate-Quellen) bzw. Patches daraus neu erzeugen |
 | `scripts/cloud-setup.sh` | Setup-Skript für die Cloud-Umgebung auf claude.ai |
 | `.github/workflows/ci.yml` | CI: Rust-Prüfungen und Aufgaben 01–06 gegen Chrome |

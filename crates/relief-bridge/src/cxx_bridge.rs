@@ -505,6 +505,9 @@ pub mod ffi {
         fn profile_preset(store: &str, name: &str) -> ProfileChange;
         /// Stand für die Oberfläche (JSON).
         fn profile_view(store: &str, site: &str) -> String;
+        /// Vorschlag aus den Systemeinstellungen als JSON-Objekt
+        /// (Feld → Wert), leer `{}` (Paket 115).
+        fn profile_suggestion(store: &str, reduce_motion: bool, increase_contrast: bool) -> String;
         /// Erkannten Text einordnen: Abbruch vorrangig (Paket 26).
         fn speech_route(text: &str) -> Heard;
         /// Antwort zum Sprechen (erste Zeile, gekürzt).
@@ -899,6 +902,18 @@ fn profile_preset(store: &str, name: &str) -> ffi::ProfileChange {
             &s.effective("").effects(),
         ))
     })
+}
+
+fn profile_suggestion(store: &str, reduce_motion: bool, increase_contrast: bool) -> String {
+    let os = relief_interaction::profile::OsSettings {
+        reduce_motion,
+        increase_contrast,
+    };
+    serde_json::to_string(&relief_interaction::profile::suggestion(
+        &crate::profile::store(store),
+        os,
+    ))
+    .expect("JSON")
 }
 
 fn profile_view(store: &str, site: &str) -> String {

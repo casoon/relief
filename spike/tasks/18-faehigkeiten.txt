@@ -65,3 +65,14 @@ profil: standard
 expect: Profil: Standard. Wirkung: keine (Standard).
 do: Was ist auf dieser Seite?
 expect: Bereiche: banner
+
+# Webseiten erfahren Bewegung und Kontrast als Medienmerkmale (Paket 115).
+url: ../fixtures/medien.html
+do: lies den Abschnitt Medienmerkmale
+expect: Bewegung normal, Kontrast normal.
+profil: motion_tolerance=reduced, contrast=increased
+do: lies den Abschnitt Medienmerkmale
+expect: Bewegung reduziert, Kontrast mehr.
+profil: standard
+do: lies den Abschnitt Medienmerkmale
+expect: Bewegung normal, Kontrast normal.

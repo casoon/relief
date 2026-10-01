@@ -159,16 +159,17 @@ gesprochene Antworten (Chromium-TTS), „abbrechen“ vorrangig, beschrieben in
 
 Fähigkeitsprofile: frei kombinierbare Fähigkeitswerte, global oder je
 Website, mit sofortiger Wirkung auf Ansage, Eingabe und Darstellung und
-vollständigem Zurücksetzen, beschrieben in
+vollständigem Zurücksetzen; Webseiten bekommen Bewegung und Kontrast als
+Medienmerkmale, beschrieben in
 [spezifikation/08](spezifikation/08-assistenz-und-capabilities.md#umsetzung-paket-41-belegt).
 
 **Sofort startbar:**
-- Cloud + M4: 114 (Sprache live), 115 (Fähigkeiten für Webseiten)
+- Cloud + M4: 114 (Sprache live)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
-- Linie A: 41, 26, 29 erledigt (Nachträge 113, 114, 115) (40, 80, 91, 110 erledigt);
+- Linie A: 41, 26, 29 erledigt (Nachträge 113, 114; 115 erledigt) (40, 80, 91, 110 erledigt);
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 und 44 erledigt, 43 zurückgestellt; 130 wartet auf ein erneutes Auftreten (85, 105, 106 erledigt).
 - Produkt: 37 erst vor einer Weitergabe an Dritte.
@@ -184,7 +185,6 @@ vollständigem Zurücksetzen, beschrieben in
 | 31 | Plattformen Linux und Windows (Build-Hosts) | offen | zurückgestellt (Nutzer, 2026-09-30) | 14 ✓, 17 ✓ | [31](31-plattformen.md) |
 | 34 | Bridge-Variante B (Utility-Prozess) bauen und messen | Cloud + M4 | später | 19 ✓, vor KI-Code in der Runtime | [34](34-bridge-utility-prozess.md) |
 | 37 | Updates und Auslieferung (Signatur, Notarisierung) | M4 + Entscheidung | zurückgestellt (Nutzer, 2026-09-30) | 36 | [37](37-updates-und-auslieferung.md) |
-| 115 | Fähigkeitsprofile: OS-Vorbelegung, Kontrast und Bewegung für Webseiten | Cloud + M4 | offen | 41 ✓ | [115](115-faehigkeiten-seiten.md) |
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 ✓ | [47](47-relief-ui-accessibility.md) |
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |

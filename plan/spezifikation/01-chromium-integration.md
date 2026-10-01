@@ -391,8 +391,9 @@ Grundlage für 17 (Umsetzung) und den Rebase-Aufwand (Abschnitt
 | 8 | `chrome/browser/devtools/chrome_devtools_manager_delegate.cc` (`HandleCommand`, `ClientDetached`), `chrome/browser/devtools/BUILD.gn` — **umgesetzt [45], ein Patch** | `relief::HandleDevToolsCommand` vor der Chrome-Sitzung, `relief::OnDevToolsClientDetached`; `"//relief"` in `deps` | Eigene CDP-Methoden nimmt nur der DevTools-Delegate des Embedders an; Domäne `Relief.*` → spezifikation/12 |
 | 9 | `chrome/app/theme/chromium/mac/` (`app.icns`, `Assets.car`, PNGs des Asset-Katalogs, `AppIcon.icon` entfernt) — **umgesetzt [111], ein Patch (binär, 1,2 MB)** | Platzhaltersymbol aus `fork/branding/make_icon.py` | Der Build kopiert vorkompilierte Symbole aus dem Branding-Verzeichnis (`chrome/BUILD.gn`); ohne Entfernen von `AppIcon.icon` gewinnt auf neuem macOS das Chromium-Symbol |
 | 10 | `chrome/app/app-Info.plist` — **umgesetzt [26], ein Patch** | `NSSpeechRecognitionUsageDescription` | Ohne den Schlüssel beendet macOS den Prozess bei der ersten Anfrage an `SFSpeechRecognizer`; Info.plist gehört nicht zu `//relief/` |
+| 11 | `chrome/browser/chrome_content_browser_client.cc` (`OverrideWebPreferences`), neu `chrome/browser/relief_hooks.{h,cc}`, `chrome/browser/BUILD.gn` — **umgesetzt [115], ein Patch** | Hook am Ende von `OverrideWebPreferences`, den `//relief` zur Laufzeit setzt | Medienmerkmale je Tab überstehen nur dort jede Neuberechnung; `//relief` hängt an `//chrome/browser`, eine direkte Abhängigkeit in Gegenrichtung wäre ein Zyklus |
 
-Stand: acht Patches (`fork/patches/series`).
+Stand: neun Patches (`fork/patches/series`).
 
 Nicht nötig [belegt]:
 

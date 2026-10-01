@@ -1,0 +1,115 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=B6rn=20Seidel?= <joern.seidel@casoon.de>
+Date: Thu, 1 Oct 2026 08:40:40 +0200
+Subject: =?UTF-8?q?Relief:=20Hook=20f=C3=BCr=20WebPreferences?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+relief_hooks::OverrideWebPreferences am Ende von
+ChromeContentBrowserClient::OverrideWebPreferences; //relief setzt den Hook
+zur Laufzeit (eine Abhängigkeit von //chrome/browser auf //relief wäre ein
+Zyklus). Medienmerkmale aus dem Fähigkeitsprofil (Paket 115).
+
+diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
+index f261c72029a989e0fc0cdf0f7042b1bc12b84e07..773e5f248adad548ece6b04c4ae797e42bf2fd64 100644
+--- a/chrome/browser/BUILD.gn
++++ b/chrome/browser/BUILD.gn
+@@ -850,6 +850,8 @@ source_set("core") {
+     "chrome_browser_interface_binders_webui_parts_features.cc",
+     "chrome_browser_main.cc",
+     "chrome_content_browser_client.cc",
++    "relief_hooks.cc",
++    "relief_hooks.h",
+     "chrome_content_browser_client_binder_policies.cc",
+     "chrome_content_browser_client_binder_policies.h",
+     "chrome_content_browser_client_navigation_throttles.cc",
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+index 033f22b4146513c92f89eaa26bffc0366d7c9f19..48e6ee4819591122fd098569ef06cbd730f6dd49 100644
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -3,6 +3,7 @@
+ // found in the LICENSE file.
+ 
+ #include "chrome/browser/chrome_content_browser_client.h"
++#include "chrome/browser/relief_hooks.h"
+ 
+ #include <algorithm>
+ #include <iterator>
+@@ -4872,6 +4873,9 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
+   web_prefs->is_indigo_onboarding =
+       indigo::IndigoOnboardingDialog::IsOnboardingWebContents(web_contents);
+ #endif
++
++  // Relief: Medienmerkmale aus dem Fähigkeitsprofil.
++  relief_hooks::OverrideWebPreferences(web_contents, web_prefs);
+ }
+ 
+ bool ChromeContentBrowserClientParts::OverrideWebPreferencesAfterNavigation(
+diff --git a/chrome/browser/relief_hooks.cc b/chrome/browser/relief_hooks.cc
+new file mode 100644
+index 0000000000000000000000000000000000000000..1c3ecc50e6389cb8fc1402be0827991b6aea5764
+--- /dev/null
++++ b/chrome/browser/relief_hooks.cc
+@@ -0,0 +1,24 @@
++// Copyright 2026 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#include "chrome/browser/relief_hooks.h"
++
++namespace relief_hooks {
++
++namespace {
++WebPreferencesHook g_web_preferences_hook = nullptr;
++}  // namespace
++
++void SetWebPreferencesHook(WebPreferencesHook hook) {
++  g_web_preferences_hook = hook;
++}
++
++void OverrideWebPreferences(content::WebContents* web_contents,
++                            blink::web_pref::WebPreferences* web_prefs) {
++  if (g_web_preferences_hook) {
++    g_web_preferences_hook(web_contents, web_prefs);
++  }
++}
++
++}  // namespace relief_hooks
+diff --git a/chrome/browser/relief_hooks.h b/chrome/browser/relief_hooks.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..5655da62e51293cac6eeb2e1f0f6f8be746d3a36
+--- /dev/null
++++ b/chrome/browser/relief_hooks.h
+@@ -0,0 +1,31 @@
++// Copyright 2026 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_RELIEF_HOOKS_H_
++#define CHROME_BROWSER_RELIEF_HOOKS_H_
++
++namespace blink::web_pref {
++struct WebPreferences;
++}  // namespace blink::web_pref
++
++namespace content {
++class WebContents;
++}  // namespace content
++
++// Relief: Einstiegspunkte, die //relief zur Laufzeit setzt (//relief hängt
++// an //chrome/browser, eine Abhängigkeit in Gegenrichtung wäre ein Zyklus).
++namespace relief_hooks {
++
++using WebPreferencesHook = void (*)(content::WebContents*,
++                                    blink::web_pref::WebPreferences*);
++
++// Fähigkeitsprofil (Paket 115): Medienmerkmale je Tab, bei jeder
++// Neuberechnung der WebPreferences.
++void SetWebPreferencesHook(WebPreferencesHook hook);
++void OverrideWebPreferences(content::WebContents* web_contents,
++                            blink::web_pref::WebPreferences* web_prefs);
++
++}  // namespace relief_hooks
++
++#endif  // CHROME_BROWSER_RELIEF_HOOKS_H_

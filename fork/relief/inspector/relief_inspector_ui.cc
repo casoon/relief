@@ -21,6 +21,7 @@
 #include "content/public/browser/web_ui_message_handler.h"
 #include "content/public/common/url_constants.h"
 #include "relief/inspector/inspector_resources.h"
+#include "relief/os_settings.h"
 #include "relief/profile_store.h"
 #include "relief/relief_tab_helper.h"
 
@@ -191,10 +192,14 @@ class InspectorHandler : public content::WebUIMessageHandler,
     effects.Set("contrast", e.increased_contrast);
     effects.Set("calm", e.reduced_motion);
     effects.Set("semantic", e.semantic_view);
+    // Vorschlag aus den Systemeinstellungen, nur angeboten (Paket 115).
+    const OsSettings os = ReadOsSettings();
     FireWebUIListener(
         "profile",
         base::Value(std::string(bridge::profile_view(store, helper->Site()))),
-        base::Value(std::move(effects)));
+        base::Value(std::move(effects)),
+        base::Value(std::string(bridge::profile_suggestion(
+            store, os.reduce_motion, os.increase_contrast))));
   }
 
   // Änderung übernehmen: speichern, für den Tab anwenden, melden.
