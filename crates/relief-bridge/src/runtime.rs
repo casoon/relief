@@ -15,6 +15,10 @@ pub struct Runtime {
     /// Befehle in Sprache (→ `command`).
     pub(crate) session: relief_interaction::Session,
     pub(crate) pending: Option<crate::command::Pending>,
+    /// HTML-`autocomplete` je Feld, vom Renderer erfragt (Pakete 75, 112).
+    /// Haftet am Knoten über Deltas, die ihn ersetzen; der AXTree trägt es
+    /// nicht.
+    pub(crate) autocomplete: std::collections::HashMap<relief_model::NodeRef, String>,
 }
 
 /// Auskunft über einen Knoten, mit Herkunft des Namens.
@@ -99,6 +103,22 @@ impl Runtime {
     /// Wendet eine Delta an; bei Fehler bleibt der Graph unverändert.
     pub fn apply(&mut self, delta: &TreeDelta) -> Result<GraphVersion, ApplyError> {
         self.graph.apply(delta)?;
+        // Erfragtes `autocomplete` wieder anheften; verschwundene Knoten
+        // vergessen (IDs können wiederkommen).
+        let graph = &mut self.graph;
+        self.autocomplete.retain(|at, value| {
+            let Some(node) = graph
+                .trees
+                .get_mut(&at.tree)
+                .and_then(|t| t.nodes.get_mut(&at.node))
+            else {
+                return false;
+            };
+            node.extra
+                .entry(relief_interaction::security::HTML_AUTOCOMPLETE.into())
+                .or_insert_with(|| value.clone());
+            true
+        });
         Ok(self.graph.version)
     }
 

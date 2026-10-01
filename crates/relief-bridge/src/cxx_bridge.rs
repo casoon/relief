@@ -413,6 +413,9 @@ pub mod ffi {
         fn run_command(runtime: &mut Runtime, input: &str) -> Reply;
         /// Ziel der offenen Rückfrage (`found` false: keine offen).
         fn confirmation_target(runtime: &Runtime) -> Found;
+        /// Wofür vor `input` Angaben beim Renderer anzufragen sind
+        /// (`Runtime::facts_target`; `found` false: nichts).
+        fn facts_target(runtime: &Runtime, input: &str) -> Found;
         /// Angaben des Renderers zum Formular ins Modell
         /// (`Runtime::apply_form_facts`).
         fn apply_form_facts(runtime: &mut Runtime, facts: &FormFacts);
@@ -586,7 +589,11 @@ fn run_command(runtime: &mut Runtime, input: &str) -> ffi::Reply {
 }
 
 fn confirmation_target(runtime: &Runtime) -> ffi::Found {
-    match runtime.confirmation_target() {
+    found(runtime, runtime.confirmation_target())
+}
+
+fn found(runtime: &Runtime, at: Option<NodeRef>) -> ffi::Found {
+    match at {
         Some(at) => ffi::Found {
             found: true,
             tree: at.tree.0,
@@ -600,6 +607,10 @@ fn confirmation_target(runtime: &Runtime) -> ffi::Found {
             version: runtime.graph.version.0,
         },
     }
+}
+
+fn facts_target(runtime: &Runtime, input: &str) -> ffi::Found {
+    found(runtime, runtime.facts_target(input))
 }
 
 fn apply_form_facts(runtime: &mut Runtime, facts: &ffi::FormFacts) {

@@ -12,7 +12,8 @@ struct FieldFact {
 struct FormInfo {
   // Aufgelöstes Formularziel, wenn der Knoten ein Absenden-Button ist.
   string? form_action;
-  // `autocomplete` der Felder seines Formulars (nur gesetzte).
+  // `autocomplete` der Felder seines Formulars (nur gesetzte); ohne
+  // Formular das des Knotens selbst.
   array<FieldFact> fields;
 };
 

@@ -140,7 +140,7 @@ beschrieben in
 
 Im Fork nennt und bindet die Rückfrage das Formularziel und verdeckt
 Felder mit `autocomplete` für Zahlungs-/Identitätsdaten (Renderer-Anfrage
-nur bei einer Rückfrage), beschrieben in
+bei einer Rückfrage und vor dem Ausfüllen, Pakete 75, 112), beschrieben in
 [spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#bestätigungstoken-umgesetzt).
 
 Playwright steuert Relief und fragt über die CDP-Domäne `Relief.*`
@@ -154,7 +154,7 @@ beschrieben in
 [spezifikation/08](spezifikation/08-assistenz-und-capabilities.md#umsetzung-im-fork-paket-29-belegt).
 
 **Sofort startbar:**
-- Cloud + M4: 26 (Sprache), 112 (`autocomplete` im Fork)
+- Cloud + M4: 26 (Sprache)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
@@ -178,7 +178,6 @@ beschrieben in
 | 41 | Fähigkeitsprofile | Cloud + M4 | offen | 25 ✓, 26, 29 ✓ | [41](41-faehigkeitsprofile.md) |
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 ✓ | [47](47-relief-ui-accessibility.md) |
-| 112 | HTML-`autocomplete` im Fork außerhalb einer Rückfrage | Cloud + M4 | offen | 75 ✓ | [112](112-autocomplete-im-fork.md) |
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
 | 130 | CDP-Host: `tabfolge` in einen fremden Frame, Ursache des seltenen Ausfalls | Cloud | wartet auf erneutes Auftreten | 106 ✓ | [130](130-tabfolge-ausfall-ursache.md) |

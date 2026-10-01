@@ -172,8 +172,14 @@ class ReliefTabHelper
   using Runner =
       base::OnceCallback<void(std::optional<bridge::FormFacts>,
                               base::OnceCallback<void(bridge::Reply)>)>;
-  void RunWithFormFacts(Runner run,
+  // `target`: wofür vorher Angaben beim Renderer anzufragen sind (Ziel
+  // einer offenen Rückfrage oder eines Ausfüllbefehls, Pakete 75, 112).
+  void RunWithFormFacts(bridge::Found target,
+                        Runner run,
                         base::OnceCallback<void(bridge::Reply)> done);
+  void RunCommandFor(const std::string& input,
+                     base::OnceCallback<void(bridge::Reply)> done,
+                     bridge::Found target);
   void OnTargetBeforeCommand(Runner run,
                              base::OnceCallback<void(bridge::Reply)> done,
                              bridge::Found open);

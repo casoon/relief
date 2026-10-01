@@ -174,8 +174,20 @@ impl Runtime {
             if let Some(node) = tree.nodes.get_mut(id) {
                 node.extra
                     .insert(HTML_AUTOCOMPLETE.into(), autocomplete.clone());
+                self.autocomplete
+                    .insert(NodeRef::new(target.tree.clone(), *id), autocomplete.clone());
             }
         }
+    }
+
+    /// Wofür der Host vor einer Eingabe Angaben beim Renderer anfragt: das
+    /// Ziel einer offenen Rückfrage, sonst das Ziel eines Ausfüll- oder
+    /// Auswahlbefehls (Paket 112, [`relief_interaction::Session::fill_target`]).
+    pub fn facts_target(&self, input: &str) -> Option<NodeRef> {
+        self.confirmation_target().or_else(|| {
+            let graph = Graph::build(&self.graph);
+            self.session.fill_target(&graph, input)
+        })
     }
 
     /// Offene Rückfrage mit dem jetzigen Modell neu stellen

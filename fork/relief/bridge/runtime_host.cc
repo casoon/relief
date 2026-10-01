@@ -83,6 +83,10 @@ bridge::Reply RuntimeHost::ViewAct(const std::string& key,
   return bridge::view_act(*runtime_, key, kind, value);
 }
 
+bridge::Found RuntimeHost::FactsTarget(const std::string& input) {
+  return bridge::facts_target(*runtime_, input);
+}
+
 bridge::Found RuntimeHost::ConfirmationTarget() {
   return bridge::confirmation_target(*runtime_);
 }

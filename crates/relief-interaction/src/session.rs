@@ -600,6 +600,30 @@ impl Session {
         }
     }
 
+    /// Ziel einer Eingabe, die einen Wert setzt oder wählt, ohne etwas zu
+    /// verändern (Paket 112): Der Fork fragt dafür `autocomplete` beim
+    /// Renderer an, bevor die Eingabe geplant wird. Auch die Wahl aus einer
+    /// nummerierten Rückfrage zum Ausfüllen. `None`: kein solcher Befehl oder
+    /// kein eindeutiges Ziel.
+    pub fn fill_target(&self, graph: &Graph, input: &str) -> Option<NodeRef> {
+        if let Some(Choices::Controls(controls, ActionKind::SetValue(_) | ActionKind::Select(_))) =
+            &self.choices
+        {
+            let text = input.trim().trim_end_matches(['.', '!']).trim();
+            if let Ok(n) = text.parse::<usize>() {
+                return controls.get(n.checked_sub(1)?).map(|c| c.node.clone());
+            }
+        }
+        let (_, cmd) = parse_input(input).ok()?;
+        let control = match cmd {
+            Command::SetValue(q, _) => pick(graph, &q, is_editable).ok()?,
+            Command::Select(Some(q), _) => pick(graph, &q, |c| !c.options.is_empty()).ok()?,
+            Command::Select(None, v) => pick_by_option(graph, &v).ok()?,
+            _ => return None,
+        };
+        Some(control.node)
+    }
+
     /// Aktion an einem bekannten Bedienelement, ohne Sprache (Semantic View,
     /// Paket 29): derselbe Weg wie ein Befehl — Validierung, Rückfrage bei
     /// Risiko, Security-Log. Verwirft eine offene Rückfrage und Auswahl wie
