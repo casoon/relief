@@ -418,7 +418,7 @@ zusammen.
 ### Playwright-Anbindung [umgesetzt 2026-09-30, Paket 45]
 
 Playwright startet den eigenen Build als `executablePath` mit
-`--enable-relief` (auch ohne Fenster); CDP bleibt unverändert, dazu kommt
+(Relief ist dort standardmäßig an, auch ohne Fenster); CDP bleibt unverändert, dazu kommt
 die Domäne `Relief.*` (`crates/relief-bridge/src/devtools.rs`):
 
 | Methode | Parameter | Ergebnis |
@@ -430,7 +430,7 @@ die Domäne `Relief.*` (`crates/relief-bridge/src/devtools.rs`):
   mit Methode `Relief.*` an `relief::HandleDevToolsCommand`
   (`fork/relief/devtools/`, Patch 8); die Runtime des Tabs antwortet
   asynchron, die Antwort geht als CBOR an den Client (`sessionId` setzt
-  content). Ohne `--enable-relief` oder außerhalb eines Tabs: Fehlerantwort.
+  content). Mit `--disable-relief` oder außerhalb eines Tabs: Fehlerantwort.
   Clients, die sich trennen, bekommen nichts mehr (`ClientDetached`).
 - **Zusicherungen im Fork:** Feature `assertions` ist dort jetzt an
   (`accname` wie die übrigen barrierlab-Crates aus der Cargo-Registry,

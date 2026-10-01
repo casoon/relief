@@ -5,8 +5,13 @@
 
 namespace relief::switches {
 
-// Schaltet Relief ein. Ohne diesen Schalter hängt sich Relief nirgends ein
-// und fordert keinen Accessibility-Modus an.
+// Schaltet Relief aus: Dann hängt sich Relief nirgends ein und fordert
+// keinen Accessibility-Modus an. Ohne Schalter ist Relief an, auch beim
+// Start über Dock oder Finder (Paket 117).
+inline constexpr char kDisableRelief[] = "disable-relief";
+
+// Früher nötig, um Relief einzuschalten; wird weiter angenommen und hat
+// keine Wirkung mehr.
 inline constexpr char kEnableRelief[] = "enable-relief";
 
 // Zusätzlich ui::AXMode::kScreenReader anfordern. Blink serialisiert dann

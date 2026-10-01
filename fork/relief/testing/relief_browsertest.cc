@@ -201,11 +201,9 @@ std::string TreeOf(content::RenderFrameHost* frame) {
   return frame->GetAXTreeID().ToString();
 }
 
+// Relief ist standardmäßig an (Paket 117); die Tests laufen ohne Schalter.
 class ReliefBrowserTest : public InProcessBrowserTest {
  protected:
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    command_line->AppendSwitch(switches::kEnableRelief);
-  }
 
   void SetUpOnMainThread() override {
     host_resolver()->AddRule("*", "127.0.0.1");
@@ -226,14 +224,6 @@ class ReliefBrowserTest : public InProcessBrowserTest {
     return embedded_test_server()->GetURL(host, path);
   }
 };
-
-// Ohne --enable-relief hängt sich nichts ein.
-class ReliefDisabledBrowserTest : public InProcessBrowserTest {};
-
-IN_PROC_BROWSER_TEST_F(ReliefDisabledBrowserTest, OhneSchalterKeinHelfer) {
-  EXPECT_FALSE(ReliefTabHelper::FromWebContents(
-      browser()->tab_strip_model()->GetActiveWebContents()));
-}
 
 // Beobachter registriert, Baum kommt an, Hauptbaum ist die Wurzel.
 IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, BaumKommtAn) {
@@ -953,6 +943,27 @@ IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, Faehigkeitsprofil) {
           << ui::ToString(node.role);
     }
   }
+}
+
+// Standardmäßig an (Paket 117): ohne Schalter hängt Relief am Tab (Start
+// über Dock/Finder), mit --disable-relief nicht.
+IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, StandardmaessigAn) {
+  ASSERT_FALSE(base::CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kEnableRelief));
+  EXPECT_NE(nullptr, ReliefTabHelper::FromWebContents(web_contents()));
+}
+
+class ReliefAusBrowserTest : public InProcessBrowserTest {
+ protected:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    command_line->AppendSwitch(switches::kDisableRelief);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(ReliefAusBrowserTest, AbschaltbarMitDisableRelief) {
+  EXPECT_EQ(nullptr,
+            ReliefTabHelper::FromWebContents(
+                browser()->tab_strip_model()->GetActiveWebContents()));
 }
 
 // Panel für einen nicht aktiven Tab (Start mit wiederhergestellten Tabs

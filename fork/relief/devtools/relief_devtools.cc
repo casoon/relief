@@ -91,7 +91,7 @@ bool HandleDevToolsCommand(content::DevToolsAgentHostClientChannel* channel,
       contents ? ReliefTabHelper::FromWebContents(contents) : nullptr;
   if (!helper) {
     Respond(channel, call_id, false,
-            "Relief ist für dieses Ziel nicht aktiv (--enable-relief, Tab).");
+            "Relief ist für dieses Ziel nicht aktiv (--disable-relief oder kein Tab).");
     return true;
   }
   helper->DevToolsCommand(

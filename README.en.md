@@ -21,7 +21,7 @@ build) is complete; Phase 1 is building the first user interfaces.
 
 What exists today:
 
-- A Chromium fork (`fork/`) started with `--enable-relief` reads the AXTree,
+- A Chromium fork (`fork/`) reads the AXTree (on by default, `--disable-relief` turns it off),
   including cross-site iframes, in the browser process and keeps it as a
   `SemanticGraph` in the Rust runtime. Commands are executed through
   `AXActionData`, with key presses as a fallback.

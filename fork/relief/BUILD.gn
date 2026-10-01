@@ -119,7 +119,7 @@ action("inspector_resources") {
 
 # Tab-Helfer: eigener AXTree je Frame (Weg B), Deltas an die Rust-Runtime
 # auf eigener Sequenz, Rückweg über AXActionData; Aufgaben-Runner
-# (--relief-run). Nur mit --enable-relief.
+# (--relief-run). Aus mit --disable-relief.
 source_set("relief") {
   sources = [
     "bridge/ax_tree_mirror.cc",

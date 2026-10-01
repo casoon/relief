@@ -17,7 +17,6 @@ export function reliefLaunchOptions(extra = {}) {
       process.env.RELIEF ??
       join(homedir(), 'chromium/src/out/Relief/Relief.app/Contents/MacOS/Relief'),
     ...extra,
-    args: ['--enable-relief', ...(extra.args ?? [])],
   };
 }
 

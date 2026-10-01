@@ -19,7 +19,7 @@ files=$(IFS=,; echo "$*")
 profile=$(mktemp -d)
 trap 'rm -rf "$profile"' EXIT
 
-args=(--enable-relief --no-first-run --use-mock-keychain
+args=(--no-first-run --use-mock-keychain
       --user-data-dir="$profile" --relief-run="$files"
       # Verdeckte Fenster rendern nicht, Blink serialisiert dann keinen Baum.
       --disable-backgrounding-occluded-windows)
