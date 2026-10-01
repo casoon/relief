@@ -643,7 +643,7 @@ Code in `fork/relief/` (→ `src/relief/`), Patches in `fork/patches/`,
 gebaut und gemessen gegen 154.0.8037.58; Messwerte in 09.
 
 ```
-TabFeatures::Init ──(Patch 1)──> relief::AttachToTab(tab)       nur mit --enable-relief
+TabFeatures::Init ──(Patch 1)──> relief::AttachToTab(tab)       aus mit --disable-relief
   → ReliefTabHelper (WebContentsObserver + WebContentsUserData, UI-Thread)
       ScopedAccessibilityMode(kAXModeWebContentsOnly [+ kScreenReader])
       AccessibilityEventReceived(AXUpdatesAndEvents)
@@ -681,7 +681,7 @@ TabFeatures::Init ──(Patch 1)──> relief::AttachToTab(tab)       nur mit 
   Gruppe `relief_tests`), `testing/` (Browser-Tests, unten). Welche Aktion
   auf welchem AX-Weg läuft und die Ersatzwege: 05, „Im Fork über
   `AXActionData`“.
-- **Schalter:** `--enable-relief`, `--relief-log=<datei>` (Tab-getrennte
+- **Schalter:** `--disable-relief` (Relief ist sonst an, Paket 117; `--enable-relief` wird noch angenommen), `--relief-log=<datei>` (Tab-getrennte
   Zeilen `packet`/`location`/`drop`/`tree`/`page`/`reset`/`skip`/`probe`/
   `activate`/`diff`/`error`, sonst `LOG(INFO)`),
   `--relief-activate=<Name>` (einmal je Tab: erster Knoten in
@@ -936,8 +936,8 @@ Chrome/Chromium. Weg: Patch 6 in der Tabelle oben; der Neubau nach der
   nicht mehr. Deshalb ersetzt `//relief` (`branding_strings.cc`) beim
   ersten Tab für eine feste Liste sichtbarer Meldungen (Über-Seite,
   Menüs, Standardbrowser, Neustart, Aktualisierung) das Wort zur Laufzeit
-  (`ResourceBundle::OverrideLocaleStringResource`), unabhängig von
-  `--enable-relief`; in `IDS_VERSION_UI_LICENSE` nur das erste (Chromium
+  (`ResourceBundle::OverrideLocaleStringResource`), auch mit
+  `--disable-relief`; in `IDS_VERSION_UI_LICENSE` nur das erste (Chromium
   als Projekt bleibt), Copyright bleibt bei den Chromium-Autoren. Belegt
   per CDP auf `chrome://settings/help`: Deutsch „Über Relief“, „Relief
   wird durch das Open-Source-Projekt Chromium … ermöglicht“, Englisch

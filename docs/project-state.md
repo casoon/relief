@@ -16,7 +16,7 @@ Relief ersetzt den geplanten barrierlab-Reader. Es gibt
 einen CDP-Spike gegen ein normales Chrome: Rust-Workspace mit sechs Crates,
 siehe `docs/architecture.md`. Dazu das Fork-Grundgerüst: Chromium
 154.0.8037.58 mit `//relief/` und neun Patches (`fork/`), lokal gebaut in
-`~/chromium/src/out/Relief`. Mit `--enable-relief` liest er den AXTree samt
+`~/chromium/src/out/Relief`. Er liest (abschaltbar mit `--disable-relief`) den AXTree samt
 Positionen im Browser-Prozess, auch aus cross-site-iframes, führt ihn als
 `SemanticGraph` in der Rust-Runtime nach (über Navigation, Back-Forward-Cache
 und Discard hinweg) und führt Befehle in Sprache über `AXActionData` aus
@@ -204,7 +204,7 @@ Relief in den Checkout bringen, bauen und starten:
 scripts/fork-apply.sh ~/chromium/src            # Branch relief, Patches, //relief/ + Crate-Quellen
 scripts/fork-apply.sh ~/chromium/src --continue # nach Änderungen: nur Quellen neu kopieren
 (cd ~/chromium/src && gn gen out/Relief && autoninja -C out/Relief chrome)
-~/chromium/src/out/Relief/Relief.app/Contents/MacOS/Relief --enable-relief \
+~/chromium/src/out/Relief/Relief.app/Contents/MacOS/Relief \
   --relief-log=/tmp/relief.log "--relief-activate=In den Warenkorb" \
   "file://$PWD/spike/fixtures/shop-clean.html"
 node scripts/fork-measure.mjs --port 9222       # Latenz, Build mit --remote-debugging-port=9222 und --use-mock-keychain starten (--scroll 40: Positionen, --parent <Selektor>: Messknoten z. B. in einen aria-modal-Dialog)

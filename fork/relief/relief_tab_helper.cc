@@ -126,11 +126,11 @@ void OverrideWebPreferences(content::WebContents* contents,
 }
 
 base::CallbackListSubscription AttachToTab(tabs::TabInterface& tab) {
-  // Produktname in übersetzten Texten, unabhängig von --enable-relief.
+  // Produktname in übersetzten Texten, auch mit --disable-relief.
   ApplyBrandingStrings();
   relief_hooks::SetWebPreferencesHook(&OverrideWebPreferences);
-  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kEnableRelief)) {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kDisableRelief)) {
     return {};
   }
   ReliefTabHelper::CreateForWebContents(tab.GetContents());

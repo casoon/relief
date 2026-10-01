@@ -164,6 +164,10 @@ vollständigem Zurücksetzen; Webseiten bekommen Bewegung und Kontrast als
 Medienmerkmale, beschrieben in
 [spezifikation/08](spezifikation/08-assistenz-und-capabilities.md#umsetzung-paket-41-belegt).
 
+Relief ist im eigenen Build standardmäßig an (auch beim Start über Dock
+oder Finder), `--disable-relief` schaltet es ab (Paket 117), beschrieben in
+[spezifikation/01](spezifikation/01-chromium-integration.md).
+
 **Sofort startbar:**
 - Cloud + M4: 116 (Cloud-STT, Anbieter wählen)
 - M4: 43 (VoiceOver im Test)

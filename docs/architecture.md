@@ -151,7 +151,7 @@ fork/
     ├── BUILD.gn              # rust_static_library relief_model_rs, relief_bridge_rs (cxx_bindings); source_set relief; group relief_tests
     ├── relief_attach.h       # AttachToTab: einziger Header, den Chromium einbindet
     ├── relief_tab_helper.*   # WebContentsObserver je Tab: AXMode, Pakete/Positionen → Delta, Lebenszyklus der Bäume, Reset, ActionPlan → AXActionData
-    ├── relief_switches.h     # --enable-relief, --relief-log, --relief-activate, --relief-run, --relief-screen-reader-mode
+    ├── relief_switches.h     # --disable-relief, --relief-log, --relief-activate, --relief-run, --relief-screen-reader-mode
     ├── marks_overlay.*       # Sprungmarken zeichnen: transparentes Views-Fenster über dem Inhalt, für AT ausgeblendet
     ├── relief_executor.*     # Antwort der Runtime ausführen: Schritte/Taste/Scrollen, Ruhe = keine AX-Pakete, Antwort; abbrechbar
     ├── relief_task_runner.*  # --relief-run: Aufgabendateien abarbeiten (url/do/expect)
@@ -178,7 +178,7 @@ flowchart LR
   H -->|"Schritte"| S["PerformStep: AXActionData oder Taste (ForwardKeyboardEvent)"] --> R
 ```
 
-- **Aktivierung**: nur mit `--enable-relief`; sonst ist die Subscription aus
+- **Aktivierung**: standardmäßig an (auch beim Start über Dock/Finder); mit `--disable-relief` ist die Subscription aus
   `AttachToTab` leer und Chromium unverändert.
 - **Wirkung einer Aktion** steht in der nächsten Delta (PerformAction hat
   keine Antwort); das Protokoll zeigt nach `activate` die benannten Knoten

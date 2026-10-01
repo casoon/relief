@@ -16,7 +16,7 @@ class TabInterface;
 
 namespace relief {
 
-// Ohne --enable-relief passiert nichts (leere Subscription). Sonst hängt
+// Mit --disable-relief passiert nichts (leere Subscription). Sonst hängt
 // Relief an den WebContents des Tabs und nach einem Discard an den neuen;
 // die Subscription lebt so lange wie die TabFeatures des Tabs.
 base::CallbackListSubscription AttachToTab(tabs::TabInterface& tab);

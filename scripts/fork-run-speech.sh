@@ -41,7 +41,7 @@ done
 list=$(IFS=,; echo "${files[*]}")
 log="$work/stdout.txt"
 open -n -W -a "$APP" --stdout "$log" --stderr /dev/null --args \
-  --enable-relief --no-first-run --use-mock-keychain \
+  --no-first-run --use-mock-keychain \
   --user-data-dir="$work/profile" --relief-run="$list" \
   --disable-backgrounding-occluded-windows \
   --relief-speech-volume="${RELIEF_SPEECH_VOLUME:-0}" \
