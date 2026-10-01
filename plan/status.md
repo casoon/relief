@@ -91,7 +91,9 @@ Feld in einem iframe fremder Herkunft verglichen (lokaler Server,
 Isolation: Frames in einem anderen Prozess kommen über eine eigene Sitzung
 in Aufnahme, DOM-Fakten, Aktionen, Fokus und Tab-Folge (Paket 70), ebd.;
 ihre Mutationen und Anfragen gehen ins Änderungssignal, iframes in ihrem
-Prozess werden eingehängt, `measure` zählt je Weg (Paket 85), ebd.
+Prozess werden eingehängt, `measure` zählt je Weg (Paket 85), ebd.; sie
+werden beim Entstehen angehängt, die Ruhe nach dem Laden endet wie ohne
+fremden Frame (Paket 105), ebd.
 Relief ersetzt in barrierlab den Reader-Host als Konsument
 (casoon/barrierlab#29, zum Merge offen); Kandidaten zum Ablegen in
 [spezifikation/12](spezifikation/12-produktumfang.md#kandidaten-zum-ablegen-stand-2026-09-30).
@@ -151,15 +153,15 @@ beschrieben in
 [spezifikation/08](spezifikation/08-assistenz-und-capabilities.md#umsetzung-im-fork-paket-29-belegt).
 
 **Sofort startbar:**
-- Cloud: 105 (Frames anderer Prozesse beim Laden), 106 (`tabfolge` sporadisch)
-- Cloud + M4: 26 (Sprache), 113 (vereinfachte Ansicht), 112 (`autocomplete` im Fork)
+- Cloud: 106 (`tabfolge` sporadisch)
+- Cloud + M4: 26 (Sprache), 112 (`autocomplete` im Fork)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
 - Linie A: 26 → 41 (29 erledigt, Nachtrag 113) (40, 80, 91, 110 erledigt);
   47 läuft mit 20 und 25 als Abnahme mit.
-- Linie B: 45 und 44 erledigt, 43 zurückgestellt; 105 und 106 jederzeit (85 erledigt).
+- Linie B: 45 und 44 erledigt, 43 zurückgestellt; 106 jederzeit (85, 105 erledigt).
 - Produkt: 37 erst vor einer Weitergabe an Dritte.
 - Vor jeder Modellintegration (28 im Fork, 34): 48 ✓, 58 ✓, 75 ✓.
 
@@ -168,7 +170,7 @@ beschrieben in
 | 10 | Cloud-Setup: Nachweis in einer Cloud-Session (CI unter Linux grün) | Cloud | blockiert: Cloud-Sessions HTTP 403 | Zugang | [10](10-cloud-umgebung-und-ci.md) |
 | 26 | Sprachschicht | Cloud + M4 | offen | 25 ✓ | [26](26-sprache.md) |
 | 28 | Resolver: Messlauf und Schwellen | lokal / Cloud (API-Key) | wartet auf API-Key | 27 ✓, 12 ✓ | [28](28-resolver-fehlende-namen.md) |
-| 113 | Vereinfachte Ansicht und Semantic View über die ganze Tab-Breite | Cloud + M4 | offen | 29 ✓ | [113](113-vereinfachte-ansicht.md) |
+| 113 | Vereinfachte Ansicht und Semantic View über die ganze Tab-Breite | Cloud + M4 | zurückgestellt (Nutzer, 2026-10-01) | 29 ✓ | [113](113-vereinfachte-ansicht.md) |
 | 30 | CDP-Host: barrierlab-Release übernehmen (Nachladen erledigt) | Cloud | wartet auf barrierlab-Release | barrierlab | [30](30-cdp-host-pflege.md) |
 | 31 | Plattformen Linux und Windows (Build-Hosts) | offen | zurückgestellt (Nutzer, 2026-09-30) | 14 ✓, 17 ✓ | [31](31-plattformen.md) |
 | 34 | Bridge-Variante B (Utility-Prozess) bauen und messen | Cloud + M4 | später | 19 ✓, vor KI-Code in der Runtime | [34](34-bridge-utility-prozess.md) |
@@ -179,5 +181,4 @@ beschrieben in
 | 112 | HTML-`autocomplete` im Fork außerhalb einer Rückfrage | Cloud + M4 | offen | 75 ✓ | [112](112-autocomplete-im-fork.md) |
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
-| 105 | CDP-Host: Frames anderer Prozesse schon beim Laden anhängen (Ruhe nach dem Laden) | Cloud | offen | 85 ✓ | [105](105-cdp-host-frames-beim-laden.md) |
 | 106 | CDP-Host: `tabfolge` in einen fremden Frame sporadisch verfehlt | Cloud | offen | 85 ✓ | [106](106-tabfolge-fremder-frame-sporadisch.md) |

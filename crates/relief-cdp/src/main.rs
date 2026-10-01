@@ -198,7 +198,8 @@ impl Session {
     /// laden. `new_page(url)` + `wait_for_navigation` kehrt teils vor dem
     /// Commit des eigentlichen Dokuments zurück; `goto` wartet auf das Laden.
     async fn open_page(browser: &Browser, page: Page, url: &str) -> Result<Self> {
-        let (frames, frame_events) = frames::Frames::connect(browser.websocket_address()).await?;
+        let (frames, frame_events) =
+            frames::Frames::connect(browser.websocket_address(), page.target_id()).await?;
         // Vor dem Laden starten, damit die Anfragen des Ladens als ausstehend
         // zählen („Seite ruht“ auch über das Netz).
         let mut live = live::Live::start(&page, frame_events).await?;

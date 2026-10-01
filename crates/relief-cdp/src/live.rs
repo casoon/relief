@@ -21,9 +21,10 @@
 //! Dokument erneut angefordert wird — [`Live::take_dirty`] tut das.
 //!
 //! Frames in einem anderen Renderer-Prozess melden über ihre eigene Sitzung
-//! (`frames.rs`, ab dem Anhängen bei der ersten Aufnahme): Ihre Mutationen
+//! (`frames.rs`, angehängt beim Entstehen des Frames): Ihre Mutationen
 //! machen die Seite geändert, ihre Anfragen halten die Ruhe auf wie die der
-//! Seite. Ersetzt ein solcher Frame sein Dokument, ist das eine Mutation,
+//! Seite. Die Anfrage für das Dokument eines solchen Frames beginnt in der
+//! Sitzung der Seite und endet in der des Frames; beide kommen hier an. Ersetzt ein solcher Frame sein Dokument, ist das eine Mutation,
 //! kein neues Hauptdokument.
 //!
 //! Nicht erfasst: Änderungen ohne DOM-Mutation (per Skript gesetzte
