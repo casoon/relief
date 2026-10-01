@@ -43,6 +43,7 @@
 #include "relief/relief_executor.h"
 #include "relief/relief_switches.h"
 #include "relief/relief_task_runner.h"
+#include "relief/speech/speech_recognition.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "ui/accessibility/ax_action_data.h"
 #include "ui/accessibility/ax_action_handler_base.h"
@@ -994,6 +995,55 @@ void ReliefTabHelper::DevToolsCommand(
   runtime_.AsyncCall(&RuntimeHost::DevToolsCommand)
       .WithArgs(method, params)
       .Then(std::move(done));
+}
+
+void ReliefTabHelper::Hear(
+    const std::string& text,
+    base::OnceCallback<void(ReliefExecutor::Result)> done) {
+  const bridge::Heard heard = bridge::speech_route(text);
+  switch (heard.kind) {
+    case bridge::HeardKind::Nothing:
+      std::move(done).Run({"Nichts verstanden.", false});
+      return;
+    case bridge::HeardKind::Cancel: {
+      // Beides auswerten: Ausgabe und Erkennung.
+      const bool speaking = speech_output_.Stop();
+      const bool listening = speech::CancelRecognition();
+      runtime_.AsyncCall(&RuntimeHost::Log)
+          .WithArgs(base::StringPrintf("tts\tstop\tspeaking=%d\tlistening=%d",
+                                       speaking, listening));
+      executor().Cancel();
+      Interact("abbrechen",
+               base::BindOnce(
+                   [](base::OnceCallback<void(ReliefExecutor::Result)> done,
+                      bool stopped, ReliefExecutor::Result result) {
+                     if (stopped) {
+                       result.text = "Ausgabe gestoppt. " + result.text;
+                     }
+                     std::move(done).Run(std::move(result));
+                   },
+                   std::move(done), speaking || listening));
+      return;
+    }
+    case bridge::HeardKind::Command:
+      speech_output_.Stop();
+      Interact(std::string(heard.text),
+               base::BindOnce(
+                   [](base::WeakPtr<ReliefTabHelper> self,
+                      base::OnceCallback<void(ReliefExecutor::Result)> done,
+                      ReliefExecutor::Result result) {
+                     if (self) {
+                       const bool spoken = self->speech_output_.Speak(
+                           std::string(bridge::speech_text(result.text)));
+                       self->runtime_.AsyncCall(&RuntimeHost::Log)
+                           .WithArgs(std::string(spoken ? "tts\tspeak"
+                                                        : "tts\tstumm"));
+                     }
+                     std::move(done).Run(std::move(result));
+                   },
+                   weak_factory_.GetWeakPtr(), std::move(done)));
+      return;
+  }
 }
 
 void ReliefTabHelper::FinishCommand(

@@ -390,8 +390,9 @@ Grundlage für 17 (Umsetzung) und den Rebase-Aufwand (Abschnitt
 | 7 | `chrome/renderer/chrome_content_renderer_client.cc` (`RenderFrameCreated`), `chrome/renderer/BUILD.gn` — **umgesetzt [75], ein Patch** | Include und `relief::FormFactsAgent::Create(render_frame);`; `"//relief/renderer"` in `deps` | Renderer-Beobachter je Frame entstehen nur hier; der Agent beantwortet `relief.mojom.FormFacts` (Formularziel, `autocomplete`), → spezifikation/07 |
 | 8 | `chrome/browser/devtools/chrome_devtools_manager_delegate.cc` (`HandleCommand`, `ClientDetached`), `chrome/browser/devtools/BUILD.gn` — **umgesetzt [45], ein Patch** | `relief::HandleDevToolsCommand` vor der Chrome-Sitzung, `relief::OnDevToolsClientDetached`; `"//relief"` in `deps` | Eigene CDP-Methoden nimmt nur der DevTools-Delegate des Embedders an; Domäne `Relief.*` → spezifikation/12 |
 | 9 | `chrome/app/theme/chromium/mac/` (`app.icns`, `Assets.car`, PNGs des Asset-Katalogs, `AppIcon.icon` entfernt) — **umgesetzt [111], ein Patch (binär, 1,2 MB)** | Platzhaltersymbol aus `fork/branding/make_icon.py` | Der Build kopiert vorkompilierte Symbole aus dem Branding-Verzeichnis (`chrome/BUILD.gn`); ohne Entfernen von `AppIcon.icon` gewinnt auf neuem macOS das Chromium-Symbol |
+| 10 | `chrome/app/app-Info.plist` — **umgesetzt [26], ein Patch** | `NSSpeechRecognitionUsageDescription` | Ohne den Schlüssel beendet macOS den Prozess bei der ersten Anfrage an `SFSpeechRecognizer`; Info.plist gehört nicht zu `//relief/` |
 
-Stand: sieben Patches (`fork/patches/series`).
+Stand: acht Patches (`fork/patches/series`).
 
 Nicht nötig [belegt]:
 
@@ -964,9 +965,9 @@ Chrome/Chromium. Weg: Patch 6 in der Tabelle oben; der Neubau nach der
 ├── common/        # Mojo-Schnittstellen Browser ↔ Renderer (form_facts.mojom)
 ├── renderer/      # Renderer-Seite: FormFactsAgent je Frame
 ├── devtools/      # CDP-Domäne Relief.* (Paket 45)
+├── speech/        # Spracherkennung (Speech.framework) und -ausgabe (TTS), Paket 26
 ├── third_party/   # BUILD.gn für a11y-dom, a11y-report, a11y-rules, accname; Quellen legt scripts/fork-apply.sh ab
 ├── crates/        # Kopie der Crates relief-model, relief-interaction, relief-bridge (scripts/fork-apply.sh)
-├── speech/        # STT/TTS-Adapter (Annahme)
 ├── ai/            # Modell-Adapter (lokal/Cloud), nur hinter der Privacy Boundary (Annahme)
 └── testing/       # Browser-Tests der Integrationspunkte (relief_browsertests, data/)
 ```

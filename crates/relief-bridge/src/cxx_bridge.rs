@@ -385,6 +385,25 @@ pub mod ffi {
         /// Formular-Zusicherung; braucht DOM-Fakten, nur im CDP-Host.
         Assert,
         Expect,
+        /// Gesprochene Eingabe ohne Audio (`sprich:`): Text wie erkannt.
+        Speak,
+        /// Audiodatei für die Spracherkennung (`audio:`).
+        Audio,
+    }
+
+    /// Erkannte Äußerung (Paket 26, `relief_interaction::speech::route`).
+    #[derive(Debug)]
+    enum HeardKind {
+        Nothing,
+        Cancel,
+        Command,
+    }
+
+    #[derive(Debug)]
+    struct Heard {
+        kind: HeardKind,
+        /// Bei `Command`: der Text für die Sitzung.
+        text: String,
     }
 
     /// Zeile einer Aufgabendatei (`spike/tasks/*.txt`).
@@ -449,6 +468,10 @@ pub mod ffi {
         /// Sprungmarken des aktuellen Stands (merkt sie für „marke …“).
         fn show_marks(runtime: &mut Runtime) -> Vec<MarkBox>;
         fn parse_task_file(text: &str) -> Vec<Task>;
+        /// Erkannten Text einordnen: Abbruch vorrangig (Paket 26).
+        fn speech_route(text: &str) -> Heard;
+        /// Antwort zum Sprechen (erste Zeile, gekürzt).
+        fn speech_text(answer: &str) -> String;
         /// Teilstring ohne Groß-/Kleinschreibung (auch Umlaute).
         fn expectation_met(answer: &str, expected: &str) -> bool;
     }
@@ -752,9 +775,39 @@ fn parse_task_file(text: &str) -> Vec<ffi::Task> {
                 kind: ffi::TaskKind::Expect,
                 text,
             }),
+            TaskLine::Speak(text) => Some(ffi::Task {
+                kind: ffi::TaskKind::Speak,
+                text,
+            }),
+            TaskLine::Audio(text) => Some(ffi::Task {
+                kind: ffi::TaskKind::Audio,
+                text,
+            }),
             TaskLine::Wait(_) => None,
         })
         .collect()
+}
+
+fn speech_route(text: &str) -> ffi::Heard {
+    use relief_interaction::speech::{route, Heard};
+    match route(text) {
+        Heard::Nothing => ffi::Heard {
+            kind: ffi::HeardKind::Nothing,
+            text: String::new(),
+        },
+        Heard::Cancel => ffi::Heard {
+            kind: ffi::HeardKind::Cancel,
+            text: String::new(),
+        },
+        Heard::Command(text) => ffi::Heard {
+            kind: ffi::HeardKind::Command,
+            text,
+        },
+    }
+}
+
+fn speech_text(answer: &str) -> String {
+    relief_interaction::speech::spoken(answer)
 }
 
 fn expectation_met(answer: &str, expected: &str) -> bool {

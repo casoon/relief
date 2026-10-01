@@ -52,6 +52,7 @@ rust_static_library("relief_interaction_rs") {
     "crates/relief-interaction/src/rules.rs",
     "crates/relief-interaction/src/security.rs",
     "crates/relief-interaction/src/session.rs",
+    "crates/relief-interaction/src/speech.rs",
     "crates/relief-interaction/src/validate.rs",
   ]
   # Befunde im Inspector (Paket 21); Zusicherungen für `Relief.assert`
@@ -140,6 +141,14 @@ source_set("relief") {
     "relief_tab_helper.h",
     "relief_task_runner.cc",
     "relief_task_runner.h",
+    "speech/speech_output.cc",
+    "speech/speech_output.h",
+    "speech/speech_recognition.h",
+    "speech/speech_recognition_mac.mm",
+  ]
+  frameworks = [
+    "AppKit.framework",
+    "Speech.framework",
   ]
   deps = [
     ":inspector_resources",

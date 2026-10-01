@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=B6rn=20Seidel?= <joern.seidel@casoon.de>
+Date: Thu, 1 Oct 2026 02:28:35 +0200
+Subject: =?UTF-8?q?Relief:=20Freigabe=20f=C3=BCr=20Spracherkennung?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+NSSpeechRecognitionUsageDescription, sonst beendet macOS den Prozess bei
+der ersten Anfrage an SFSpeechRecognizer (Paket 26).
+
+diff --git a/chrome/app/app-Info.plist b/chrome/app/app-Info.plist
+index 1a8ac7ad701685f280ef86747f792fe71c0027bc..5990cfa3626a07c2ff7abe677b0264984d3739cf 100644
+--- a/chrome/app/app-Info.plist
++++ b/chrome/app/app-Info.plist
+@@ -159,6 +159,8 @@
+ 	<string>${CHROMIUM_SHORT_NAME}</string>
+ 	<key>CrProductDirName</key>
+ 	<string>Relief</string>
++	<key>NSSpeechRecognitionUsageDescription</key>
++	<string>Relief erkennt gesprochene Befehle.</string>
+ 	<key>CFBundlePackageType</key>
+ 	<string>APPL</string>
+ 	<key>CFBundleSignature</key>

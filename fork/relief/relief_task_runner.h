@@ -40,7 +40,7 @@ class ReliefTaskRunner {
   // Zeile einer Aufgabendatei; `kFile` trennt die Dateien in der Ausgabe,
   // `kUrl` trägt die aufgelöste URL.
   struct Line {
-    enum class Kind { kFile, kUrl, kDo, kAssert, kExpect };
+    enum class Kind { kFile, kUrl, kDo, kAssert, kExpect, kSpeak, kAudio };
     Kind kind;
     std::string text;
   };
@@ -50,6 +50,9 @@ class ReliefTaskRunner {
   void Next();
   void Open(const std::string& url);
   void Execute(const std::string& input);
+  // Gesprochene Eingabe (Paket 26): Text bzw. Audiodatei.
+  void Speak(const std::string& text);
+  void Listen(const std::string& path);
   void Finish();
   void Answer(std::string text);
 

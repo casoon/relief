@@ -44,6 +44,10 @@ inline constexpr char kReliefInspector[] = "relief-inspector";
 // Vorführung). Sonst Strg+Umschalt+M auf der Seite.
 inline constexpr char kReliefMarks[] = "relief-marks";
 
+// Lautstärke der Sprachausgabe 0–1 (Paket 26); 0 für Testläufe: Die
+// Ausgabe läuft, ist aber nicht zu hören.
+inline constexpr char kReliefSpeechVolume[] = "relief-speech-volume";
+
 }  // namespace relief::switches
 
 #endif  // RELIEF_RELIEF_SWITCHES_H_

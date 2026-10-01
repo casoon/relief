@@ -18,6 +18,7 @@
 #include "net/base/filename_util.h"
 #include "relief/relief_executor.h"
 #include "relief/relief_tab_helper.h"
+#include "relief/speech/speech_recognition.h"
 #include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
 
@@ -83,6 +84,17 @@ std::vector<ReliefTaskRunner::Line> ReadTasks(
         case bridge::TaskKind::Expect:
           out.push_back({Line::Kind::kExpect, value});
           break;
+        case bridge::TaskKind::Speak:
+          out.push_back({Line::Kind::kSpeak, value});
+          break;
+        case bridge::TaskKind::Audio: {
+          const base::FilePath audio =
+              base::FilePath(value).IsAbsolute()
+                  ? base::FilePath(value)
+                  : file.DirName().AppendASCII(value);
+          out.push_back({Line::Kind::kAudio, audio.AsUTF8Unsafe()});
+          break;
+        }
       }
     }
   }
@@ -124,6 +136,18 @@ void ReliefTaskRunner::Next() {
           continue;
         }
         Execute(line.text);
+        return;
+      case Line::Kind::kSpeak:
+        if (!page_open_) {
+          continue;
+        }
+        Speak(line.text);
+        return;
+      case Line::Kind::kAudio:
+        if (!page_open_) {
+          continue;
+        }
+        Listen(line.text);
         return;
       case Line::Kind::kAssert:
         if (!page_open_) {
@@ -205,6 +229,48 @@ void ReliefTaskRunner::Execute(const std::string& input) {
                                  }
                                },
                                weak_factory_.GetWeakPtr()));
+}
+
+void ReliefTaskRunner::Speak(const std::string& text) {
+  Print("\n> (gesprochen) " + text);
+  command_started_ = base::TimeTicks::Now();
+  helper_->Hear(text, base::BindOnce(
+                          [](base::WeakPtr<ReliefTaskRunner> self,
+                             ReliefExecutor::Result result) {
+                            if (self) {
+                              self->Answer(std::move(result.text));
+                            }
+                          },
+                          weak_factory_.GetWeakPtr()));
+}
+
+void ReliefTaskRunner::Listen(const std::string& path) {
+  Print("\n> (Audio) " + base::FilePath(path).BaseName().AsUTF8Unsafe());
+  command_started_ = base::TimeTicks::Now();
+  speech::RecognizeFile(
+      base::FilePath(path),
+      base::BindOnce(
+          [](base::WeakPtr<ReliefTaskRunner> self,
+             std::optional<std::string> text, std::string note) {
+            if (!self) {
+              return;
+            }
+            if (!text) {
+              self->Answer("Nicht erkannt: " + note);
+              return;
+            }
+            Print("  erkannt (" + note + "): „" + *text + "“");
+            self->helper_->Hear(
+                *text, base::BindOnce(
+                           [](base::WeakPtr<ReliefTaskRunner> self,
+                              ReliefExecutor::Result result) {
+                             if (self) {
+                               self->Answer(std::move(result.text));
+                             }
+                           },
+                           self));
+          },
+          weak_factory_.GetWeakPtr()));
 }
 
 void ReliefTaskRunner::Answer(std::string text) {

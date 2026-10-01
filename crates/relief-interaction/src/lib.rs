@@ -38,6 +38,7 @@ pub mod respond;
 pub mod rules;
 pub mod security;
 pub mod session;
+pub mod speech;
 pub mod validate;
 
 pub use command::{parse, Command, ScrollDirection, Step};

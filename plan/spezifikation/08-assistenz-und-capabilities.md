@@ -139,6 +139,37 @@ Randbedingungen [Annahme]:
 - Zwei Stimmen gleichzeitig sind unbenutzbar → bei aktivem Screenreader
   Relief-Ausgabe über dessen Ansagen leiten oder stummschalten [validieren].
 
+### Umsetzung (Paket 26) [belegt]
+
+- **Rust, browserfrei** (`crates/relief-interaction/src/speech.rs`):
+  Traits `SpeechInput`/`SpeechOutput`, `route` (Abbruchwörter
+  „abbrechen“, „stopp“, „halt“, „ruhe“, „nein“ … vorrangig), `spoken`
+  (erste Zeile, gekürzt bis Satzende), `SpeechAssist` mit Testdoubles.
+  Dialogkontext ohne Modell: „nimm das zweite“, „den ersten“, „nummer
+  drei“ wählen aus der offenen Rückfrage (`choice_number`); „Welche Größen
+  gibt es?“ trifft das Feld „Größe“, weil eine gebeugte Form mit genauem
+  Treffer einen bloßen Präfixtreffer schlägt (`resolve_inflected`).
+- **Fork:** Erkennung `SFSpeechRecognizer` (Deutsch, auf dem Gerät, wenn
+  verfügbar, sonst Apple-Server mit Vermerk; `speech/speech_recognition_mac.mm`),
+  Freigabe über `NSSpeechRecognitionUsageDescription` (Patch 10).
+  Ausgabe über Chromiums `TtsController` (macOS-Stimmen, keine
+  Google-Dienste; `speech/speech_output.cc`), Lautstärke
+  `--relief-speech-volume`, stumm bei aktivem VoiceOver.
+  `ReliefTabHelper::Hear`: Abbruch stoppt die Ausgabe sofort, verwirft eine
+  laufende Erkennung, bricht eine laufende Ausführung ab und schließt
+  Rückfrage/Auswahl („Ausgabe gestoppt.“ vor der Antwort, wenn etwas
+  lief); sonst wie eine getippte Eingabe, Antwort wird gesprochen.
+- **Aufgaben:** `sprich: <Text>` (CDP-Host: Text wie erkannt) und
+  `audio: <Datei>` (Fork); `scripts/fork-run-speech.sh` macht aus `sprich:`
+  Audio (`say`, Anna) und startet Relief über `open`, damit die Freigabe
+  Relief gilt.
+- **Belegt:** `spike/tasks/17-sprache.txt` im Fork 10/10, alle Äußerungen
+  „auf dem Gerät“ erkannt; „Abbrechen“ und „Stopp“ unterbrachen eine
+  laufende Ausgabe (Protokoll `tts stop speaking=1`); im CDP-Host 10/10.
+- **Offen (→ 114):** Live-Mikrofon (Sprechtaste im Panel), Cloud-STT per
+  eigenem Key, „dieses Feld“ als Bezug, Koexistenz mit VoiceOver manuell
+  (→ 47).
+
 | | macOS | Windows | Linux |
 |---|---|---|---|
 | STT on-device | `SFSpeechRecognizer` | `Windows.Media.SpeechRecognition` | kein brauchbarer Standard → kleines lokales Modell (Vosk/whisper.cpp) oder Cloud |

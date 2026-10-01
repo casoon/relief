@@ -1,0 +1,30 @@
+# Sprache (Paket 26): Dialogbeispiele aus spezifikation/08 per Sprache.
+# `sprich:` ist eine gesprochene Eingabe. Im Fork erzeugt
+# scripts/fork-run-speech.sh daraus Audiodateien (`say`, Stimme Anna) und
+# lässt sie von der Spracherkennung lesen; im CDP-Host gilt der Text wie
+# erkannt. Antworten spricht der Fork (Lautstärke über
+# --relief-speech-volume, im Skript 0).
+url: ../fixtures/shop-clean.html
+sprich: Was ist auf dieser Seite?
+expect: Nike Air Max
+sprich: Welche Größen gibt es?
+expect: 39, 40, 41, 42, 43
+expect: Gewählt: 42
+sprich: Nimm 43.
+expect: Select("43")
+sprich: Öffne den Warenkorb.
+expect: Mehrdeutig
+sprich: Nimm das zweite.
+expect: Größe 43 in den Warenkorb gelegt
+
+# Offene Bestätigung per Sprache schließen.
+sprich: Klicke jetzt kaufen.
+expect: Bestätigung nötig
+sprich: Abbrechen.
+expect: Abgebrochen. Nichts ausgeführt.
+
+# Ausgabe per Sprache abbrechen: lange Antwort, sofort „Stopp“.
+sprich: Was ist auf dieser Seite?
+expect: Nike Air Max
+sprich: Stopp.
+expect: Nichts offen, das sich abbrechen ließe
