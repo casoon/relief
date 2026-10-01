@@ -71,6 +71,8 @@ class RuntimeHost {
                         const std::string& kind,
                         const std::string& value,
                         std::optional<bridge::FormFacts> facts);
+  // Wofür vor `input` Angaben beim Renderer anzufragen sind (Paket 112).
+  bridge::Found FactsTarget(const std::string& input);
   // Ziel der offenen Rückfrage (`found` false: keine).
   bridge::Found ConfirmationTarget();
   // Angaben zum Ziel ins Modell und die offene Rückfrage damit neu stellen.

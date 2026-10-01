@@ -418,3 +418,43 @@ fn neu_gestellte_rueckfrage_behaelt_den_grund() {
         other => panic!("{other:?}"),
     }
 }
+
+/// Paket 112: Vor einem Ausfüllbefehl kennt die Runtime das Ziel; der Host
+/// trägt `autocomplete` nach, es haftet über Deltas, und die Antwort
+/// verdeckt den Wert.
+#[test]
+fn autocomplete_vor_dem_ausfuellen() {
+    let mut rt = runtime_shop();
+    let eingabe = "fülle Suche mit 4111111111111111";
+    let ziel = rt.facts_target(eingabe).expect("Ziel des Ausfüllbefehls");
+    assert_eq!(rt.graph().node(&ziel).unwrap().role, Role::SearchBox);
+    assert!(rt.facts_target("Was ist hier?").is_none());
+
+    rt.apply_form_facts(&ziel, None, &[(ziel.node, "cc-number".into())]);
+    assert!(matches!(rt.command(eingabe), Reply::Perform(_)));
+    // Die Seite meldet den neuen Wert; der Knoten kommt ohne `autocomplete`.
+    let mut nachher = rt.graph().clone();
+    let mut feld = nachher.node(&ziel).unwrap().clone();
+    feld.extra
+        .remove(relief_interaction::security::HTML_AUTOCOMPLETE);
+    feld.value = relief_model::Fact::known(Some("4111111111111111".into()));
+    nachher
+        .trees
+        .get_mut(&ziel.tree)
+        .unwrap()
+        .nodes
+        .insert(ziel.node, feld);
+    rt.apply(&TreeDelta::between(rt.graph(), &nachher)).unwrap();
+    assert_eq!(
+        rt.graph()
+            .node(&ziel)
+            .unwrap()
+            .extra
+            .get(relief_interaction::security::HTML_AUTOCOMPLETE)
+            .map(String::as_str),
+        Some("cc-number")
+    );
+    let antwort = rt.finish();
+    assert!(antwort.starts_with("SetValue(verdeckt) auf"), "{antwort}");
+    assert!(!antwort.contains("4111"), "{antwort}");
+}

@@ -11,6 +11,7 @@
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/notreached.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -780,7 +781,19 @@ bool ReliefTabHelper::has_main_tree() const {
 void ReliefTabHelper::RunCommand(
     const std::string& input,
     base::OnceCallback<void(bridge::Reply)> done) {
+  runtime_.AsyncCall(&RuntimeHost::FactsTarget)
+      .WithArgs(input)
+      .Then(base::BindOnce(&ReliefTabHelper::RunCommandFor,
+                           weak_factory_.GetWeakPtr(), input,
+                           std::move(done)));
+}
+
+void ReliefTabHelper::RunCommandFor(
+    const std::string& input,
+    base::OnceCallback<void(bridge::Reply)> done,
+    bridge::Found target) {
   RunWithFormFacts(
+      target,
       base::BindOnce(
           [](base::WeakPtr<ReliefTabHelper> self, const std::string& input,
              std::optional<bridge::FormFacts> facts,
@@ -797,7 +810,17 @@ void ReliefTabHelper::ViewAct(const std::string& key,
                               const std::string& kind,
                               const std::string& value,
                               base::OnceCallback<void(bridge::Reply)> done) {
+  // Ausfüllen und Auswählen: `autocomplete` des Ziels vorher (Paket 112).
+  // Eine offene Rückfrage verwirft die Bedienung ohnehin.
+  bridge::Found target{false, rust::String(), 0, 0};
+  const size_t hash = key.rfind('#');
+  int node = 0;
+  if ((kind == "set" || kind == "select") && hash != std::string::npos &&
+      base::StringToInt(key.substr(hash + 1), &node)) {
+    target = bridge::Found{true, rust::String(key.substr(0, hash)), node, 0};
+  }
   RunWithFormFacts(
+      target,
       base::BindOnce(
           [](base::WeakPtr<ReliefTabHelper> self, const std::string& key,
              const std::string& kind, const std::string& value,
@@ -829,12 +852,10 @@ void ReliefTabHelper::ViewInteract(
 }
 
 void ReliefTabHelper::RunWithFormFacts(
+    bridge::Found target,
     Runner run,
     base::OnceCallback<void(bridge::Reply)> done) {
-  runtime_.AsyncCall(&RuntimeHost::ConfirmationTarget)
-      .Then(base::BindOnce(&ReliefTabHelper::OnTargetBeforeCommand,
-                           weak_factory_.GetWeakPtr(), std::move(run),
-                           std::move(done)));
+  OnTargetBeforeCommand(std::move(run), std::move(done), std::move(target));
 }
 
 void ReliefTabHelper::OnTargetBeforeCommand(

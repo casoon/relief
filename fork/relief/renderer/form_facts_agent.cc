@@ -82,6 +82,13 @@ void FormFactsAgent::Get(int32_t ax_id, GetCallback callback) {
                     : node.DynamicTo<blink::WebFormControlElement>();
   const blink::WebFormElement form =
       control.IsNull() ? blink::WebFormElement() : control.Form();
+  if (!control.IsNull() && form.IsNull()) {
+    // Feld ohne Formular: nur sein eigenes `autocomplete` (Paket 112).
+    const std::string autocomplete = Attr(control, "autocomplete");
+    if (!autocomplete.empty()) {
+      fields.push_back(mojom::FieldFact::New(ax_id, autocomplete));
+    }
+  }
   if (!form.IsNull()) {
     std::string method = Attr(control, "formmethod");
     if (method.empty()) {

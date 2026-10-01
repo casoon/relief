@@ -359,11 +359,10 @@ Werte. Vorher (belegt): Die Kartennummer stand als „Neuer Text“ in der
 Antwort, der Wert in `eingabe`.
 
 Im Fork (M4) belegt: `relief_browsertests` grün; Fork-Aufgaben 01–05, 07,
-15 ohne Fehlschlag; `16-sensible-werte.txt` mit `--relief-log`: Anzeigename
-und Passwort wie erwartet, Benutzername und Kartennummer (drei
-Erwartungen) nennen den Wert, weil `autocomplete` im Fork nicht ankommt
-(außerhalb einer Rückfrage weiter so, → 112); die Zeilen `command` lauten „fülle … mit (verdeckt)“, keine
-Protokollzeile enthält einen der Werte. Panel: „fülle Passwort mit
+15 ohne Fehlschlag; `16-sensible-werte.txt` mit `--relief-log` seit Paket
+112 ohne Fehlschlag (11/11; vorher verfehlten Benutzername und
+Kartennummer, weil `autocomplete` fehlte); die Zeilen `command` lauten
+„fülle … mit (verdeckt)“, keine Protokollzeile enthält einen der Werte. Panel: „fülle Passwort mit
 geheim123“ erscheint im Log als „fülle Passwort mit (verdeckt):
 SetValue(verdeckt) auf [textbox] Passwort …“.
 
@@ -420,13 +419,21 @@ Anzeigename mit Wert, Benutzername, Passwort und Kartennummer als
 „= (verdeckt)“, „wo bin ich“ ebenso, „details zu Kartennummer“ nennt
 „Wert: 5555555555554444“.
 
-Im Fork gilt die Regel außerhalb einer Rückfrage nur für Passwortfelder,
-weil `autocomplete` dort nur bei einer Rückfrage angefragt wird (→ 112).
+`autocomplete` im Fork [umgesetzt, Paket 112; Entscheidung Nutzer,
+2026-10-01: Anfrage vor dem Ausfüllen]: Vor jeder Eingabe bestimmt die
+Runtime ohne Seiteneffekt das Ziel eines Ausfüll- oder Auswahlbefehls
+(`Session::fill_target`, auch die Wahl per Zahl aus einer Rückfrage;
+`Runtime::facts_target`: sonst das Ziel einer offenen Rückfrage), der
+Browser fragt dafür beim Renderer an (`relief.mojom.FormFacts`, eine Runde
+je solcher Eingabe; ohne Formular das `autocomplete` des Felds selbst),
+erst dann wird geplant. Ebenso vor „Ausfüllen“/„Auswählen“ in der Semantic
+View. Das Ergebnis haftet am Knoten (`Runtime::autocomplete`), auch wenn
+eine Delta ihn ersetzt, bis er verschwindet. Felder, die nie Ziel waren,
+kennt der Fork nicht als sensibel (Auskünfte vor dem ersten Ausfüllen).
 Im Fork (M4) belegt: `relief_browsertests` grün; Fork-Aufgaben 01–05, 07,
 15: 94 erfüllt, 0 nicht erfüllt; `16-sensible-werte.txt` mit
-`--relief-log`: 5 erfüllt, die 6 verfehlten sind Benutzername und
-Kartennummer (Antwort, Liste, „wo bin ich“, → 112), keine Protokollzeile
-mit einem der Werte. Inspector auf `login.html` nach „fülle Passwort mit
+`--relief-log`: 11/11, keine Protokollzeile mit einem der Werte;
+`befehle.rs` `autocomplete_vor_dem_ausfuellen`. Inspector auf `login.html` nach „fülle Passwort mit
 geheim123“: Kurzzeile „[textbox] Passwort = (verdeckt)“, Details „Wert:
 (verdeckt)“; unverstanden „füle Passwort mit sommer123“ steht im
 Protokoll als `command	füle Passwort mit (verdeckt)`.
