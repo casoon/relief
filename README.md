@@ -17,8 +17,26 @@ Projektseite: <https://casoon.github.io/relief/>
 ## Stand
 
 Forschungsprojekt in Entwicklung. Phase 0 (Machbarkeit im eigenen
-Chromium-Build) ist abgeschlossen, Phase 1 baut die ersten Oberflächen.
-Einzelheiten: [`docs/project-state.md`](docs/project-state.md).
+Chromium-Build) ist abgeschlossen; die Oberflächen der Phase 1 laufen im
+Fork:
+
+- **Relief-Panel** (Augen-Symbol oder Strg+Umschalt+I): Befehlsleiste
+  (Strg+Umschalt+Leertaste), Semantic Inspector mit Befunden aus
+  barrierlab, umschaltbar auf die **Semantic View**, in der jede
+  Bedienung als geprüfte Aktion auf die Originalseite wirkt.
+- **Sprache:** Sprechtaste im Panel bzw. Strg+Umschalt+S, Erkennung auf dem
+  Gerät, gesprochene Antworten; „abbrechen“ unterbricht sofort.
+- **Sprungmarken** (Strg+Umschalt+M), **Formular-Assistent**,
+  **Consent-Dialoge** erkennen und auf Wunsch ablehnen (nie zustimmen).
+- **Fähigkeitsprofile:** Ansage, Eingabe und Darstellung nach Fähigkeiten,
+  global oder je Website, lokal gespeichert.
+- **Testmodus:** Formular-Zusicherungen, Läufe ohne Fenster mit
+  JUnit-Bericht, Playwright-Anbindung über die CDP-Domäne `Relief.*`.
+
+Relief ist im eigenen Build standardmäßig an (auch beim Start über Dock
+oder Finder), `--disable-relief` schaltet es ab. Einzelheiten:
+[`docs/project-state.md`](docs/project-state.md), offene Pakete in
+[`plan/status.md`](plan/status.md).
 
 ## Aufbau
 

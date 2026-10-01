@@ -17,23 +17,29 @@ Project site: <https://casoon.github.io/relief/>
 ## Status
 
 Research project under development. Phase 0 (feasibility in our own Chromium
-build) is complete; Phase 1 is building the first user interfaces.
+build) is complete; the Phase 1 interfaces run in the fork.
 
 What exists today:
 
-- A Chromium fork (`fork/`) reads the AXTree (on by default, `--disable-relief` turns it off),
-  including cross-site iframes, in the browser process and keeps it as a
-  `SemanticGraph` in the Rust runtime. Commands are executed through
-  `AXActionData`, with key presses as a fallback.
-- The Relief side panel is a WebUI with the command bar at the top
-  (Ctrl+Shift+Space) and the Semantic Inspector below it (Ctrl+Shift+I or
-  `--relief-inspector`): landmarks, headings and controls, live, with the
-  origin of each accessible name.
-- A CDP spike (`relief-cdp`) drives an unmodified Chrome through the same
-  commands. Task files under `spike/tasks/` combine commands with expected
-  results; `assert:` lines check the current state of a form (field names,
-  error associations, focus, status messages, tab order) and report findings
-  with `form/…` rule IDs.
+- A Chromium fork (`fork/`) reads the AXTree in the browser process,
+  including cross-site iframes, and keeps it as a `SemanticGraph` in the Rust
+  runtime. Commands are executed through `AXActionData`, with key presses as a
+  fallback. Relief is on by default in its own build (also when started from
+  the Dock); `--disable-relief` turns it off.
+- The **Relief side panel** (eye icon or Ctrl+Shift+I) holds the command bar
+  (Ctrl+Shift+Space) and the Semantic Inspector with findings from barrierlab;
+  it switches to the **Semantic View**, where every interaction runs as a
+  validated action on the original page.
+- **Speech:** a talk button in the panel or Ctrl+Shift+S, recognition on the
+  device, spoken answers; “abbrechen” (cancel) interrupts immediately.
+- **Keyboard hints** (Ctrl+Shift+M), a **form assistant**, **consent dialogs**
+  recognised and declined on request (never accepted).
+- **Ability profiles:** output, input and presentation adapted to abilities,
+  globally or per site, stored locally only.
+- **Testing mode:** form assertions in task files, headless runs with JUnit
+  reports, Playwright access through the CDP domain `Relief.*`
+  (`examples/playwright/`). A CDP host (`relief-cdp`) runs the same tasks
+  against an unmodified Chrome.
 
 The command parser understands German. Commands such as „was ist hier“,
 „gehe zu Suche“ or „fülle … mit …“ therefore stay German in the docs and task

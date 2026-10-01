@@ -18,7 +18,7 @@ has been measured, not with a document.
   and can trigger an action on a node; the result shows up in the next update.
 - Updating the model takes at most 1.1 ms at the 95th percentile on large
   real pages (Wikipedia, spiegel.de).
-- The fork touched Chromium in two places outside its own directory.
+- The fork touched Chromium in two places outside its own directory at the end of phase 0; today there are nine small patches.
 - VoiceOver works unchanged with Relief running, checked step by step with and
   without Relief.
 
@@ -31,12 +31,12 @@ Decision on 2026-09-30: **go** for phase 1.
 | Actions into the page | Every operation as a validated plan through Chromium’s accessibility actions | done |
 | Inspector | See what Relief understands about a page, with findings from shared accessibility rules | done |
 | Command bar | “What can I do here?”, “open the menu”, numbered choices when a target is ambiguous | done |
-| Speech | Speech input and output on the device, no cloud service required | spoken commands and answers done; live microphone next |
+| Speech | Speech input and output on the device, no cloud service required | done, including the live microphone; optional cloud recognition later |
 | Keyboard hints | Every actionable element reachable with a few keys, also inside iframes | done |
 | Form assistant | Required fields, errors and focus after submit, filling fields by command | done |
 | Consent and overlays | Recognise, describe, decline on request — never accept on the user’s behalf | done |
 | Semantic view | A simplified view generated from the model; the original page stays available | done in the side panel; full tab width deferred |
-| Ability profiles | Combinable settings for output, input and presentation — no diagnosis modes | next |
+| Ability profiles | Combinable settings for output, input and presentation — no diagnosis modes | done: global or per site, also as reduced-motion and contrast preferences for web pages |
 | Missing names | Suggestions for unlabelled controls, on-device where possible, always marked as uncertain | resolver built; calibration run pending |
 | Accessible own interface | Inspector, command bar and dialogs usable by keyboard and screen reader | next |
 
@@ -51,7 +51,7 @@ Decision on 2026-09-30: **go** for phase 1.
 
 ## Product basics
 
-- The build is branded as Relief with its own profile directory (done).
+- The build is branded as Relief with its own profile directory, a placeholder icon and translated product texts, and Relief is on by default (done).
 - Before anyone else gets a build: signed, notarised, self-updating releases
   that keep up with Chromium’s security updates.
 - Windows and Linux follow once build and test hosts exist; a platform only
