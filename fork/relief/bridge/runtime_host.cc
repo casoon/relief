@@ -87,6 +87,11 @@ bridge::Found RuntimeHost::FactsTarget(const std::string& input) {
   return bridge::facts_target(*runtime_, input);
 }
 
+bridge::ProfileEffects RuntimeHost::SetProfile(const std::string& store,
+                                               const std::string& site) {
+  return bridge::set_profile(*runtime_, store, site);
+}
+
 bridge::Found RuntimeHost::ConfirmationTarget() {
   return bridge::confirmation_target(*runtime_);
 }

@@ -47,6 +47,7 @@ rust_static_library("relief_interaction_rs") {
     "crates/relief-interaction/src/marks.rs",
     "crates/relief-interaction/src/overlay.rs",
     "crates/relief-interaction/src/page.rs",
+    "crates/relief-interaction/src/profile.rs",
     "crates/relief-interaction/src/resolve.rs",
     "crates/relief-interaction/src/respond.rs",
     "crates/relief-interaction/src/rules.rs",
@@ -68,6 +69,7 @@ rust_static_library("relief_interaction_rs") {
     "//relief/third_party:a11y_rules",
     "//relief/third_party:accname",
     "//third_party/rust/serde/v1:lib",
+    "//third_party/rust/serde_json/v1:lib",
   ]
 }
 
@@ -83,6 +85,7 @@ rust_static_library("relief_bridge_rs") {
     "crates/relief-bridge/src/devtools.rs",
     "crates/relief-bridge/src/inspector.rs",
     "crates/relief-bridge/src/lib.rs",
+    "crates/relief-bridge/src/profile.rs",
     "crates/relief-bridge/src/runtime.rs",
     "crates/relief-bridge/src/semantic.rs",
   ]
@@ -132,6 +135,8 @@ source_set("relief") {
     "inspector/relief_inspector_ui.cc",
     "inspector/relief_inspector_ui.h",
     "marks_overlay.cc",
+    "profile_store.cc",
+    "profile_store.h",
     "marks_overlay.h",
     "relief_attach.h",
     "relief_executor.cc",

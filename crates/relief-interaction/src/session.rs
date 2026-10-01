@@ -38,7 +38,7 @@ use crate::security::{
     action_name, is_sensitive_field, Binding, Confirmation, Decision, PlanId, Reason,
     SecurityEvent, SecurityLog, CONFIRMATION_TTL, HTML_AUTOCOMPLETE, INPUT_TYPE,
 };
-use crate::validate::{plan_navigation, plan_on_page, ActionKind, ActionPlan};
+use crate::validate::{plan_navigation, plan_on_page, ActionKind, ActionPlan, Risk};
 
 /// Was der Host als Nächstes tun soll.
 #[derive(Debug, Clone)]
@@ -183,6 +183,12 @@ pub struct Session {
     return_to: Option<NodeRef>,
     /// Letzte Eingabe als Befehl (ohne „!“): „ja“ bestätigt sie.
     last_input: Option<String>,
+    /// Wirkungen des Fähigkeitsprofils (Paket 41).
+    effects: crate::profile::Effects,
+    /// Rest einer gekürzten Antwort für „mehr“.
+    more: Option<String>,
+    /// Die nächste Antwort ist dieser Rest: ungekürzt ausgeben.
+    more_given: bool,
 }
 
 /// Kandidaten einer Rückfrage „Mehrdeutig“.
@@ -226,6 +232,8 @@ impl<T> Miss<T> {
 /// Wörter, die eine offene Rückfrage verwerfen, bzw. sie bestätigen.
 const CANCEL: &[&str] = &["abbrechen", "abbruch", "nein", "stopp", "stop", "cancel"];
 const CONFIRM: &[&str] = &["ja", "bestätigen", "bestätige", "yes"];
+/// Rest einer gekürzten Antwort (Paket 41).
+const MORE: &[&str] = &["mehr", "mehr bitte", "weiter lesen", "lies weiter", "more"];
 
 impl Default for Session {
     fn default() -> Self {
@@ -236,6 +244,9 @@ impl Default for Session {
             confirm_target: None,
             confirm_refused: None,
             carry_refusal: None,
+            effects: crate::profile::Effects::default(),
+            more: None,
+            more_given: false,
             marks: Vec::new(),
             return_to: None,
             confirmation: None,
@@ -257,6 +268,26 @@ impl Session {
             confirmation_ttl: ttl,
             ..Self::default()
         }
+    }
+
+    /// Wirkungen des Fähigkeitsprofils übernehmen (Paket 41).
+    pub fn set_effects(&mut self, effects: crate::profile::Effects) {
+        self.effects = effects;
+    }
+
+    pub fn effects(&self) -> &crate::profile::Effects {
+        &self.effects
+    }
+
+    /// Antwort nach Profil ausgeben: bei kurzen Antworten der Anfang, der
+    /// Rest bleibt für „mehr“. Hosts rufen das für jede Antwort an Nutzende.
+    pub fn present(&mut self, answer: String) -> String {
+        if std::mem::take(&mut self.more_given) {
+            return answer;
+        }
+        let (head, rest) = crate::profile::present(&answer, &self.effects);
+        self.more = rest;
+        head
     }
 
     /// Security-Log seit dem letzten Abholen (→ [`SecurityEvent`]).
@@ -318,6 +349,15 @@ impl Session {
             .trim_end_matches(['.', '!'])
             .trim()
             .to_lowercase();
+        if MORE.contains(&text.as_str()) {
+            return Pending::Done(Outcome::Answer(match self.more.take() {
+                Some(rest) => {
+                    self.more_given = true;
+                    rest
+                }
+                None => "Nichts weiter zu dieser Antwort.".into(),
+            }));
+        }
         let choices = self.choices.take();
         if CANCEL.contains(&text.as_str()) {
             let open = choices.is_some() || self.confirmation.is_some();
@@ -667,6 +707,15 @@ impl Session {
                 return Outcome::Answer(format!("Abgelehnt: {rejection} ({label})"));
             }
         };
+        // Profil: auch mittleres Risiko erst nach Rückfrage (nie weniger
+        // Rückfragen als ohne Profil).
+        let mut plan = plan;
+        if self.effects.confirm_changes && plan.risk >= Risk::Medium && !plan.requires_confirmation
+        {
+            plan.requires_confirmation = true;
+            plan.notes
+                .push("Profil: Änderungen erst nach Rückfrage".into());
+        }
         if !plan.requires_confirmation {
             let id = self.next_plan();
             self.log
@@ -1164,6 +1213,8 @@ pub enum TaskLine {
     Speak(String),
     /// Audiodatei für die Spracherkennung (nur im Fork).
     Audio(String),
+    /// Fähigkeitsprofil setzen (Paket 41, `profile::apply_line`).
+    Profile(String),
 }
 
 pub fn parse_tasks(text: &str) -> Vec<TaskLine> {
@@ -1179,6 +1230,8 @@ pub fn parse_tasks(text: &str) -> Vec<TaskLine> {
                 Some(TaskLine::Assert(text.trim().to_string()))
             } else if let Some(text) = line.strip_prefix("sprich:") {
                 Some(TaskLine::Speak(text.trim().to_string()))
+            } else if let Some(text) = line.strip_prefix("profil:") {
+                Some(TaskLine::Profile(text.trim().to_string()))
             } else if let Some(path) = line.strip_prefix("audio:") {
                 Some(TaskLine::Audio(path.trim().to_string()))
             } else if let Some(ms) = line.strip_prefix("wait:") {

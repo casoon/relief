@@ -36,7 +36,10 @@ validierte Aktion auf die Originalseite). Dazu Tastatur-Sprungmarken über der S
 aus Playwright. Gesprochene Befehle erkennt der Fork aus Audiodateien
 (Apples Spracherkennung, auf dem Gerät) und spricht die Antworten über
 Chromiums TTS; „abbrechen“/„stopp“ unterbricht sofort
-(`scripts/fork-run-speech.sh`).
+(`scripts/fork-run-speech.sh`). Ein Fähigkeitsprofil (Abschnitt
+„Fähigkeiten“ im Panel, global oder je Website, lokal gespeichert) ändert
+Ansage (kurz mit „mehr“, gesprochen), Eingabe (mehr Rückfragen) und
+Darstellung (Zoom, Kontrast, Startansicht).
 
 ## Ausführen
 

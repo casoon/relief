@@ -85,6 +85,8 @@ class ReliefTabHelper
     // Eine Eingabe außerhalb der Leiste (Sprungmarke) wurde beantwortet.
     virtual void OnExternalAnswer(const std::string& input,
                                   const ReliefExecutor::Result& result) {}
+    // Das Fähigkeitsprofil gilt neu (Paket 41).
+    virtual void OnProfileChanged() {}
   };
   void AddObserver(InspectorObserver* observer);
   void RemoveObserver(InspectorObserver* observer);
@@ -123,6 +125,15 @@ class ReliefTabHelper
                     const std::string& kind,
                     const std::string& value,
                     base::OnceCallback<void(ReliefExecutor::Result)> done);
+  // Fähigkeitsprofil (Paket 41): Website (Host) des Tabs, Wirkungen,
+  // Aufgabenzeile `profil:`, Übernahme eines geänderten Stands.
+  std::string Site() const;
+  const bridge::ProfileEffects& effects() const { return effects_; }
+  void ProfileLine(const std::string& line,
+                   base::OnceCallback<void(std::string)> done);
+  // Neuen Stand speichern und für diesen Tab sofort anwenden (andere Tabs
+  // folgen über die Benachrichtigung).
+  void ApplyAfterChange(std::string json, base::OnceClosure done);
   // Erkannte Sprache (Paket 26): Abbruchwörter vorrangig (Ausgabe stoppen,
   // Erkennung verwerfen, Rückfrage schließen), sonst wie Interact; die
   // Antwort wird gesprochen (stumm neben einem Screenreader).
@@ -171,6 +182,8 @@ class ReliefTabHelper
   size_t hosts_for_testing() const { return hosts_.size(); }
 
  private:
+  void ApplyProfile(base::OnceClosure done);
+  void OnProfileEffects(base::OnceClosure done, bridge::ProfileEffects effects);
   // Befehlskette mit Angaben des Renderers zum Formular (Paket 75,
   // → RunCommand in relief_tab_helper.cc).
   // Führt den Auftrag mit (optionalen) Angaben zum Formular aus und
@@ -249,6 +262,11 @@ class ReliefTabHelper
   ui::AXTreeID root_;
   base::SequenceBound<RuntimeHost> runtime_;
   speech::SpeechOutput speech_output_;
+  bridge::ProfileEffects effects_{false, false, false, false, false,
+                                  1.0f,  false, false};
+  base::CallbackListSubscription profile_subscription_;
+  // Dieser Tab setzt den Stand gerade selbst (keine zweite Anwendung).
+  bool applying_ = false;
   base::TimeDelta reset_interval_;
   base::TimeTicks last_reset_;
   base::OneShotTimer reset_timer_;

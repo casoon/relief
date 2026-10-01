@@ -1,6 +1,7 @@
 :root {
   color-scheme: light dark;
-  font: 13px/1.4 system-ui, sans-serif;
+  /* --scale: Textgröße aus dem Fähigkeitsprofil (Paket 41). */
+  font: calc(13px * var(--scale, 1))/1.4 system-ui, sans-serif;
 }
 
 body {
@@ -160,4 +161,53 @@ h3 {
 #semantic-confirm {
   border: 2px solid Highlight;
   padding: 4px 8px;
+}
+
+/* Fähigkeitsprofil: erhöhter Kontrast (Systemfarben, kräftige Ränder und
+   Fokus) und ruhige Darstellung (ohne weiche Bildläufe). */
+:root.contrast,
+:root.contrast body {
+  background: Canvas;
+  color: CanvasText;
+}
+
+:root.contrast .hint,
+:root.contrast #semantic-body .region,
+:root.contrast #profile-fields .origin {
+  color: CanvasText;
+}
+
+:root.contrast button,
+:root.contrast select,
+:root.contrast input {
+  border: 2px solid CanvasText;
+}
+
+:root.contrast :focus-visible {
+  outline-width: 3px;
+}
+
+:root.calm * {
+  scroll-behavior: auto !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+#profile-scope {
+  border: none;
+  padding: 0;
+  margin: 4px 0;
+}
+
+#profile-fields .row {
+  margin: 6px 0;
+}
+
+#profile-fields label {
+  display: block;
+  font-weight: 600;
+}
+
+#profile-fields .origin {
+  color: GrayText;
 }

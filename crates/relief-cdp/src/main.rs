@@ -321,7 +321,11 @@ impl Session {
     /// Eine Eingabe verarbeiten und die Entscheidungen dazu ins
     /// Security-Log schreiben.
     async fn handle(&mut self, input: &str) -> Result<String> {
-        let answer = self.answer(input).await;
+        // Nach Fähigkeitsprofil (Paket 41): ggf. gekürzt, Rest für „mehr“.
+        let answer = match self.answer(input).await {
+            Ok(text) => Ok(self.session.present(text)),
+            Err(e) => Err(e),
+        };
         let events = self.session.take_security_log();
         if let Some(log) = self.security_log.as_mut() {
             let t = std::time::SystemTime::now()
@@ -479,6 +483,8 @@ async fn run_files(
         };
         let mut session: Option<Session> = None;
         let mut last = String::new();
+        // Fähigkeitsprofil der Datei (`profil:`), gilt auch nach `url:`.
+        let mut profile = relief_interaction::profile::Store::default();
         // Zustand, auf den sich Antwort und Befunde beziehen.
         let mut state = String::from("Laden");
         let mut page_url = String::new();
@@ -503,8 +509,9 @@ async fn run_files(
                     state = "Laden".into();
                     page_url = url.clone();
                     match Session::open(browser, &url).await {
-                        Ok(s) => {
+                        Ok(mut s) => {
                             println!("{}", respond::describe(&s.graph));
+                            s.session.set_effects(profile.effective("").effects());
                             session = Some(s);
                         }
                         Err(e) => {
@@ -531,6 +538,16 @@ async fn run_files(
                             .map(|l| format!("; {l}"))
                             .unwrap_or_default()
                     );
+                }
+                TaskLine::Profile(line) => {
+                    last = match relief_interaction::profile::apply_line(&mut profile, &line) {
+                        Ok(text) => text,
+                        Err(e) => format!("Fehler: {e}"),
+                    };
+                    if let Some(s) = session.as_mut() {
+                        s.session.set_effects(profile.effective("").effects());
+                    }
+                    println!("\n§ {line}\n{}", indent(&last));
                 }
                 TaskLine::Speak(_) | TaskLine::Audio(_) => {
                     unreachable!("spoken_as_typed")

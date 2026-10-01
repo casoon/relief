@@ -389,6 +389,29 @@ pub mod ffi {
         Speak,
         /// Audiodatei für die Spracherkennung (`audio:`).
         Audio,
+        /// Fähigkeitsprofil (`profil:`).
+        Profile,
+    }
+
+    /// Wirkungen des Fähigkeitsprofils für den Tab (Paket 41).
+    #[derive(Debug)]
+    struct ProfileEffects {
+        speak: bool,
+        short_answers: bool,
+        confirm_changes: bool,
+        semantic_view: bool,
+        marks_on_load: bool,
+        zoom: f32,
+        increased_contrast: bool,
+        reduced_motion: bool,
+    }
+
+    /// Ergebnis einer Profiländerung: neuer Stand (bei `ok`) und Text.
+    #[derive(Debug)]
+    struct ProfileChange {
+        ok: bool,
+        store: String,
+        text: String,
     }
 
     /// Erkannte Äußerung (Paket 26, `relief_interaction::speech::route`).
@@ -468,6 +491,20 @@ pub mod ffi {
         /// Sprungmarken des aktuellen Stands (merkt sie für „marke …“).
         fn show_marks(runtime: &mut Runtime) -> Vec<MarkBox>;
         fn parse_task_file(text: &str) -> Vec<Task>;
+        /// Fähigkeitsprofil (Paket 41): Stand als JSON, `site` = Host oder
+        /// leer (global). Wirkungen für den Tab übernehmen.
+        fn set_profile(runtime: &mut Runtime, store: &str, site: &str) -> ProfileEffects;
+        /// Aufgabenzeile `profil:` (global).
+        fn profile_line(store: &str, line: &str) -> ProfileChange;
+        /// Ein Feld setzen (`value` als JSON).
+        fn profile_set(store: &str, site: &str, field: &str, value: &str) -> ProfileChange;
+        /// Ein Feld zurücksetzen; `field` leer: alles (bei leerem `site`
+        /// „Standard wiederherstellen“, sonst alle Werte dieser Website).
+        fn profile_reset(store: &str, site: &str, field: &str) -> ProfileChange;
+        /// Voreinstellung übernehmen (global).
+        fn profile_preset(store: &str, name: &str) -> ProfileChange;
+        /// Stand für die Oberfläche (JSON).
+        fn profile_view(store: &str, site: &str) -> String;
         /// Erkannten Text einordnen: Abbruch vorrangig (Paket 26).
         fn speech_route(text: &str) -> Heard;
         /// Antwort zum Sprechen (erste Zeile, gekürzt).
@@ -783,9 +820,89 @@ fn parse_task_file(text: &str) -> Vec<ffi::Task> {
                 kind: ffi::TaskKind::Audio,
                 text,
             }),
+            TaskLine::Profile(text) => Some(ffi::Task {
+                kind: ffi::TaskKind::Profile,
+                text,
+            }),
             TaskLine::Wait(_) => None,
         })
         .collect()
+}
+
+fn set_profile(runtime: &mut Runtime, store: &str, site: &str) -> ffi::ProfileEffects {
+    let e = crate::profile::store(store).effective(site).effects();
+    runtime.set_profile(e.clone());
+    ffi::ProfileEffects {
+        speak: e.speak_answers,
+        short_answers: e.short_answers,
+        confirm_changes: e.confirm_changes,
+        semantic_view: e.semantic_view,
+        marks_on_load: e.marks_on_load,
+        zoom: e.zoom,
+        increased_contrast: e.increased_contrast,
+        reduced_motion: e.reduced_motion,
+    }
+}
+
+fn profile_change(
+    store: &str,
+    change: impl FnOnce(&mut relief_interaction::profile::Store) -> Result<String, String>,
+) -> ffi::ProfileChange {
+    let mut s = crate::profile::store(store);
+    match change(&mut s) {
+        Ok(text) => ffi::ProfileChange {
+            ok: true,
+            store: crate::profile::to_json(&s),
+            text,
+        },
+        Err(text) => ffi::ProfileChange {
+            ok: false,
+            store: store.to_string(),
+            text,
+        },
+    }
+}
+
+fn profile_line(store: &str, line: &str) -> ffi::ProfileChange {
+    profile_change(store, |s| crate::profile::line(s, line))
+}
+
+fn profile_set(store: &str, site: &str, field: &str, value: &str) -> ffi::ProfileChange {
+    profile_change(store, |s| {
+        let value = serde_json::from_str(value).map_err(|e| e.to_string())?;
+        s.set(site, field, value)?;
+        Ok(relief_interaction::profile::describe_effects(
+            &s.effective(site).effects(),
+        ))
+    })
+}
+
+fn profile_reset(store: &str, site: &str, field: &str) -> ffi::ProfileChange {
+    profile_change(store, |s| {
+        match (site.is_empty(), field.is_empty()) {
+            (true, true) => s.reset_all(),
+            (false, true) => {
+                s.sites.remove(site);
+            }
+            _ => s.reset_field(site, field),
+        }
+        Ok(relief_interaction::profile::describe_effects(
+            &s.effective(site).effects(),
+        ))
+    })
+}
+
+fn profile_preset(store: &str, name: &str) -> ffi::ProfileChange {
+    profile_change(store, |s| {
+        s.apply_preset(name)?;
+        Ok(relief_interaction::profile::describe_effects(
+            &s.effective("").effects(),
+        ))
+    })
+}
+
+fn profile_view(store: &str, site: &str) -> String {
+    crate::profile::view(&crate::profile::store(store), site)
 }
 
 fn speech_route(text: &str) -> ffi::Heard {

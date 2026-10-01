@@ -647,6 +647,166 @@ addWebUiListener('viewAnswer', (answer, acted, shown) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Fähigkeitsprofil (Paket 41): einzelne Werte, global oder nur für die
+// Website des Tabs; jede Änderung wirkt sofort, ist einzeln rücksetzbar,
+// „Standard wiederherstellen“ setzt alles zurück.
+
+const FAEHIGKEITEN = {
+  visual_detail: ['Visuelles Detail',
+    {full: 'voll', reduced: 'eingeschränkt', none: 'keines'}],
+  text_scale: ['Textgröße (Faktor 1–3)', null],
+  color_discrimination: ['Farbunterscheidung',
+    {full: 'voll', reduced: 'eingeschränkt', none: 'keine'}],
+  contrast: ['Kontrastbedarf',
+    {standard: 'normal', increased: 'erhöht', maximum: 'maximal'}],
+  motion_tolerance: ['Bewegung verträglich',
+    {full: 'voll', reduced: 'wenig', none: 'keine'}],
+  audio_output: ['Sprachausgabe',
+    {preferred: 'bevorzugt', available: 'verfügbar', unavailable: 'nicht verfügbar'}],
+  speech_input: ['Spracheingabe',
+    {preferred: 'bevorzugt', available: 'verfügbar', unavailable: 'nicht verfügbar'}],
+  keyboard_input: ['Tastatur',
+    {preferred: 'bevorzugt', available: 'verfügbar', unavailable: 'nicht verfügbar'}],
+  pointer_input: ['Zeigegerät',
+    {preferred: 'bevorzugt', available: 'verfügbar', unavailable: 'nicht verfügbar'}],
+  switch_input: ['Schalter',
+    {preferred: 'bevorzugt', available: 'verfügbar', unavailable: 'nicht verfügbar'}],
+  text_complexity: ['Textmenge je Antwort',
+    {full: 'vollständig', reduced: 'kurz, Rest auf Nachfrage', none: 'sehr kurz'}],
+};
+
+const profileFields = document.getElementById('profile-fields');
+const profileStatus = document.getElementById('profile-status');
+const presetSelect = document.getElementById('preset');
+let profileView = null;
+// Hat die Nutzerin die Ansicht selbst gewählt, entscheidet das Profil nicht
+// mehr über sie.
+let modeChosen = false;
+
+function scope() {
+  return document.querySelector('input[name="scope"]:checked').value;
+}
+
+function valueText(field, value) {
+  const names = FAEHIGKEITEN[field][1];
+  return names ? names[value] : String(value).replace('.', ',');
+}
+
+function renderProfile() {
+  if (!profileView) {
+    return;
+  }
+  const site = profileView.site;
+  document.getElementById('profile-site').textContent =
+      site ? site : 'diese Website (Datei ohne Website)';
+  document.getElementById('scope-site').disabled = !site;
+  document.getElementById('profile-reset-site').disabled =
+      !site || !profileView.fields.some((f) => f.site !== null);
+  if (presetSelect.options.length === 0) {
+    for (const name of profileView.presets) {
+      const o = document.createElement('option');
+      o.textContent = name;
+      presetSelect.append(o);
+    }
+  }
+  const focusedField = document.activeElement?.dataset?.field;
+  const rows = profileView.fields.map((f) => {
+    const [label, names] = FAEHIGKEITEN[f.field];
+    const row = document.createElement('div');
+    row.className = 'row';
+    const id = `profile-${f.field}`;
+    const l = document.createElement('label');
+    l.htmlFor = id;
+    l.textContent = label;
+    let control;
+    if (names) {
+      control = document.createElement('select');
+      for (const [value, text] of Object.entries(names)) {
+        const o = document.createElement('option');
+        o.value = value;
+        o.textContent = text;
+        control.append(o);
+      }
+      control.value = f.value;
+    } else {
+      control = document.createElement('input');
+      control.type = 'number';
+      control.min = '1';
+      control.max = '3';
+      control.step = '0.25';
+      control.value = f.value;
+    }
+    control.id = id;
+    control.dataset.field = f.field;
+    const origin = document.createElement('span');
+    origin.className = 'origin';
+    origin.id = `${id}-origin`;
+    origin.textContent = f.site !== null ? ' (nur diese Website)' :
+        f.global !== null ? ' (geändert, alle Websites)' : ' (Standard)';
+    control.setAttribute('aria-describedby', origin.id);
+    control.addEventListener('change', () => {
+      const value = names ? JSON.stringify(control.value) : control.value;
+      chrome.send('profileSet', [scope(), f.field, value]);
+    });
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.textContent = `${label} zurücksetzen`;
+    reset.disabled = scope() === 'site' ? f.site === null : f.global === null;
+    reset.addEventListener('click', () => {
+      chrome.send('profileReset', [scope(), f.field]);
+    });
+    row.append(l, control, origin, ' ', reset);
+    return row;
+  });
+  profileFields.replaceChildren(...rows);
+  if (focusedField) {
+    document.getElementById(`profile-${focusedField}`)?.focus();
+  }
+}
+
+for (const radio of document.querySelectorAll('input[name="scope"]')) {
+  radio.addEventListener('change', renderProfile);
+}
+document.getElementById('preset-apply').addEventListener('click', () => {
+  chrome.send('profilePreset', [presetSelect.value]);
+});
+document.getElementById('profile-reset-all').addEventListener('click', () => {
+  chrome.send('profileReset', ['global', '']);
+});
+document.getElementById('profile-reset-site').addEventListener('click', () => {
+  chrome.send('profileReset', ['site', '']);
+});
+for (const radio of document.querySelectorAll('input[name="mode"]')) {
+  radio.addEventListener('change', () => {
+    modeChosen = true;
+  });
+}
+
+addWebUiListener('profile', (json, effects) => {
+  profileView = JSON.parse(json);
+  renderProfile();
+  const root = document.documentElement;
+  root.style.setProperty('--scale', String(effects.zoom));
+  root.classList.toggle('contrast', effects.contrast);
+  root.classList.toggle('calm', effects.calm);
+  // Startansicht nach Profil, solange nicht selbst gewählt.
+  if (!modeChosen && effects.semantic !== semanticMode()) {
+    document.querySelector(
+        `input[name="mode"][value="${effects.semantic ? 'semantic' : 'inspector'}"]`)
+        .checked = true;
+    if (effects.semantic) {
+      enterSemantic();
+    } else {
+      leaveSemantic();
+    }
+  }
+  profileStatus.textContent = `Wirkung: ${profileView.effects}.`;
+});
+addWebUiListener('profileStatus', (text) => {
+  profileStatus.textContent = text;
+});
+
 addWebUiListener('graph', render);
 addWebUiListener('status', (text) => {
   statusLine.textContent = text;

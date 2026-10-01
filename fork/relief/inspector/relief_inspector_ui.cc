@@ -21,6 +21,7 @@
 #include "content/public/browser/web_ui_message_handler.h"
 #include "content/public/common/url_constants.h"
 #include "relief/inspector/inspector_resources.h"
+#include "relief/profile_store.h"
 #include "relief/relief_tab_helper.h"
 
 namespace relief {
@@ -66,6 +67,16 @@ class InspectorHandler : public content::WebUIMessageHandler,
         "act", base::BindRepeating(&InspectorHandler::OnAct,
                                    base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
+        "profileSet", base::BindRepeating(&InspectorHandler::OnProfileSet,
+                                          base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "profileReset", base::BindRepeating(&InspectorHandler::OnProfileReset,
+                                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "profilePreset",
+        base::BindRepeating(&InspectorHandler::OnProfilePreset,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
         "viewCommand", base::BindRepeating(&InspectorHandler::OnViewCommand,
                                            base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
@@ -98,6 +109,7 @@ class InspectorHandler : public content::WebUIMessageHandler,
     FireWebUIListener("externalAnswer", base::Value(input),
                       base::Value(result.text), base::Value(result.acted));
   }
+  void OnProfileChanged() override { SendProfile(); }
   void OnFocusCommandRequested() override {
     if (ReliefTabHelper* helper = Helper()) {
       helper->TakeFocusCommandRequest();
@@ -132,6 +144,7 @@ class InspectorHandler : public content::WebUIMessageHandler,
       embedder->ShowUI();
     }
     Refresh();
+    SendProfile();
     if (ReliefTabHelper* helper = Helper()) {
       if (auto answer = helper->TakeExternalAnswer()) {
         OnExternalAnswer(answer->first, answer->second);
@@ -161,6 +174,92 @@ class InspectorHandler : public content::WebUIMessageHandler,
                      base::BindOnce(&InspectorHandler::SendAnswer,
                                     weak_factory_.GetWeakPtr(),
                                     std::string(bridge::redact_input(input))));
+  }
+
+  // Fähigkeitsprofil (Paket 41): Stand der Website des Tabs und Wirkungen
+  // für das Panel.
+  void SendProfile() {
+    ReliefTabHelper* helper = Helper();
+    if (!helper || !IsJavascriptAllowed()) {
+      return;
+    }
+    const std::string& store =
+        ProfileStore::For(helper->web_contents()->GetBrowserContext()).json();
+    const bridge::ProfileEffects& e = helper->effects();
+    base::DictValue effects;
+    effects.Set("zoom", e.zoom);
+    effects.Set("contrast", e.increased_contrast);
+    effects.Set("calm", e.reduced_motion);
+    effects.Set("semantic", e.semantic_view);
+    FireWebUIListener(
+        "profile",
+        base::Value(std::string(bridge::profile_view(store, helper->Site()))),
+        base::Value(std::move(effects)));
+  }
+
+  // Änderung übernehmen: speichern, für den Tab anwenden, melden.
+  void ApplyProfileChange(const bridge::ProfileChange& change) {
+    ReliefTabHelper* helper = Helper();
+    if (!helper) {
+      return;
+    }
+    if (!change.ok) {
+      FireWebUIListener("profileStatus", base::Value(std::string(change.text)));
+      return;
+    }
+    helper->ApplyAfterChange(
+        std::string(change.store),
+        base::BindOnce(
+            [](base::WeakPtr<InspectorHandler> self, std::string text) {
+              if (self) {
+                self->FireWebUIListener("profileStatus",
+                                        base::Value("Wirkung: " + text));
+              }
+            },
+            weak_factory_.GetWeakPtr(), std::string(change.text)));
+  }
+
+  std::string ProfileJson() {
+    ReliefTabHelper* helper = Helper();
+    return helper ? ProfileStore::For(
+                        helper->web_contents()->GetBrowserContext())
+                        .json()
+                  : std::string();
+  }
+
+  // ["site"|"global", Feld, Wert als JSON]
+  void OnProfileSet(const base::ListValue& args) {
+    ReliefTabHelper* helper = Helper();
+    if (!helper || args.size() != 3 || !args[0].is_string() ||
+        !args[1].is_string() || !args[2].is_string()) {
+      return;
+    }
+    const std::string site =
+        args[0].GetString() == "site" ? helper->Site() : std::string();
+    ApplyProfileChange(bridge::profile_set(ProfileJson(), site,
+                                           args[1].GetString(),
+                                           args[2].GetString()));
+  }
+
+  // ["site"|"global", Feld oder leer für alles]
+  void OnProfileReset(const base::ListValue& args) {
+    ReliefTabHelper* helper = Helper();
+    if (!helper || args.size() != 2 || !args[0].is_string() ||
+        !args[1].is_string()) {
+      return;
+    }
+    const std::string site =
+        args[0].GetString() == "site" ? helper->Site() : std::string();
+    ApplyProfileChange(
+        bridge::profile_reset(ProfileJson(), site, args[1].GetString()));
+  }
+
+  void OnProfilePreset(const base::ListValue& args) {
+    if (args.size() != 1 || !args[0].is_string()) {
+      return;
+    }
+    ApplyProfileChange(
+        bridge::profile_preset(ProfileJson(), args[0].GetString()));
   }
 
   // Semantic View (Paket 29): [Schlüssel, Art, Wert, Zeile fürs Log]. Der
