@@ -1,0 +1,14 @@
+{
+  "name": "relief-playwright",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Playwright steuert Relief und fragt das Seitenmodell über die CDP-Domäne Relief.* ab (Paket 45).",
+  "type": "module",
+  "exports": "./relief.mjs",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

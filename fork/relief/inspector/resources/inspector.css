@@ -97,3 +97,67 @@ h3 {
   white-space: pre-wrap;
   margin-bottom: 6px;
 }
+
+#mode {
+  border: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+#mode legend {
+  font-weight: 600;
+  padding: 0;
+}
+
+/* Semantic View: große, lineare Bedienelemente; Größen in em, damit Zoom
+   und Textgröße greifen. */
+#semantic-body section {
+  border-top: 1px solid GrayText;
+  margin-top: 12px;
+  padding-top: 4px;
+}
+
+#semantic-body .region {
+  color: GrayText;
+  font-size: 0.9em;
+  margin: 0;
+}
+
+#semantic-body p,
+#semantic-body label,
+#semantic-body button {
+  margin: 6px 0;
+}
+
+#semantic-body button,
+#semantic-body select,
+#semantic-body input {
+  font: inherit;
+  min-height: 2em;
+}
+
+#semantic-body label {
+  display: block;
+}
+
+#semantic-body label > input[type="text"],
+#semantic-body label > input[type="password"],
+#semantic-body label > select {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#semantic-body .choice {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+#semantic-confirm {
+  border: 2px solid Highlight;
+  padding: 4px 8px;
+}

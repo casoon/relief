@@ -55,6 +55,11 @@ pub enum ButtonKind {
     /// bild.de „Einwilligen“ je Zweck). Weder Ablehnen noch Zustimmen des
     /// Ganzen; Relief wählt ihn nie selbst.
     Purpose,
+    /// Aufklappbarer Titel eines Zwecks auf der zweiten Ebene (bild.de
+    /// „… Required For Consent“, faz.net „Verwendung reduzierter Daten zur
+    /// Auswahl von Werbeanzeigen“): klappt die Beschreibung auf, stimmt
+    /// nicht zu und öffnet keine Einstellungen.
+    PurposeTitle,
     /// Abo oder Bezahlen (z. B. „pur“): kein kostenloses Ablehnen.
     Pay,
     Close,
@@ -69,6 +74,7 @@ impl ButtonKind {
             ButtonKind::Settings => "Einstellungen",
             ButtonKind::Save => "Speichern",
             ButtonKind::Purpose => "vermutlich je Zweck",
+            ButtonKind::PurposeTitle => "Zweck-Titel",
             ButtonKind::Pay => "Abo",
             ButtonKind::Close => "Schließen",
             ButtonKind::Other => "weitere",
@@ -197,6 +203,15 @@ const SAVE: &[&str] = &[
     "save",
     "apply",
     "confirm",
+];
+/// Im Namen eines aufklappbaren Buttons: Titel eines Zwecks, der die
+/// Einwilligung braucht (bild.de „… Required For Consent“, spiegel.de
+/// „… (Zustimmung erforderlich)“).
+const PURPOSE_TITLE: &[&str] = &[
+    "required for consent",
+    "zustimmung erforderlich",
+    "einwilligung erforderlich",
+    "consent required",
 ];
 const CLOSE: &[&str] = &["schließen", "close", "abbrechen", "cancel", "zurück"];
 const CLOSE_EXACT: &[&str] = &["x", "×", "✕"];
@@ -327,7 +342,7 @@ pub fn consent_page_overlay(graph: &Graph) -> Option<Overlay> {
         })
         .map(|(i, c)| (i, button_fact(graph, c, None)))
         .collect();
-    let buttons = mark_purposes(graph, buttons);
+    let buttons = mark_purposes(graph, mark_titles(graph, buttons));
     Some(Overlay {
         region: None,
         kind: rule(
@@ -370,7 +385,7 @@ fn classify(graph: &Graph, region: usize) -> Overlay {
         })
         .map(|(i, c)| (i, button_fact(graph, c, Some(region))))
         .collect();
-    let buttons = mark_purposes(graph, buttons);
+    let buttons = mark_purposes(graph, mark_titles(graph, buttons));
 
     let r = &graph.regions[region];
     let texts = graph
@@ -470,6 +485,65 @@ fn button_fact(graph: &Graph, c: &Control, region: Option<usize>) -> Fact<Button
         confidence: None,
         evidence: vec![evidence],
     }
+}
+
+/// Zweck-Titel der zweiten Ebene: Ein aufklappbarer **Button** (meldet
+/// `expanded`) ist Titel eines Zwecks, wenn sein Name das sagt („Required
+/// For Consent“) oder das Overlay mindestens zwei aufklappbare Buttons hat,
+/// also eine Liste von Zwecken (bild.de, faz.net, spiegel.de: je 9 bis 16).
+/// Ihre Namen beschreiben den Zweck und tragen dabei Wörter wie „consent“
+/// oder „Auswahl“; als Zustimmen oder Einstellungen stünden sie sonst in der
+/// Ansage, und „cookie-einstellungen öffnen“ fragte zwischen ihnen nach.
+/// Wie „je Zweck“ nimmt das Buttons nur aus ihrer Art heraus und macht
+/// nichts wählbar; deshalb `Uncertain`, und lieber einmal zu oft.
+fn mark_titles(
+    graph: &Graph,
+    mut buttons: Vec<(usize, Fact<ButtonKind>)>,
+) -> Vec<(usize, Fact<ButtonKind>)> {
+    let expandable = |i: usize| {
+        let c = &graph.controls[i];
+        c.role == Role::Button && c.expandable
+    };
+    let count = buttons.iter().filter(|(i, _)| expandable(*i)).count();
+    for (i, fact) in &mut buttons {
+        if !expandable(*i) {
+            continue;
+        }
+        let name = normalize(graph.controls[*i].name.value.as_deref().unwrap_or_default());
+        let why = match hit(&name, PURPOSE_TITLE) {
+            Some(w) => format!("aufklappbar und Name enthält „{w}“"),
+            None if count >= 2 => format!("einer von {count} aufklappbaren Buttons"),
+            None => continue,
+        };
+        fact.value = Some(ButtonKind::PurposeTitle);
+        fact.certainty = Certainty::Uncertain;
+        fact.evidence[0].push_str(&format!(", aber {why}: vermutlich Zweck-Titel"));
+    }
+    buttons
+}
+
+/// Der Zweck eines Buttons je Zweck, für die Rückfrage: der Zweck-Titel
+/// unmittelbar davor (nur Buttons je Zweck dazwischen; bild.de), sonst die
+/// Überschrift seines Abschnitts im Overlay (spiegel.de); höchstens acht
+/// Wörter. `None` für andere Buttons oder ohne beides.
+pub fn purpose_of(graph: &Graph, o: &Overlay, control: usize) -> Option<String> {
+    let at = o.buttons.iter().position(|(i, _)| *i == control)?;
+    if o.buttons[at].1.value != Some(ButtonKind::Purpose) {
+        return None;
+    }
+    let title = o.buttons[..at]
+        .iter()
+        .rev()
+        .find(|(_, k)| k.value != Some(ButtonKind::Purpose))
+        .filter(|(_, k)| k.value == Some(ButtonKind::PurposeTitle))
+        .map(|(i, _)| graph.controls[*i].display_name());
+    let zweck = title.or_else(|| {
+        let h = &graph.headings[graph.controls[control].heading?];
+        o.region
+            .is_none_or(|r| graph.within(h.region, r))
+            .then(|| h.text.clone())
+    })?;
+    Some(shorten(&zweck))
 }
 
 /// Zweck-Buttons der zweiten Ebene: Ein **Button**, der zustimmt oder
@@ -727,6 +801,91 @@ mod tests {
         let o = consent(&g).unwrap();
         assert_eq!(o.of_kind(ButtonKind::Reject).count(), 1);
         assert_eq!(o.of_kind(ButtonKind::Purpose).count(), 0);
+    }
+
+    /// `consent_page` mit aufklappbaren Buttons an den Stellen `expandable`.
+    fn with_titles(buttons: &[&str], expandable: &[usize]) -> relief_model::SemanticGraph {
+        let mut model = consent_page(buttons);
+        let frame = model.trees.get_mut(&TreeId("frame".into())).unwrap();
+        for i in expandable {
+            let id = NodeId(20 + *i as i32);
+            frame.nodes.get_mut(&id).unwrap().states.expanded = Some(false);
+        }
+        model
+    }
+
+    #[test]
+    fn purpose_titles_are_neither_accept_nor_settings() {
+        // Wie bild.de: aufklappbare Zweck-Titel vor „Einwilligen“ und
+        // „Ablehnen“ je Zweck, einer mit „Required For Consent“.
+        let g = Graph::build(&with_titles(
+            &[
+                "Speichern von oder Zugriff auf Informationen Required For Consent",
+                "Einwilligen",
+                "Politische Werbung anzeigen",
+                "Einwilligen",
+                "Ablehnen",
+                "Personalisierte Inhalte",
+                "Einwilligen",
+                "Ablehnen",
+                "Alle akzeptieren",
+                "Auswahl speichern",
+            ],
+            &[0, 2, 5],
+        ));
+        let o = consent(&g).unwrap();
+        assert_eq!(o.of_kind(ButtonKind::PurposeTitle).count(), 3);
+        assert_eq!(o.of_kind(ButtonKind::Purpose).count(), 5);
+        let accept: Vec<usize> = o.of_kind(ButtonKind::Accept).collect();
+        assert_eq!(accept.len(), 1);
+        assert_eq!(g.controls[accept[0]].display_name(), "Alle akzeptieren");
+        let (_, fact) = &o.buttons[0];
+        assert_eq!(fact.certainty, Certainty::Uncertain);
+        assert_eq!(
+            fact.evidence,
+            ["Name enthält „consent“, aber aufklappbar und Name enthält „required for consent“: vermutlich Zweck-Titel"]
+        );
+        // Evidence des Dialogs nennt einen Button je Zweck, keinen Titel.
+        assert_eq!(o.kind.evidence.last().unwrap(), "Button „Einwilligen“");
+        // Der Zweck eines Buttons je Zweck: der Titel davor.
+        let (reject, _) = o.buttons[4];
+        assert_eq!(
+            purpose_of(&g, &o, reject).as_deref(),
+            Some("Politische Werbung anzeigen")
+        );
+        let (first, _) = o.buttons[1];
+        assert_eq!(
+            purpose_of(&g, &o, first).as_deref(),
+            Some("Speichern von oder Zugriff auf Informationen Required For …")
+        );
+        // Andere Buttons haben keinen Zweck.
+        assert_eq!(purpose_of(&g, &o, accept[0]), None);
+    }
+
+    #[test]
+    fn purpose_titles_without_buttons() {
+        // Wie faz.net: Titel mit „Auswahl“, ohne Buttons je Zweck darunter.
+        let g = Graph::build(&with_titles(
+            &[
+                "Einverstanden",
+                "Verwendung reduzierter Daten zur Auswahl von Werbeanzeigen",
+                "Messung der Werbeleistung",
+            ],
+            &[1, 2],
+        ));
+        let o = consent(&g).unwrap();
+        assert_eq!(o.of_kind(ButtonKind::Settings).count(), 0);
+        assert_eq!(o.of_kind(ButtonKind::PurposeTitle).count(), 2);
+        assert_eq!(
+            o.buttons[1].1.evidence,
+            ["Name enthält „auswahl“, aber einer von 2 aufklappbaren Buttons: vermutlich Zweck-Titel"]
+        );
+        // Ein einzelner aufklappbarer Button ohne Hinweis im Namen bleibt,
+        // was er ist (Einstellungen, die aufklappen).
+        let g = Graph::build(&with_titles(&["Alle akzeptieren", "Einstellungen"], &[1]));
+        let o = consent(&g).unwrap();
+        assert_eq!(o.of_kind(ButtonKind::Settings).count(), 1);
+        assert_eq!(o.of_kind(ButtonKind::PurposeTitle).count(), 0);
     }
 
     #[test]

@@ -32,6 +32,8 @@ struct View {
     controls: Vec<Item>,
     /// Prüfung mit `a11y-rules` (Paket 21).
     checks: Checks,
+    /// Semantic View (Paket 29): Einträge in Dokumentreihenfolge.
+    semantic: Vec<crate::semantic::Entry>,
 }
 
 #[derive(Serialize)]
@@ -78,11 +80,11 @@ struct Item {
     findings: Vec<FindingView>,
 }
 
-fn key(at: &NodeRef) -> String {
+pub(crate) fn key(at: &NodeRef) -> String {
     format!("{}#{}", at.tree.0, at.node.0)
 }
 
-fn parse_key(text: &str) -> Option<NodeRef> {
+pub(crate) fn parse_key(text: &str) -> Option<NodeRef> {
     let (tree, node) = text.rsplit_once('#')?;
     Some(NodeRef::new(
         TreeId(tree.to_string()),
@@ -90,7 +92,7 @@ fn parse_key(text: &str) -> Option<NodeRef> {
     ))
 }
 
-fn certainty(c: Certainty) -> &'static str {
+pub(crate) fn certainty(c: Certainty) -> &'static str {
     match c {
         Certainty::Known => "known",
         Certainty::Inferred => "inferred",
@@ -181,7 +183,14 @@ fn control_item(graph: &Graph, model: &SemanticGraph, c: &Control) -> Item {
         origin: origin(&c.name),
         region: c.region.map(|r| graph.regions[r].label()),
         level: None,
-        value: c.value.clone(),
+        // Wie in `control_line`: sensibel nur, dass es einen Wert gibt.
+        value: c.value.as_ref().map(|v| {
+            if c.sensitive {
+                "(verdeckt)".into()
+            } else {
+                v.clone()
+            }
+        }),
         states: c
             .states
             .iter()
@@ -311,6 +320,7 @@ pub fn inspector_json(runtime: &Runtime) -> String {
         headings,
         controls,
         checks,
+        semantic: crate::semantic::entries(&graph, model),
     };
     serde_json::to_string(&view).unwrap_or_else(|_| "{}".into())
 }

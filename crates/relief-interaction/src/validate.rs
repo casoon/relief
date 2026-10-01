@@ -322,12 +322,14 @@ mod tests {
             },
             region: None,
             value: None,
+            sensitive: false,
             options: vec![],
             selected_option: None,
             disabled: false,
             focusable: true,
             clickable: false,
             states: vec![],
+            expandable: false,
             heading: None,
         }
     }

@@ -107,8 +107,10 @@ google.de, zdf.de, ikea.com ausgeführt; Einwilligungsseite ohne Dialog
 (sueddeutsche.de „Jetzt testen“), Einstellungen nur auf „cookie-einstellungen
 öffnen“; zweite Ebene mit Buttons je Zweck zusammengefasst angesagt und
 nie selbst gewählt, „Auswahl speichern“ als Speichern, gleichnamiger Link
-neben dem Button zählt nicht (spiegel.de, heise.de), beschrieben in
-[spezifikation/05](spezifikation/05-intents-und-aktionen.md#overlay--und-consent-dialoge-pakete-40-80-91-belegt).
+neben dem Button zählt nicht (spiegel.de, heise.de); aufklappbare
+Zweck-Titel weder Zustimmen noch Einstellungen, Rückfrage je Zweck nennt
+den Zweck (bild.de, faz.net), beschrieben in
+[spezifikation/05](spezifikation/05-intents-und-aktionen.md#overlay--und-consent-dialoge-pakete-40-80-91-110-belegt); im Fork belegt.
 
 Sicherheits-Regressionsmatrix umgesetzt (Missbrauchsfälle als
 Tests, Bestätigungstoken, Grenzen je Aufgabe, Security-Log), beschrieben in
@@ -120,46 +122,63 @@ sensible Werte (Paket 58, im Fork belegt). Auch die Antwort nach einer
 Aktion verdeckt sie, Protokolle den Wert jedes Ausfüll- und Auswahlbefehls
 (Paket 76, im Fork belegt), beschrieben in
 [spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#sensible-werte-außerhalb-der-rückfrage-umgesetzt-paket-76-im-fork-belegt).
+Listen, „wo bin ich“ und Inspector zeigen bei sensiblen Feldern nur
+„= (verdeckt)“, „details zu …“ nennt den Wert; unverstandene Eingaben
+stehen ohne wertartige Teile im Protokoll (Paket 100, Fork-Teil offen:
+120), beschrieben in
+[spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#auskünfte-und-unverstandene-eingaben-umgesetzt-paket-100-im-fork-belegt).
 
 Befunde aus `a11y-rules` im Inspector (Stufe `Semantics` auf dem AXTree,
 übrige Regeln als nicht geprüft), beschrieben in
 [spezifikation/01](spezifikation/01-chromium-integration.md#befunde-im-inspector-paket-21-belegt).
 
-Der Build heißt „Relief“ (`Relief.app`, eigenes Profilverzeichnis),
+Der Build heißt „Relief“ (`Relief.app`, eigenes Profilverzeichnis,
+Platzhaltersymbol, übersetzte Texte der Über-Seite und Menüs),
 beschrieben in
 [spezifikation/01](spezifikation/01-chromium-integration.md#name-und-branding-paket-36-belegt).
 
+Im Fork nennt und bindet die Rückfrage das Formularziel und verdeckt
+Felder mit `autocomplete` für Zahlungs-/Identitätsdaten (Renderer-Anfrage
+nur bei einer Rückfrage), beschrieben in
+[spezifikation/07](spezifikation/07-privacy-und-sicherheit.md#bestätigungstoken-umgesetzt).
+
+Playwright steuert Relief und fragt über die CDP-Domäne `Relief.*`
+Seitenmodell und Formular-Zusicherungen ab (`examples/playwright/`),
+beschrieben in
+[spezifikation/12](spezifikation/12-produktumfang.md#playwright-anbindung-umgesetzt-2026-09-30-paket-45).
+
+Semantic View im Relief-Panel: die Seite als bedienbare Ansicht aus dem
+Graph, jede Bedienung als validierte Aktion auf die Originalseite,
+beschrieben in
+[spezifikation/08](spezifikation/08-assistenz-und-capabilities.md#umsetzung-im-fork-paket-29-belegt).
+
 **Sofort startbar:**
-- Cloud: 100 (sensible Werte in Auskünften), 106 (`tabfolge` sporadisch)
-- Cloud + M4: 26 (Sprache), 29 (Semantic View), 111 (Branding-Reste), 45 (Playwright), 110 (Consent: Zweck-Titel)
+- Cloud: 106 (`tabfolge` sporadisch)
+- Cloud + M4: 26 (Sprache), 112 (`autocomplete` im Fork)
 - M4: 43 (VoiceOver im Test)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
-- Linie A: 26, 29 parallel → 41 (40, 80, 91 erledigt, Nachtrag 110);
+- Linie A: 26 → 41 (29 erledigt, Nachtrag 113) (40, 80, 91, 110 erledigt);
   47 läuft mit 20 und 25 als Abnahme mit.
-- Linie B: 45 (44 erledigt), 43 zurückgestellt; 106 jederzeit (85, 105 erledigt).
-- Produkt: 111 jederzeit; 37 erst vor einer Weitergabe an Dritte.
-- Vor jeder Modellintegration (28 im Fork, 34): 48 ✓, 58 ✓; 75 (Weg b: Renderer-Anfrage).
+- Linie B: 45 und 44 erledigt, 43 zurückgestellt; 106 jederzeit (85, 105 erledigt).
+- Produkt: 37 erst vor einer Weitergabe an Dritte.
+- Vor jeder Modellintegration (28 im Fork, 34): 48 ✓, 58 ✓, 75 ✓.
 
 | Nr | Thema | Umgebung | Status | Abhängig von | Datei |
 |---|---|---|---|---|---|
 | 10 | Cloud-Setup: Nachweis in einer Cloud-Session (CI unter Linux grün) | Cloud | blockiert: Cloud-Sessions HTTP 403 | Zugang | [10](10-cloud-umgebung-und-ci.md) |
 | 26 | Sprachschicht | Cloud + M4 | offen | 25 ✓ | [26](26-sprache.md) |
 | 28 | Resolver: Messlauf und Schwellen | lokal / Cloud (API-Key) | wartet auf API-Key | 27 ✓, 12 ✓ | [28](28-resolver-fehlende-namen.md) |
-| 29 | Semantic View | Cloud + M4 | offen | 25 ✓ | [29](29-semantic-view.md) |
+| 113 | Vereinfachte Ansicht und Semantic View über die ganze Tab-Breite | Cloud + M4 | zurückgestellt (Nutzer, 2026-10-01) | 29 ✓ | [113](113-vereinfachte-ansicht.md) |
 | 30 | CDP-Host: barrierlab-Release übernehmen (Nachladen erledigt) | Cloud | wartet auf barrierlab-Release | barrierlab | [30](30-cdp-host-pflege.md) |
 | 31 | Plattformen Linux und Windows (Build-Hosts) | offen | zurückgestellt (Nutzer, 2026-09-30) | 14 ✓, 17 ✓ | [31](31-plattformen.md) |
 | 34 | Bridge-Variante B (Utility-Prozess) bauen und messen | Cloud + M4 | später | 19 ✓, vor KI-Code in der Runtime | [34](34-bridge-utility-prozess.md) |
-| 111 | Branding: übersetzte Texte und Symbol | Cloud + M4 | offen | 36 ✓ | [111](111-branding-texte-und-symbol.md) |
 | 37 | Updates und Auslieferung (Signatur, Notarisierung) | M4 + Entscheidung | zurückgestellt (Nutzer, 2026-09-30) | 36 | [37](37-updates-und-auslieferung.md) |
-| 41 | Fähigkeitsprofile | Cloud + M4 | offen | 25 ✓, 26, 29 | [41](41-faehigkeitsprofile.md) |
+| 41 | Fähigkeitsprofile | Cloud + M4 | offen | 25 ✓, 26, 29 ✓ | [41](41-faehigkeitsprofile.md) |
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
-| 45 | Playwright-Anbindung | Cloud + M4 | offen | 24 ✓, 44 ✓ | [45](45-playwright-anbindung.md) |
 | 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 ✓ | [47](47-relief-ui-accessibility.md) |
-| 75 | Formularziel und HTML-`autocomplete` im Fork | Cloud + M4 | offen, Weg (b) entschieden | 58 ✓ | [75](75-formularziel-im-fork.md) |
+| 112 | HTML-`autocomplete` im Fork außerhalb einer Rückfrage | Cloud + M4 | offen | 75 ✓ | [112](112-autocomplete-im-fork.md) |
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
-| 100 | Sensible Werte in Auskünften und unverstandenen Eingaben | Cloud + M4 | offen | 76 ✓ | [100](100-sensible-werte-in-auskuenften.md) |
 | 106 | CDP-Host: `tabfolge` in einen fremden Frame sporadisch verfehlt | Cloud | offen | 85 ✓ | [106](106-tabfolge-fremder-frame-sporadisch.md) |
-| 110 | Consent: Zweck-Titel und Rückfrage je Zweck | Cloud + M4 | offen | 91 ✓ | [110](110-consent-zweck-titel.md) |

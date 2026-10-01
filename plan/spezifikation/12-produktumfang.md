@@ -134,7 +134,7 @@ dem Relief-Graphen.
 | Formular-Zusicherungen: Beschriftung je Feld, Fehlermeldung mit dem Feld verknüpft, Fokus auf dem ersten Fehler, Bestätigung als Live-Region, Tab-Erreichbarkeit und -Reihenfolge | 42 ✓, 49 ✓, 55 ✓, 64 ✓ (unten) |
 | Echte Screenreader-Ausgabe über gemeinsamen Treiber; zuerst VoiceOver, später NVDA | 43 |
 | Lauf ohne Fenster, Bericht als JUnit für CI | 44 |
-| Playwright-Anbindung: Relief über CDP steuern, Seitenmodell über eine eigene Domäne abfragen | 45 |
+| Playwright-Anbindung: Relief über CDP steuern, Seitenmodell über eine eigene Domäne abfragen | 45 ✓ (unten) |
 
 Grenzen [Entscheidung, → 09 „Nicht in Version 1“]: kein
 WCAG-Konformitätsversprechen; Befunde sind Befunde, keine Zertifizierung.
@@ -388,6 +388,42 @@ Offen: Laufzeit je Datei im Fork-Bericht (die Ausgabe trägt sie nicht);
 Befunde tragen heute keine Knoten-ID (Schlüssel ist dann Regel, Seite,
 Rolle, Name) — zwei gleichnamige Felder mit demselben Befund fallen
 zusammen.
+
+### Playwright-Anbindung [umgesetzt 2026-09-30, Paket 45]
+
+Playwright startet den eigenen Build als `executablePath` mit
+`--enable-relief` (auch ohne Fenster); CDP bleibt unverändert, dazu kommt
+die Domäne `Relief.*` (`crates/relief-bridge/src/devtools.rs`):
+
+| Methode | Parameter | Ergebnis |
+|---|---|---|
+| `Relief.getPageModel` | — | `pageType` (Wert, Herkunft, Evidence), `groups` (Art, Name, Bedienelemente), `primaryAction`, Zahl der Bedienelemente |
+| `Relief.assert` | `assertion` wie `assert:` | `findings` (`a11y-report`), `failed` |
+
+- **Weg:** `ChromeDevToolsManagerDelegate::HandleCommand` reicht Nachrichten
+  mit Methode `Relief.*` an `relief::HandleDevToolsCommand`
+  (`fork/relief/devtools/`, Patch 8); die Runtime des Tabs antwortet
+  asynchron, die Antwort geht als CBOR an den Client (`sessionId` setzt
+  content). Ohne `--enable-relief` oder außerhalb eines Tabs: Fehlerantwort.
+  Clients, die sich trennen, bekommen nichts mehr (`ClientDetached`).
+- **Zusicherungen im Fork:** Feature `assertions` ist dort jetzt an
+  (`accname` wie die übrigen barrierlab-Crates aus der Cargo-Registry,
+  → spezifikation/01). Was DOM-Fakten braucht (`namen-wie-accname`) liefert
+  `Untested`, `tabfolge` einen Fehler — nie ein Bestanden.
+- **Hilfsmodul** `examples/playwright/relief.mjs` (`reliefLaunchOptions`,
+  `pageModel`, `reliefAssert`, `reliefExpect` mit
+  `toPassReliefAssertion` und `toPassReliefForm` = `feldnamen`,
+  `fehler-verknüpft`, `fokus-auf-erstem-fehler`); Abhängigkeit nur
+  `@playwright/test` (Browser-Download überspringen,
+  `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`).
+- **Belegt:** `cd examples/playwright && npx playwright test`:
+  `form-clean.html` besteht, `form-broken.html` fällt mit
+  `form/field-name` durch (2/2); Gegenprobe
+  `expect(page).toPassReliefForm()` auf `form-broken.html` schlägt fehl
+  („textbox ohne zugänglichen Namen“). `devtools.rs`-Tests für Modell,
+  Fehler statt Bestanden.
+- **Grenze:** Nicht als npm-Paket veröffentlicht; Zusicherungen mit Ablauf
+  (`statusmeldung` mit Stand vorher) prüfen nur den Endzustand.
 
 ### Relief ersetzt den barrierlab-Reader [Entscheidung 2026-09-30]
 

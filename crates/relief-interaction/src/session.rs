@@ -71,17 +71,60 @@ pub fn parse_input(input: &str) -> Result<(bool, Command), String> {
 
 /// Eingabe für ein Protokoll: der Wert eines Befehls, der einen Wert setzt
 /// oder wählt, ist verdeckt, unabhängig vom Ziel (das steht beim
-/// Protokollieren noch nicht fest). Alles andere bleibt, wie es eingegeben
-/// wurde, auch Unverstandenes (→ `plan/spezifikation/07`, „Security-Log“).
+/// Protokollieren noch nicht fest). Andere Befehle bleiben, wie sie
+/// eingegeben wurden; in unverstandenen Eingaben ist verdeckt, was wie ein
+/// Wert aussieht ([`redact_unparsed`], → `plan/spezifikation/07`,
+/// „Sensible Werte außerhalb der Rückfrage“).
 pub fn redact_input(input: &str) -> String {
-    let value = match parse_input(input) {
-        Ok((_, Command::SetValue(_, value) | Command::Select(_, value))) => value,
-        _ => return input.to_string(),
-    };
-    if value.is_empty() {
-        return input.to_string();
+    match parse_input(input) {
+        Ok((_, Command::SetValue(_, value) | Command::Select(_, value))) if !value.is_empty() => {
+            input.replace(&value, "(verdeckt)")
+        }
+        Ok(_) => input.to_string(),
+        Err(_) => redact_unparsed(input),
     }
-    input.replace(&value, "(verdeckt)")
+}
+
+/// Unverstandene Eingabe: Die Formulierung bleibt, verdeckt ist alles hinter
+/// dem ersten Werttrenner eines Ausfüllbefehls („ mit “, „ with “, „=“; etwa
+/// ein vertipptes „füle … mit …“) und jedes Wort mit mindestens drei Ziffern
+/// oder einem „@“ (Karten-, Konto- und Telefonnummern, Daten,
+/// E-Mail-Adressen). Kurze Zahlen bleiben: Sie wählen aus einer Liste.
+fn redact_unparsed(input: &str) -> String {
+    const SEPARATORS: &[&str] = &[" mit ", " with ", "="];
+    // Die Trenner sind ASCII und beginnen mit einem ASCII-Zeichen, der Fund
+    // liegt also auf einer Zeichengrenze.
+    let bytes = input.as_bytes();
+    let separator = SEPARATORS
+        .iter()
+        .filter_map(|sep| {
+            bytes
+                .windows(sep.len())
+                .position(|w| w.eq_ignore_ascii_case(sep.as_bytes()))
+                .map(|i| (i, sep.len()))
+        })
+        .min();
+    let words = |text: &str| {
+        text.split(' ')
+            .map(|word| {
+                let digits = word.chars().filter(char::is_ascii_digit).count();
+                if digits >= 3 || word.contains('@') {
+                    "(verdeckt)"
+                } else {
+                    word
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    match separator {
+        Some((i, len)) if !input[i + len..].trim().is_empty() => {
+            let value = input[i + len..].trim_start();
+            let end = input.len() - value.len();
+            format!("{}{}(verdeckt)", words(&input[..i]), &input[i..end])
+        }
+        _ => words(input),
+    }
 }
 
 /// Braucht der Befehl den aktuellen Fokus? Hosts, die ihn erst erfragen
@@ -129,6 +172,11 @@ pub struct Session {
     /// Ziel der offenen Rückfrage: „ja“ plant genau dieses neu und löst
     /// die Rückfrage ein.
     confirm_target: Option<(Control, ActionKind)>,
+    /// Warum die Bestätigung vor der offenen Rückfrage nicht galt; eine
+    /// neu gestellte Rückfrage ([`Session::reconfirm`]) nennt ihn wieder.
+    confirm_refused: Option<Reason>,
+    /// Nur für den einen Aufruf aus [`Session::reconfirm`].
+    carry_refusal: Option<Reason>,
     /// Sprungmarken des zuletzt gezeigten Stands (→ `marks`).
     marks: Vec<Mark>,
     /// Ort vor dem Sprung zum ersten Fehler („zurück“).
@@ -186,6 +234,8 @@ impl Default for Session {
             choices: None,
             last_input: None,
             confirm_target: None,
+            confirm_refused: None,
+            carry_refusal: None,
             marks: Vec::new(),
             return_to: None,
             confirmation: None,
@@ -218,6 +268,30 @@ impl Session {
     /// Nutzerin lehnt ab, → `spezifikation/05`, „Abbrechen“).
     pub fn discard_confirmation(&mut self) {
         self.confirmation = None;
+    }
+
+    /// Ziel der offenen Rückfrage. Der Fork fragt dafür Formularziel und
+    /// `autocomplete` beim Renderer an, weil der AXTree sie nicht trägt
+    /// (Paket 75, → `spezifikation/07`).
+    pub fn confirmation_target(&self) -> Option<&NodeRef> {
+        self.confirmation.as_ref()?;
+        self.confirm_target.as_ref().map(|(c, _)| &c.node)
+    }
+
+    /// Offene Rückfrage gegen den jetzigen Stand neu stellen (neue Plan-ID,
+    /// neue Bindung), etwa nachdem der Host Angaben zum Ziel nachgetragen
+    /// hat. Die bisherige gilt nicht mehr. `None`, wenn keine offen ist.
+    pub fn reconfirm(&mut self, graph: &Graph, model: &SemanticGraph) -> Option<Outcome> {
+        self.confirmation.take()?;
+        let (control, kind) = self.confirm_target.take()?;
+        self.carry_refusal = self.confirm_refused.take();
+        let current = graph
+            .controls
+            .iter()
+            .find(|c| c.node == control.node)
+            .cloned()
+            .unwrap_or(control);
+        Some(self.plan_control(graph, model, current, kind, false, None))
     }
 
     fn next_plan(&mut self) -> PlanId {
@@ -304,7 +378,7 @@ impl Session {
         }
         match choices {
             Some(Choices::Controls(controls, kind)) => {
-                let labels: Vec<String> = controls.iter().map(respond::control_line).collect();
+                let labels = choice_labels(graph, controls.iter());
                 if let Some(i) = choose(&text, &labels) {
                     self.confirmation = None;
                     return Pending::Done(self.plan_control(
@@ -526,6 +600,23 @@ impl Session {
         }
     }
 
+    /// Aktion an einem bekannten Bedienelement, ohne Sprache (Semantic View,
+    /// Paket 29): derselbe Weg wie ein Befehl — Validierung, Rückfrage bei
+    /// Risiko, Security-Log. Verwirft eine offene Rückfrage und Auswahl wie
+    /// jede neue Eingabe.
+    pub fn request(
+        &mut self,
+        graph: &Graph,
+        model: &SemanticGraph,
+        control: Control,
+        kind: ActionKind,
+    ) -> Outcome {
+        self.confirmation = None;
+        self.confirm_target = None;
+        self.choices = None;
+        self.plan_control(graph, model, control, kind, false, None)
+    }
+
     /// Plan für ein Bedienelement; riskant ohne eingelöste Rückfrage →
     /// Rückfrage mit Einmal-Bestätigung.
     fn plan_control(
@@ -567,7 +658,8 @@ impl Session {
                 .map(|g| form::values(graph, model, g))
                 .unwrap_or_default(),
         );
-        let mut refused = None;
+        // Nur aus `reconfirm` gesetzt: der Grund der verworfenen Rückfrage.
+        let mut refused = self.carry_refusal.take();
         if confirmed {
             let (id, redeemed) = match offered {
                 Some(token) => (
@@ -608,6 +700,7 @@ impl Session {
         }
         self.confirmation = Some(Confirmation::new(id, binding));
         self.confirm_target = Some((control, kind_for_confirm));
+        self.confirm_refused = refused;
         Outcome::Answer(answer)
     }
 
@@ -855,20 +948,36 @@ fn pick_from(graph: &Graph, query: &str, found: Resolution) -> Result<Control, M
             }
             _ => format!("Nichts gefunden für „{query}“."),
         })),
-        Resolution::Many(cs) => Err(Miss::Many(
-            numbered(
-                format!("Mehrdeutig, „{query}“ passt auf:"),
-                cs.iter().map(|c| {
-                    format!(
-                        "{} in {}",
-                        respond::control_line(c),
-                        graph.region_label(c.region)
-                    )
-                }),
-            ),
-            cs.into_iter().cloned().collect(),
-        )),
+        Resolution::Many(cs) => {
+            let labels = choice_labels(graph, cs.iter().copied());
+            Err(Miss::Many(
+                numbered(
+                    format!("Mehrdeutig, „{query}“ passt auf:"),
+                    cs.iter()
+                        .zip(labels)
+                        .map(|(c, label)| format!("{label} in {}", graph.region_label(c.region))),
+                ),
+                cs.into_iter().cloned().collect(),
+            ))
+        }
     }
+}
+
+/// Beschriftung der Kandidaten einer Rückfrage, auch zum Wählen per Name.
+/// Buttons je Zweck heißen alle gleich („Ablehnen“); der Zweck
+/// unterscheidet sie (→ [`overlay::purpose_of`]).
+fn choice_labels<'a>(graph: &Graph, controls: impl Iterator<Item = &'a Control>) -> Vec<String> {
+    let consent = overlay::consent(graph);
+    let purpose = |c: &Control| {
+        let i = graph.controls.iter().position(|x| x.node == c.node)?;
+        overlay::purpose_of(graph, consent.as_ref()?, i)
+    };
+    controls
+        .map(|c| match purpose(c) {
+            Some(p) => format!("{} (vermutlich Zweck „{p}“)", respond::control_line(c)),
+            None => respond::control_line(c),
+        })
+        .collect()
 }
 
 /// Der Button im Cookie-Dialog, der ablehnt, ohne zu bezahlen (→
@@ -1299,6 +1408,52 @@ mod tests {
         }
     }
 
+    /// Paket 100: Aktionsliste, Mehrdeutigkeit und „wo bin ich“ nennen den
+    /// Wert eines Felds mit `autocomplete="cc-number"` nicht, „details zu …“
+    /// als ausdrückliche Nachfrage schon.
+    #[test]
+    fn auskuenfte_nennen_sensible_werte_nur_auf_nachfrage() {
+        let karte = "4111111111111111";
+        let model = with_node(&crate::graph::sample_tree(), 20, |n| {
+            n.value = relief_model::Fact::known(Some(karte.into()));
+            n.extra.insert(
+                crate::security::HTML_AUTOCOMPLETE.into(),
+                "cc-number".into(),
+            );
+        });
+        let graph = Graph::build(&model);
+        let mut s = Session::new();
+
+        let list = run(&mut s, &model, false, Command::ListActions).unwrap();
+        assert!(list.contains("[spinbutton] Menge = (verdeckt)"), "{list}");
+        let menge = crate::graph::at(20);
+        let Outcome::Answer(here) =
+            s.handle(&graph, &model, false, Command::WhereAmI, Some(&menge))
+        else {
+            panic!("Antwort erwartet")
+        };
+        assert!(
+            here.starts_with("Fokus auf [spinbutton] Menge = (verdeckt)"),
+            "{here}"
+        );
+        for text in [&list, &here] {
+            assert!(!text.contains(karte), "{text}");
+        }
+
+        let details = run(&mut s, &model, false, Command::Inspect("Menge".into())).unwrap();
+        assert!(details.contains(&format!("Wert: {karte}")), "{details}");
+
+        // Nicht sensibel bleibt die Zeile, wie sie war.
+        let plain = run(
+            &mut Session::new(),
+            &crate::graph::sample_tree(),
+            false,
+            Command::ListActions,
+        )
+        .unwrap();
+        assert!(plain.contains("[spinbutton] Menge = „1“"), "{plain}");
+    }
+
     #[test]
     fn protokoll_verdeckt_werte() {
         assert_eq!(
@@ -1316,6 +1471,32 @@ mod tests {
         assert_eq!(redact_input("klicke Anmelden"), "klicke Anmelden");
         assert_eq!(redact_input("set Suche ="), "set Suche =");
         assert_eq!(redact_input("unverständlich"), "unverständlich");
+    }
+
+    /// Paket 100: Unverstandenes behält die Formulierung, aber keine Werte.
+    #[test]
+    fn protokoll_verdeckt_werte_in_unverstandenem() {
+        for (input, logged) in [
+            // Vertippter Ausfüllbefehl: Ziel bleibt, Wert nicht.
+            (
+                "füle Kartennummer mit 4111 1111 1111 1111",
+                "füle Kartennummer mit (verdeckt)",
+            ),
+            ("setz Passwort = sommerwind", "setz Passwort = (verdeckt)"),
+            ("fill Card WITH geheim", "fill Card WITH (verdeckt)"),
+            // Nur der Wert, versehentlich in die Befehlsleiste.
+            ("4111111111111111", "(verdeckt)"),
+            ("Geburtstag 01.02.1990", "Geburtstag (verdeckt)"),
+            ("schreib erika@example.org rein", "schreib (verdeckt) rein"),
+            // Formulierung ohne Wert, kurze Zahl (Auswahl), Marke, „ja“.
+            ("wie lange noch", "wie lange noch"),
+            ("2", "2"),
+            ("marke as", "marke as"),
+            ("ja", "ja"),
+            ("füle mit", "füle mit"),
+        ] {
+            assert_eq!(redact_input(input), logged, "{input}");
+        }
     }
 
     // Overlay- und Consent-Dialoge (→ `crate::overlay`): Consent-iframe im
@@ -1374,6 +1555,50 @@ mod tests {
         let model = crate::overlay::consent_page(&["Alle akzeptieren"]);
         let text = run(&mut s, &model, false, Command::ConsentSettings).unwrap();
         assert!(text.starts_with("Keine Einstellungen gefunden"), "{text}");
+    }
+
+    #[test]
+    fn rueckfrage_je_zweck_nennt_den_zweck() {
+        // Wie bild.de: aufklappbare Zweck-Titel, darunter „Ablehnen“.
+        let mut model = crate::overlay::consent_page(&[
+            "Politische Werbung anzeigen",
+            "Einwilligen",
+            "Ablehnen",
+            "Personalisierte Inhalte",
+            "Einwilligen",
+            "Ablehnen",
+            "Alle akzeptieren",
+        ]);
+        let frame = model
+            .trees
+            .get_mut(&relief_model::TreeId("frame".into()))
+            .unwrap();
+        for id in [20, 23] {
+            frame
+                .nodes
+                .get_mut(&relief_model::NodeId(id))
+                .unwrap()
+                .states
+                .expanded = Some(false);
+        }
+        let mut s = Session::new();
+        let text = run(&mut s, &model, false, Command::Activate("Ablehnen".into())).unwrap();
+        assert!(
+            text.contains(
+                "1. [button] Ablehnen (vermutlich Zweck „Politische Werbung anzeigen“) in dialog"
+            ),
+            "{text}"
+        );
+        assert!(
+            text.contains("2. [button] Ablehnen (vermutlich Zweck „Personalisierte Inhalte“)"),
+            "{text}"
+        );
+        // Der Zweck wählt wie ein Name.
+        let g = Graph::build(&model);
+        match s.pending_reply(&g, &model, "personalisierte") {
+            Pending::Done(out) => assert_eq!(target(out), frame_node(25)),
+            _ => panic!("nicht gewählt"),
+        }
     }
 
     #[test]

@@ -14,3 +14,14 @@ expect: SetValue(verdeckt) auf [textbox] Kartennummer. Ziel jetzt: Wert geänder
 # Auch der bisherige Wert steht nicht im Ziel.
 do: fülle Kartennummer mit 5555555555554444
 expect: SetValue(verdeckt) auf [textbox] Kartennummer. Ziel jetzt: Wert geändert. Keine wahrnehmbare Änderung.
+# Auskünfte (Paket 100): Aktionsliste und „wo bin ich“ nennen den Wert
+# sensibler Felder nicht, nur dass es einen gibt; „details zu …“ ist
+# Vorlesen auf ausdrücklichen Wunsch und nennt ihn.
+do: was kann ich tun
+expect: [textbox] Anzeigename = „erika“
+expect: [textbox] Benutzername = (verdeckt)
+expect: [textbox] Kartennummer = (verdeckt)
+do: wo bin ich
+expect: Fokus auf [textbox] Kartennummer = (verdeckt).
+do: details zu Kartennummer
+expect: Wert: 5555555555554444.

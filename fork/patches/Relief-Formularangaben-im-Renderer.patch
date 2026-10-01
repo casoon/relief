@@ -1,0 +1,45 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=B6rn=20Seidel?= <joern.seidel@casoon.de>
+Date: Wed, 30 Sep 2026 21:15:09 +0200
+Subject: Relief: Formularangaben im Renderer
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+FormFactsAgent je RenderFrame (//relief/renderer) beantwortet
+relief.mojom.FormFacts: Formularziel und HTML-autocomplete, die der
+AXTree nicht trägt (Paket 75).
+
+diff --git a/chrome/renderer/BUILD.gn b/chrome/renderer/BUILD.gn
+index 94d46c0511dfc2c7b6256b3a61d478d1f97063ce..1dfa5cbd72580f1ead02b025021e19cc8c4460be 100644
+--- a/chrome/renderer/BUILD.gn
++++ b/chrome/renderer/BUILD.gn
+@@ -218,6 +218,7 @@ static_library("renderer") {
+     "//services/metrics/public/cpp:metrics_cpp",
+     "//services/metrics/public/cpp:ukm_builders",
+     "//services/metrics/public/mojom",
++    "//relief/renderer",
+     "//services/service_manager/public/cpp",
+     "//skia",
+     "//storage/common",
+diff --git a/chrome/renderer/chrome_content_renderer_client.cc b/chrome/renderer/chrome_content_renderer_client.cc
+index 02f482063458af2496db68ab15b7c02751bbb321..1eb364915b4ea551b01914917ccf39aa58b984cb 100644
+--- a/chrome/renderer/chrome_content_renderer_client.cc
++++ b/chrome/renderer/chrome_content_renderer_client.cc
+@@ -57,6 +57,7 @@
+ #include "chrome/renderer/browser_exposed_renderer_interfaces.h"
+ #include "chrome/renderer/chrome_content_settings_agent_delegate.h"
+ #include "chrome/renderer/chrome_render_frame_observer.h"
++#include "relief/renderer/form_facts_agent.h"
+ #include "chrome/renderer/chrome_render_thread_observer.h"
+ #include "chrome/renderer/controlled_frame/controlled_frame_extensions_renderer_api_provider.h"
+ #include "chrome/renderer/google_accounts_private_api_extension.h"
+@@ -643,6 +644,8 @@ void ChromeContentRendererClient::RenderFrameCreated(
+   service_manager::BinderRegistry* registry = render_frame_observer->registry();
+ 
+   new prerender::NoStatePrefetchRenderFrameObserver(render_frame);
++  // Relief: Formularangaben, die der AXTree nicht trägt (Paket 75).
++  relief::FormFactsAgent::Create(render_frame);
+ 
+   auto content_settings_delegate =
+       std::make_unique<ChromeContentSettingsAgentDelegate>(render_frame);

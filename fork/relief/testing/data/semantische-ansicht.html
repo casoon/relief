@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Laufschuh – Testshop</title></head>
+<body>
+<header><nav aria-label="Hauptmenü"><a href="#start">Start</a></nav></header>
+<main>
+  <h1>Laufschuh</h1>
+  <p>Leichter Schuh für lange Strecken.</p>
+  <label>Größe <select id="groesse">
+    <option>39</option><option>40</option><option>41</option>
+    <option selected>42</option><option>43</option></select></label>
+  <button id="korb" onclick="document.getElementById('s').textContent =
+    'Größe ' + document.getElementById('groesse').value + ' in den Warenkorb gelegt'">In den Warenkorb</button>
+  <h2>Bestellung</h2>
+  <form onsubmit="event.preventDefault()">
+    <label>Name <input id="name"></label>
+    <label><input type="checkbox" id="newsletter"> Newsletter</label>
+    <button type="button" id="kaufen" onclick="document.getElementById('s').textContent = 'Gekauft'">Jetzt kaufen</button>
+  </form>
+  <p id="s" role="status"></p>
+</main>
+</body></html>

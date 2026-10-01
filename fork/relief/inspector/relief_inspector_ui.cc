@@ -63,6 +63,12 @@ class InspectorHandler : public content::WebUIMessageHandler,
         "command", base::BindRepeating(&InspectorHandler::OnCommand,
                                        base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
+        "act", base::BindRepeating(&InspectorHandler::OnAct,
+                                   base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "viewCommand", base::BindRepeating(&InspectorHandler::OnViewCommand,
+                                           base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
         "cancel", base::BindRepeating(&InspectorHandler::OnCancel,
                                       base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
@@ -155,6 +161,39 @@ class InspectorHandler : public content::WebUIMessageHandler,
                      base::BindOnce(&InspectorHandler::SendAnswer,
                                     weak_factory_.GetWeakPtr(),
                                     std::string(bridge::redact_input(input))));
+  }
+
+  // Semantic View (Paket 29): [Schlüssel, Art, Wert, Zeile fürs Log]. Der
+  // Fokus bleibt in der Ansicht (anders als bei Befehlen): Wer dort
+  // bedient, arbeitet dort weiter.
+  void OnAct(const base::ListValue& args) {
+    ReliefTabHelper* helper = Helper();
+    if (!helper || args.size() != 4 || !args[0].is_string() ||
+        !args[1].is_string() || !args[2].is_string() || !args[3].is_string()) {
+      return;
+    }
+    helper->ViewInteract(
+        args[0].GetString(), args[1].GetString(), args[2].GetString(),
+        base::BindOnce(&InspectorHandler::SendViewAnswer,
+                       weak_factory_.GetWeakPtr(), args[3].GetString()));
+  }
+
+  // „ja“/„abbrechen“ aus der Ansicht: wie ein Befehl, Antwort an die
+  // Ansicht, Fokus bleibt dort.
+  void OnViewCommand(const base::ListValue& args) {
+    ReliefTabHelper* helper = Helper();
+    if (!helper || args.empty() || !args[0].is_string()) {
+      return;
+    }
+    const std::string& input = args[0].GetString();
+    helper->Interact(input, base::BindOnce(&InspectorHandler::SendViewAnswer,
+                                           weak_factory_.GetWeakPtr(),
+                                           std::string(input)));
+  }
+
+  void SendViewAnswer(std::string shown, ReliefExecutor::Result result) {
+    FireWebUIListener("viewAnswer", base::Value(std::move(result.text)),
+                      base::Value(result.acted), base::Value(std::move(shown)));
   }
 
   // Nach einer Aktion auf der Seite bekommt die Seite den Tastaturfokus:

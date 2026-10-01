@@ -59,10 +59,30 @@ class RuntimeHost {
   void Log(const std::string& line);
 
   // Befehle in Sprache (→ crates/relief-bridge/src/command.rs), gegen den
-  // Graphen nach allen bis dahin angewandten Deltas. Die Entscheidungen der
-  // Sitzung dazu stehen danach als `security`-Zeilen im Protokoll.
-  bridge::Reply RunCommand(const std::string& input);
+  // Graphen nach allen bis dahin angewandten Deltas. `facts`: Angaben des
+  // Renderers zum Ziel einer offenen Rückfrage, vorher ins Modell (Paket 75).
+  // Die Entscheidungen der Sitzung schreibt erst LogSecurity() ins
+  // Protokoll, damit eine neu gestellte Rückfrage (Reconfirm) dazugehört.
+  bridge::Reply RunCommand(const std::string& input,
+                           std::optional<bridge::FormFacts> facts);
+  // Bedienung aus der Semantic View (Paket 29); protokolliert Art und
+  // Schlüssel, nie den Wert.
+  bridge::Reply ViewAct(const std::string& key,
+                        const std::string& kind,
+                        const std::string& value,
+                        std::optional<bridge::FormFacts> facts);
+  // Ziel der offenen Rückfrage (`found` false: keine).
+  bridge::Found ConfirmationTarget();
+  // Angaben zum Ziel ins Modell und die offene Rückfrage damit neu stellen.
+  bridge::Reply Reconfirm(bridge::FormFacts facts);
+  // Security-Log der Sitzung abholen und je Eintrag eine Zeile
+  // "security\t<JSON>" schreiben (Entscheidung, Plan-ID, Aktionsart, Risiko,
+  // Grund; keine Werte, keine Namen).
+  void LogSecurity();
   std::string FinishCommand();
+  // CDP-Domäne `Relief.*` (Paket 45); protokolliert die Methode.
+  bridge::DevToolsReply DevToolsCommand(const std::string& method,
+                                        const std::string& params);
   std::string DescribePage();
   std::string InspectorJson();
   rust::Vec<bridge::MarkBox> ShowMarks();
@@ -72,10 +92,6 @@ class RuntimeHost {
 
  private:
   void MaybeActivate();
-  // Security-Log der Sitzung abholen und je Eintrag eine Zeile
-  // "security\t<JSON>" schreiben (Entscheidung, Plan-ID, Aktionsart, Risiko,
-  // Grund; keine Werte, keine Namen).
-  void LogSecurity();
   void LogDiff(const bridge::Delta& delta, base::TimeTicks now);
   void LogNodes(const bridge::Delta& delta);
 

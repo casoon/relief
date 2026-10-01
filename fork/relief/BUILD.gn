@@ -39,6 +39,7 @@ rust_static_library("relief_interaction_rs") {
   crate_root = "crates/relief-interaction/src/lib.rs"
   edition = "2021"
   sources = [
+    "crates/relief-interaction/src/assertions.rs",
     "crates/relief-interaction/src/command.rs",
     "crates/relief-interaction/src/form.rs",
     "crates/relief-interaction/src/graph.rs",
@@ -53,13 +54,18 @@ rust_static_library("relief_interaction_rs") {
     "crates/relief-interaction/src/session.rs",
     "crates/relief-interaction/src/validate.rs",
   ]
-  # Befunde im Inspector (Paket 21); `assertions` bleibt aus.
-  features = [ "rules" ]
+  # Befunde im Inspector (Paket 21); Zusicherungen für `Relief.assert`
+  # (Paket 45).
+  features = [
+    "assertions",
+    "rules",
+  ]
   deps = [
     ":relief_model_rs",
     "//relief/third_party:a11y_dom",
     "//relief/third_party:a11y_report",
     "//relief/third_party:a11y_rules",
+    "//relief/third_party:accname",
     "//third_party/rust/serde/v1:lib",
   ]
 }
@@ -73,9 +79,11 @@ rust_static_library("relief_bridge_rs") {
   sources = [
     "crates/relief-bridge/src/command.rs",
     "crates/relief-bridge/src/cxx_bridge.rs",
+    "crates/relief-bridge/src/devtools.rs",
     "crates/relief-bridge/src/inspector.rs",
     "crates/relief-bridge/src/lib.rs",
     "crates/relief-bridge/src/runtime.rs",
+    "crates/relief-bridge/src/semantic.rs",
   ]
   cxx_bindings = [ "crates/relief-bridge/src/cxx_bridge.rs" ]
 
@@ -85,6 +93,7 @@ rust_static_library("relief_bridge_rs") {
   deps = [
     ":relief_interaction_rs",
     ":relief_model_rs",
+    "//relief/third_party:a11y_report",
     "//third_party/rust/serde/v1:lib",
     "//third_party/rust/serde_json/v1:lib",
   ]
@@ -113,6 +122,10 @@ source_set("relief") {
     "bridge/ax_tree_mirror.h",
     "bridge/runtime_host.cc",
     "bridge/runtime_host.h",
+    "branding_strings.cc",
+    "branding_strings.h",
+    "devtools/relief_devtools.cc",
+    "devtools/relief_devtools.h",
     "inspector/relief_inspector.cc",
     "inspector/relief_inspector.h",
     "inspector/relief_inspector_ui.cc",
@@ -131,8 +144,10 @@ source_set("relief") {
   deps = [
     ":inspector_resources",
     ":relief_bridge_rs",
+    "//relief/common:mojom",
     "//base",
     "//cc/paint",
+    "//chrome/app:branded_strings",
     "//chrome/app:generated_resources",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui:browser_actions",
@@ -142,9 +157,12 @@ source_set("relief") {
     "//chrome/browser/ui/views/side_panel",
     "//chrome/browser/ui/webui/top_chrome",
     "//components/input",
+    "//components/strings:components_branded_strings",
     "//components/tabs:public",
     "//components/vector_icons",
     "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+    "//third_party/inspector_protocol:crdtp",
     "//third_party/abseil-cpp:absl",
     "//third_party/blink/public/common",
     "//net",

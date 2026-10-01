@@ -62,18 +62,47 @@ void RuntimeHost::Log(const std::string& line) {
   }
 }
 
-bridge::Reply RuntimeHost::RunCommand(const std::string& input) {
+bridge::Reply RuntimeHost::RunCommand(const std::string& input,
+                                      std::optional<bridge::FormFacts> facts) {
   // Wert eines Ausfüll- oder Auswahlbefehls verdeckt (Paket 76).
   Log("command\t" + std::string(bridge::redact_input(input)));
-  bridge::Reply reply = bridge::run_command(*runtime_, input);
-  LogSecurity();
-  return reply;
+  if (facts) {
+    bridge::apply_form_facts(*runtime_, *facts);
+  }
+  return bridge::run_command(*runtime_, input);
+}
+
+bridge::Reply RuntimeHost::ViewAct(const std::string& key,
+                                   const std::string& kind,
+                                   const std::string& value,
+                                   std::optional<bridge::FormFacts> facts) {
+  Log("view\t" + kind + "\t" + key);
+  if (facts) {
+    bridge::apply_form_facts(*runtime_, *facts);
+  }
+  return bridge::view_act(*runtime_, key, kind, value);
+}
+
+bridge::Found RuntimeHost::ConfirmationTarget() {
+  return bridge::confirmation_target(*runtime_);
+}
+
+bridge::Reply RuntimeHost::Reconfirm(bridge::FormFacts facts) {
+  Log("reconfirm");
+  bridge::apply_form_facts(*runtime_, facts);
+  return bridge::reconfirm(*runtime_);
 }
 
 void RuntimeHost::LogSecurity() {
   for (const rust::String& event : bridge::take_security_log(*runtime_)) {
     Log("security\t" + std::string(event));
   }
+}
+
+bridge::DevToolsReply RuntimeHost::DevToolsCommand(const std::string& method,
+                                                   const std::string& params) {
+  Log("devtools\t" + method);
+  return bridge::devtools_command(*runtime_, method, params);
 }
 
 std::string RuntimeHost::FinishCommand() {

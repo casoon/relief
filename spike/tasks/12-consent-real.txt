@@ -22,6 +22,11 @@ expect: vermutlich je Zweck „Zustimmen“
 expect: Kein Ablehnen für alle Zwecke zusammen
 do: Cookies ablehnen
 expect: Nicht abgelehnt
+# Rückfrage je Zweck (Paket 110): der Zweck steht dabei; nichts gewählt.
+do: klicke Ablehnen
+expect: [button] Ablehnen (vermutlich Zweck „
+do: abbrechen
+expect: Nichts ausgeführt
 
 # „für Utiq jetzt ablehnen“ ist ein Link zu einem Drittanbieter, kein Ablehnen.
 url: https://www.bild.de/
@@ -30,6 +35,19 @@ expect: vermutlich Cookie-Dialog
 expect: Kein Ablehnen ohne Bezahlung
 do: Cookies ablehnen
 expect: Nicht abgelehnt
+# Zweite Ebene (Paket 110): Zweck-Titel „… Required For Consent“ sind kein
+# Zustimmen; die Rückfrage zu „Ablehnen“ nennt den Zweck aus dem Titel.
+do: Cookie-Einstellungen öffnen
+expect: Activate auf [button] Einstellungen
+do: Welcher Dialog ist offen?
+expect: Zustimmen „Alle akzeptieren“, Speichern „Auswahl speichern“
+expect: Zweck-Titel
+do: Cookies ablehnen
+expect: Nicht abgelehnt
+do: klicke Ablehnen
+expect: [button] Ablehnen (vermutlich Zweck „
+do: abbrechen
+expect: Nichts ausgeführt
 
 url: https://www.welt.de/
 do: Welcher Dialog ist offen?
@@ -42,6 +60,16 @@ do: Welcher Dialog ist offen?
 expect: vermutlich Cookie-Dialog
 do: Cookies ablehnen
 expect: Nicht abgelehnt
+# Zweite Ebene (Paket 110): Zweck-Titel mit „Auswahl“ sind keine
+# Einstellungen; nichts geöffnet, keine Rückfrage zwischen ihnen.
+do: Cookie-Einstellungen öffnen
+expect: Activate auf [link] Cookie-Manager
+# Der Cookie-Manager lädt sein iframe erst nach der Ruhe (→ Paket 105).
+wait: 3000
+do: Welcher Dialog ist offen?
+expect: Zweck-Titel
+do: Cookie-Einstellungen öffnen
+expect: Keine Einstellungen gefunden, nichts geöffnet
 
 url: https://www.t-online.de/
 do: Welcher Dialog ist offen?

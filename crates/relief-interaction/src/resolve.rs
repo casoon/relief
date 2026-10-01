@@ -582,12 +582,14 @@ mod tests {
             name: relief_model::Fact::known(Some(name.into())),
             region: None,
             value: None,
+            sensitive: false,
             options: vec![],
             selected_option: None,
             disabled: false,
             focusable: true,
             clickable: false,
             states: vec![],
+            expandable: false,
             heading: None,
         };
         score(&c, &normalize(q))

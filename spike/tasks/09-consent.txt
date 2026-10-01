@@ -87,5 +87,30 @@ expect: Zustimmen „Allen zustimmen“, Speichern „Einstellungen anwenden“,
 expect: Kein Ablehnen für alle Zwecke zusammen
 do: Cookies ablehnen
 expect: Nicht abgelehnt
+# Rückfrage je Zweck (Paket 110): der Zweck aus der Überschrift davor.
+do: klicke Ablehnen
+expect: 1. [button] Ablehnen (vermutlich Zweck „Soziale Netzwerke“)
+expect: 2. [button] Ablehnen (vermutlich Zweck „Politische Werbung“)
+do: abbrechen
+expect: Nichts ausgeführt
 do: Cookie-Einstellungen öffnen
 expect: Keine Einstellungen gefunden, nichts geöffnet
+
+# Zweck-Titel (Paket 110, wie bild.de und faz.net): aufklappbare Buttons
+# vor den Buttons je Zweck sind weder Zustimmen („Required For Consent“)
+# noch Einstellungen („Auswahl“); die Rückfrage nennt den Zweck aus dem
+# Titel davor, und der Zweck wählt wie ein Name.
+url: ../fixtures/consent-zweck-titel.html
+do: Welcher Dialog ist offen?
+expect: Zustimmen „Alle akzeptieren“, Speichern „Auswahl speichern“, vermutlich je Zweck „Einwilligen“ 3-mal, „Ablehnen“ 2-mal, vermutlich 4 Zweck-Titel
+expect: Kein Ablehnen für alle Zwecke zusammen
+do: Cookie-Einstellungen öffnen
+expect: Keine Einstellungen gefunden, nichts geöffnet
+do: Cookies ablehnen
+expect: Nicht abgelehnt
+do: klicke Ablehnen
+expect: 1. [button] Ablehnen (vermutlich Zweck „Politische Werbung anzeigen“)
+expect: 2. [button] Ablehnen (vermutlich Zweck „Personalisierte Inhaltsempfehlungen“)
+do: personalisierte
+expect: Activate auf [button] Ablehnen
+expect: Zweck gewählt: Ablehnen.

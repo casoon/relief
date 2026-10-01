@@ -352,6 +352,32 @@ pub mod ffi {
         uncertain: bool,
     }
 
+    /// Autocomplete eines Felds im Formular eines Ziels (Paket 75).
+    #[derive(Debug, Clone)]
+    struct FieldFact {
+        node: i32,
+        autocomplete: String,
+    }
+
+    /// Angaben des Renderers zum Formular eines Ziels (Paket 75): Knoten im
+    /// Baum `tree`.
+    #[derive(Debug, Clone)]
+    struct FormFacts {
+        tree: String,
+        node: i32,
+        has_action: bool,
+        action: String,
+        fields: Vec<FieldFact>,
+    }
+
+    /// Antwort einer Methode der Domäne `Relief.*` (Paket 45): `json` ist
+    /// bei `ok` das Ergebnis, sonst die Fehlermeldung.
+    #[derive(Debug, Clone)]
+    struct DevToolsReply {
+        ok: bool,
+        json: String,
+    }
+
     #[derive(Debug)]
     enum TaskKind {
         Url,
@@ -385,6 +411,19 @@ pub mod ffi {
 
         /// Eingabe in Sprache gegen den aktuellen Graphen (`Runtime::command`).
         fn run_command(runtime: &mut Runtime, input: &str) -> Reply;
+        /// Ziel der offenen Rückfrage (`found` false: keine offen).
+        fn confirmation_target(runtime: &Runtime) -> Found;
+        /// Angaben des Renderers zum Formular ins Modell
+        /// (`Runtime::apply_form_facts`).
+        fn apply_form_facts(runtime: &mut Runtime, facts: &FormFacts);
+        /// Offene Rückfrage mit dem jetzigen Modell neu stellen
+        /// (`Runtime::reconfirm`).
+        fn reconfirm(runtime: &mut Runtime) -> Reply;
+        /// Bedienung aus der Semantic View (`Runtime::view_act`).
+        fn view_act(runtime: &mut Runtime, key: &str, kind: &str, value: &str) -> Reply;
+        /// Methode der CDP-Domäne `Relief.*`, Parameter als JSON
+        /// (`devtools::command`).
+        fn devtools_command(runtime: &Runtime, method: &str, params: &str) -> DevToolsReply;
         /// Eingabe für Protokoll und Log der Befehlsleiste, Wert verdeckt
         /// (`relief_interaction::redact_input`).
         fn redact_input(input: &str) -> String;
@@ -544,6 +583,57 @@ fn show_node(runtime: &mut Runtime, key: &str) -> ffi::Reply {
 
 fn run_command(runtime: &mut Runtime, input: &str) -> ffi::Reply {
     reply_to_ffi(runtime.command(input))
+}
+
+fn confirmation_target(runtime: &Runtime) -> ffi::Found {
+    match runtime.confirmation_target() {
+        Some(at) => ffi::Found {
+            found: true,
+            tree: at.tree.0,
+            node: at.node.0,
+            version: runtime.graph.version.0,
+        },
+        None => ffi::Found {
+            found: false,
+            tree: String::new(),
+            node: 0,
+            version: runtime.graph.version.0,
+        },
+    }
+}
+
+fn apply_form_facts(runtime: &mut Runtime, facts: &ffi::FormFacts) {
+    let fields: Vec<(NodeId, String)> = facts
+        .fields
+        .iter()
+        .map(|f| (NodeId(f.node), f.autocomplete.clone()))
+        .collect();
+    runtime.apply_form_facts(
+        &NodeRef::new(TreeId(facts.tree.clone()), NodeId(facts.node)),
+        facts.has_action.then(|| facts.action.clone()),
+        &fields,
+    );
+}
+
+fn reconfirm(runtime: &mut Runtime) -> ffi::Reply {
+    reply_to_ffi(runtime.reconfirm())
+}
+
+fn view_act(runtime: &mut Runtime, key: &str, kind: &str, value: &str) -> ffi::Reply {
+    reply_to_ffi(runtime.view_act(key, kind, value))
+}
+
+fn devtools_command(runtime: &Runtime, method: &str, params: &str) -> ffi::DevToolsReply {
+    match crate::devtools::command(runtime, method, params) {
+        Ok(value) => ffi::DevToolsReply {
+            ok: true,
+            json: value.to_string(),
+        },
+        Err(message) => ffi::DevToolsReply {
+            ok: false,
+            json: message,
+        },
+    }
 }
 
 fn redact_input(input: &str) -> String {

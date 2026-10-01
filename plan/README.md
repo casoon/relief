@@ -30,12 +30,12 @@ Gültige Entscheidungen und Rahmenbedingungen stehen in `docs/decisions.md` und
 | 47–48 | Querschnitt: Relief-Oberfläche und Sicherheitsgrenzen |
 | 58 | Querschnitt: Sicherheitsgrenzen in Hosts (Nachtrag zu 48) |
 | 75–76 | Querschnitt: Nachträge zu 58 (Formularziel im Fork, Werte außerhalb der Rückfrage) |
+| 113 | Linie A: Nachtrag zu 29 (vereinfachte Ansicht, ganze Tab-Breite) |
+| 112 | Querschnitt: Nachtrag zu 75 (`autocomplete` im Fork außerhalb der Rückfrage) |
 | 80 | Linie A: Nachtrag zu 40 (Consent) |
 | 92 | Linie A: Nachtrag zu 39 (echte Formulare) |
 | 90 | zurückgestellt |
-| 100 | Querschnitt: Nachtrag zu 76 (sensible Werte in Auskünften) |
 | 106 | Linie Prüfen: CDP-Host, Nachtrag zu 85 (`tabfolge` sporadisch) |
-| 110 | Linie A: Nachtrag zu 91 (Consent, Zweck-Titel) |
 
 ## Jedes Paket hat
 
