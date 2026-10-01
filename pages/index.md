@@ -37,8 +37,9 @@ a guess.
 - Not an AI browser. A model may propose a missing name or an intent; it never
   triggers an action.
 - Not a promise of WCAG conformance. Findings are findings, not a certificate.
-- Not finished. Relief is a research project in active development; the source
-  is not public yet.
+- Not finished. Relief is a research project in active development. The
+  source is public under the MIT licence, but there are no builds for others
+  yet.
 
 ## Where to go next
 
