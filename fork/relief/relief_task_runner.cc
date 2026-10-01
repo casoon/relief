@@ -87,6 +87,9 @@ std::vector<ReliefTaskRunner::Line> ReadTasks(
         case bridge::TaskKind::Speak:
           out.push_back({Line::Kind::kSpeak, value});
           break;
+        case bridge::TaskKind::Profile:
+          out.push_back({Line::Kind::kProfile, value});
+          break;
         case bridge::TaskKind::Audio: {
           const base::FilePath audio =
               base::FilePath(value).IsAbsolute()
@@ -148,6 +151,22 @@ void ReliefTaskRunner::Next() {
           continue;
         }
         Listen(line.text);
+        return;
+      case Line::Kind::kProfile:
+        // Gilt auch vor einer Seite (wie im CDP-Host).
+        Print("\n§ " + line.text);
+        helper_->ProfileLine(
+            line.text, base::BindOnce(
+                           [](base::WeakPtr<ReliefTaskRunner> self,
+                              std::string text) {
+                             if (!self) {
+                               return;
+                             }
+                             self->last_ = text;
+                             Print(Indent(text));
+                             self->Next();
+                           },
+                           weak_factory_.GetWeakPtr()));
         return;
       case Line::Kind::kAssert:
         if (!page_open_) {

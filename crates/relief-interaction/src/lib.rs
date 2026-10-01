@@ -34,6 +34,7 @@ pub mod page;
 pub mod resolve;
 pub mod respond;
 // Braucht barrierlab-Crates; im Fork aus vendorten Quellen (→ BUILD.gn).
+pub mod profile;
 #[cfg(feature = "rules")]
 pub mod rules;
 pub mod security;

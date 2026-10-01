@@ -1,0 +1,67 @@
+# Fähigkeitsprofile (Paket 41): dieselbe Aufgabe im Testshop unter vier
+# Kombinationen von Fähigkeitswerten. `profil:` setzt Werte (global),
+# „standard“ stellt den Ausgangszustand her. Unterschiede in Ansage,
+# Eingabe und Darstellung stehen in der Antwort auf `profil:`; Inhalt und
+# Bedienwege bleiben in jeder Kombination erreichbar.
+url: ../fixtures/shop-clean.html
+
+# 1. Standard.
+profil: standard
+expect: Wirkung: keine (Standard)
+do: Was ist auf dieser Seite?
+expect: Bereiche: banner
+do: Nimm 43
+expect: Select("43")
+do: klicke In den Warenkorb
+expect: Größe 43 in den Warenkorb gelegt
+
+# 2. Kurze Antworten: Rest über „mehr“, Änderungen erst nach Rückfrage.
+profil: text_complexity=reduced
+expect: kurze Antworten
+expect: Rückfrage auch vor Änderungen
+do: Was ist auf dieser Seite?
+expect: („mehr“ für Details)
+do: mehr
+expect: Bereiche: banner
+do: Nimm 42
+expect: Bestätigung nötig
+do: ja
+expect: Select("42")
+do: klicke In den Warenkorb
+expect: Bestätigung nötig
+do: ja
+expect: Activate auf [button] In den Warenkorb
+do: mehr
+expect: Größe 42 in den Warenkorb gelegt
+
+# 3. Ausgabe vor allem gesprochen (im Fork gesprochen, hier nur Text).
+profil: standard
+profil: Ausgabe vor allem gesprochen
+expect: Antworten gesprochen
+expect: Semantic View zuerst
+do: Was ist auf dieser Seite?
+expect: Bereiche: banner
+do: Nimm 41
+expect: Select("41")
+do: klicke In den Warenkorb
+expect: Größe 41 in den Warenkorb gelegt
+
+# 4. Ohne Zeigegerät, große ruhige Darstellung.
+profil: standard
+profil: pointer_input=unavailable, text_scale=1.5, contrast=increased, motion_tolerance=reduced
+expect: Sprungmarken nach dem Laden
+expect: Zoom 150 %
+expect: erhöhter Kontrast
+expect: wenig Bewegung
+do: Was ist auf dieser Seite?
+expect: Bereiche: banner
+do: Nimm 40
+expect: Select("40")
+do: klicke In den Warenkorb
+expect: Größe 40 in den Warenkorb gelegt
+
+# Zurücksetzen stellt den Ausgangszustand her.
+profil: standard
+expect: Profil: Standard. Wirkung: keine (Standard).
+do: Was ist auf dieser Seite?
+expect: Bereiche: banner

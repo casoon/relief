@@ -26,6 +26,7 @@ mod command;
 mod cxx_bridge;
 pub mod devtools;
 mod inspector;
+pub mod profile;
 mod runtime;
 mod semantic;
 

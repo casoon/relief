@@ -33,7 +33,10 @@
 #include "content/public/test/scoped_accessibility_mode_override.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/host_zoom_map.h"
+#include "base/threading/thread_restrictions.h"
+#include "base/files/file_util.h"
 #include "content/public/browser/reload_type.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
@@ -831,6 +834,124 @@ IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, Inspektor) {
   press_shortcut();
   EXPECT_TRUE(base::test::RunUntil(
       [&] { return !side_panel->IsSidePanelEntryShowing(key); }));
+}
+
+// Fähigkeitsprofil (Paket 41): ein Wert nur für eine Website wirkt dort
+// sofort (kurze Antworten mit „mehr“) und nicht auf einer anderen; ein
+// globaler Wert (Textgröße) zoomt die Seite; „Standard wiederherstellen“
+// stellt den Ausgangszustand her; der Stand liegt lokal im Profil.
+IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, Faehigkeitsprofil) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), Url("a.test", "/semantische-ansicht.html")));
+  SidePanelUI* side_panel = SidePanelUI::From(browser());
+  const SidePanelEntry::Key key(SidePanelEntry::Id::kRelief);
+  web_contents()->Focus();
+  PressWithCtrlShift(web_contents(), ui::VKEY_I, u'I');
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return side_panel->IsSidePanelEntryShowing(key); }));
+  content::WebContents* panel = nullptr;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    panel = FindInspector();
+    return panel && !panel->IsLoading() &&
+           content::EvalJs(panel,
+                           "document.getElementById('profile-fields')"
+                           ".children.length")
+                   .ExtractInt() > 0;
+  }));
+  auto run = [&](const std::string& input) {
+    base::test::TestFuture<bridge::Reply> reply;
+    helper().RunCommand(input, reply.GetCallback());
+    return std::string(reply.Take().text);
+  };
+  auto status = [&] {
+    return content::EvalJs(panel,
+                            "document.getElementById('profile-status')"
+                            ".textContent")
+        .ExtractString();
+  };
+  auto set = [&](const std::string& field, const std::string& value) {
+    ASSERT_TRUE(content::ExecJs(
+        panel, "const c = document.getElementById('profile-" + field +
+                   "'); c.value = '" + value +
+                   "'; c.dispatchEvent(new Event('change'));"));
+  };
+
+  // Nur diese Website: kurze Antworten.
+  ASSERT_TRUE(content::ExecJs(
+      panel, "document.getElementById('profile').open = true;"
+             "document.getElementById('scope-site').click();"));
+  set("text_complexity", "reduced");
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return status().find("kurze Antworten") != std::string::npos; }));
+  EXPECT_NE(run("Was ist auf dieser Seite?").find("„mehr“"), std::string::npos);
+  EXPECT_NE(run("mehr").find("Bereiche:"), std::string::npos);
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(panel,
+                           "document.getElementById('profile-text_complexity-"
+                           "origin').textContent")
+               .ExtractString() == " (nur diese Website)";
+  }));
+
+  // Andere Website: global, also vollständig.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), Url("b.test", "/semantische-ansicht.html")));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return run("Was ist auf dieser Seite?").find("Bereiche:") !=
+           std::string::npos;
+  }));
+
+  // Global: Textgröße 1,5 zoomt die Seite.
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    panel = FindInspector();
+    return panel && !panel->IsLoading() &&
+           content::EvalJs(panel, "document.getElementById('profile-site')"
+                                  ".textContent")
+                   .ExtractString() == "b.test";
+  }));
+  ASSERT_TRUE(content::ExecJs(
+      panel, "document.getElementById('profile').open = true;"
+             "document.querySelector('input[name=scope][value=global]')"
+             ".click();"));
+  set("text_scale", "1.5");
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return blink::ZoomValuesEqual(
+        content::HostZoomMap::GetZoomLevel(web_contents()),
+        blink::ZoomFactorToZoomLevel(1.5));
+  }));
+
+  // Standard wiederherstellen: Zoom zurück, nichts mehr abweichend.
+  ASSERT_TRUE(content::ExecJs(
+      panel, "document.getElementById('profile-reset-all').click()"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return blink::ZoomValuesEqual(
+        content::HostZoomMap::GetZoomLevel(web_contents()), 0.0);
+  }));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return status().find("keine (Standard)") != std::string::npos; }));
+
+  // Lokal im Profilverzeichnis gespeichert.
+  const base::FilePath file = web_contents()->GetBrowserContext()->GetPath().AppendASCII(
+      "Relief").AppendASCII("faehigkeiten.json");
+  ASSERT_TRUE(base::test::RunUntil([&]() -> bool {
+    base::ScopedAllowBlockingForTesting allow;
+    std::string json;
+    return base::ReadFileToString(file, &json) &&
+           json == "{\"global\":{},\"sites\":{}}";
+  }));
+
+  // Jedes Bedienelement des Abschnitts hat einen Namen.
+  content::ScopedAccessibilityModeOverride mode(panel, ui::kAXModeComplete);
+  content::WaitForAccessibilityTreeToContainNodeWithName(
+      panel, "Standard wiederherstellen");
+  const ui::AXTreeUpdate tree = content::GetAccessibilityTreeSnapshot(panel);
+  for (const ui::AXNodeData& node : tree.nodes) {
+    if (ui::IsControl(node.role) && !node.IsIgnored() &&
+        !node.HasState(ax::mojom::State::kInvisible)) {
+      EXPECT_FALSE(
+          node.GetStringAttribute(ax::mojom::StringAttribute::kName).empty())
+          << ui::ToString(node.role);
+    }
+  }
 }
 
 // Semantic View (Paket 29): Wechsel der Ansicht löst auf der Seite nichts

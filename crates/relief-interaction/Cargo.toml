@@ -12,6 +12,8 @@ publish.workspace = true
 # nicht der Interaktion (im Fork-Build gibt es ihn nicht).
 relief-model = { path = "../relief-model", default-features = false }
 serde = { workspace = true }
+# Fähigkeitsprofile: Speicherstand und Abweichungen als JSON (Paket 41).
+serde_json = { workspace = true }
 # Formular-Zusicherungen: DOM-Fakten, Namensberechnung und Befunde aus
 # barrierlab; alle browserfrei, sie nehmen Daten entgegen. Nicht im
 # Fork-Build (Feature `assertions` aus, → fork/relief/BUILD.gn).

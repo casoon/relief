@@ -73,6 +73,9 @@ class RuntimeHost {
                         std::optional<bridge::FormFacts> facts);
   // Wofür vor `input` Angaben beim Renderer anzufragen sind (Paket 112).
   bridge::Found FactsTarget(const std::string& input);
+  // Fähigkeitsprofil für diesen Tab (Paket 41).
+  bridge::ProfileEffects SetProfile(const std::string& store,
+                                    const std::string& site);
   // Ziel der offenen Rückfrage (`found` false: keine).
   bridge::Found ConfirmationTarget();
   // Angaben zum Ziel ins Modell und die offene Rückfrage damit neu stellen.

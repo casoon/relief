@@ -26,7 +26,57 @@ Profil ist lokal, wird nie an Seiten oder Dienste übertragen (es wäre ein
 Gesundheitsdatum im Sinne der DSGVO) [Annahme].
 
 Offen [validieren]: Vorbelegung aus OS-Einstellungen (macOS: Reduce Motion,
-Increase Contrast, VoiceOver aktiv, Textgröße) — naheliegend, spart Onboarding.
+Increase Contrast, VoiceOver aktiv, Textgröße) — naheliegend, spart Onboarding
+(→ Paket 115; nur als vorgeschlagener Startwert, nie als Diagnose).
+
+### Umsetzung (Paket 41) [belegt]
+
+- **Datensatz** (`crates/relief-interaction/src/profile.rs`): die Felder
+  oben; abweichend von der Skizze ist Kontrast ein Bedarf
+  (`normal | erhöht | maximal`), weil „volle Kontrastanforderung“
+  mehrdeutig wäre. Gespeichert werden nur Abweichungen: global gegenüber
+  dem Standard, je Website (Host) gegenüber global. Ein Wert gleich dem
+  Grundprofil entfernt die Abweichung. Neutrale Voreinstellungen
+  („Ausgabe vor allem gesprochen“, „Große, ruhige Darstellung“,
+  „Bedienung ohne Zeigegerät“, „Kurze Antworten, mehr Rückfragen“) setzen
+  nur Startwerte, alles bleibt einzeln änderbar.
+- **Wirkungen** (`Effects`), keine nimmt Inhalt oder Bedienwege weg:
+
+| Fähigkeit | Wirkung |
+|---|---|
+| Sprachausgabe bevorzugt oder kein visuelles Detail | Antworten gesprochen (Fork, Chromium-TTS) |
+| Textmenge nicht vollständig | kurze Antworten: erster Satz, Rest über „mehr“; Rückfrage auch vor Änderungen (mittleres Risiko) |
+| visuelles Detail eingeschränkt oder kein Zeigegerät | Semantic View als Startansicht im Panel |
+| kein Zeigegerät, Tastatur verfügbar | Sprungmarken nach dem Laden |
+| Textgröße | temporärer Zoom der Seite (nicht als Website-Einstellung gespeichert) und Schriftgröße des Panels |
+| Kontrastbedarf erhöht/maximal | Panel mit Systemfarben, kräftigen Rändern und Fokus |
+| Bewegung nicht voll verträglich | Panel ohne Übergänge und weiche Bildläufe |
+
+  Farbunterscheidung, Spracheingabe und Schalter haben noch keine eigene
+  Wirkung (das Panel nutzt ohnehin keine Farbe als einziges Signal).
+- **Fork:** Stand je Browserprofil in `<Profil>/Relief/faehigkeiten.json`
+  (`profile_store.cc`; Inkognito nur im Speicher), nie an Seiten oder
+  Dienste. Panel-Abschnitt „Fähigkeiten“: „Gilt für alle Websites / nur
+  diese Website“, je Feld natives Bedienelement mit Herkunft („Standard“,
+  „geändert, alle Websites“, „nur diese Website“) und eigenem Zurücksetzen,
+  „Werte nur dieser Website entfernen“, „Standard wiederherstellen“; die
+  Wirkung steht sofort in einer Statuszeile. Jeder Tab übernimmt
+  Änderungen sofort (auch aus anderen Tabs) und bei jeder neuen Seite.
+- **Aufgaben:** Zeile `profil: standard | <Voreinstellung> | feld=wert, …`
+  in beiden Hosts.
+- **Belegt:** `spike/tasks/18-faehigkeiten.txt` (dieselbe Aufgabe im
+  Testshop unter Standard, kurzen Antworten, gesprochener Ausgabe sowie
+  „ohne Zeigegerät, groß, kontrastreich, ruhig“; Zurücksetzen) im CDP-Host
+  und im Fork je 27/27, im Fork mit Sprachausgabe in Kombination 3 und Zoom
+  150 % in Kombination 4 (Protokoll `profile`/`tts`);
+  `relief_browsertests --gtest_filter=*Faehigkeitsprofil*` (Website-Wert
+  wirkt nur dort, globaler Zoom, „Standard wiederherstellen“ setzt Zoom
+  und Stand zurück, Datei geschrieben, alle Bedienelemente benannt);
+  Unit-Tests in `profile.rs`.
+- **Offen:** Vorbelegung aus OS-Einstellungen, Zoom der Seite im CDP-Host,
+  seitenweiter Kontrast und reduzierte Bewegung (`forced-colors`,
+  `prefers-reduced-motion` für Webseiten) → Paket 115; welche Kombinationen
+  zuerst zählen, entscheidet der Nutzennachweis (→ 90).
 
 ## Visual Assist
 

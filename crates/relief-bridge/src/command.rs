@@ -91,7 +91,8 @@ impl Runtime {
     /// Ergebnis der Sitzung in einen Auftrag an den Fork übersetzen.
     pub(crate) fn reply(&mut self, graph: Graph, outcome: Outcome) -> Reply {
         match outcome {
-            Outcome::Answer(text) => Reply::Answer(text),
+            // Nach Fähigkeitsprofil (Paket 41): ggf. gekürzt, Rest für „mehr“.
+            Outcome::Answer(text) => Reply::Answer(self.session.present(text)),
             Outcome::Scroll(direction) => Reply::Scroll(direction),
             Outcome::Escape { target, reaches } => {
                 self.pending = Some(Pending::Escape {
@@ -118,6 +119,11 @@ impl Runtime {
 
     /// Antwort auf die zuletzt ausgeführte Aktion, gegen den jetzigen Stand.
     pub fn finish(&mut self) -> String {
+        let answer = self.finish_raw();
+        self.session.present(answer)
+    }
+
+    fn finish_raw(&mut self) -> String {
         match self.pending.take() {
             None => "Keine Aktion ausstehend.".into(),
             Some(Pending::Plan {

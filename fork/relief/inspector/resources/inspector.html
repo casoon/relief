@@ -19,6 +19,31 @@
       <label><input type="radio" name="mode" value="semantic">
         Semantische Ansicht</label>
     </fieldset>
+    <details id="profile">
+      <summary>Fähigkeiten</summary>
+      <p class="hint">Was verfügbar ist bzw. gebraucht wird, nicht wer man ist.
+        Bleibt auf diesem Rechner; keine Website erfährt davon.</p>
+      <fieldset id="profile-scope">
+        <legend>Gilt für</legend>
+        <label><input type="radio" name="scope" value="global" checked>
+          alle Websites</label>
+        <label><input type="radio" name="scope" value="site" id="scope-site">
+          nur <span id="profile-site">diese Website</span></label>
+      </fieldset>
+      <p id="profile-status" role="status"></p>
+      <p>
+        <label for="preset">Voreinstellung als Ausgangspunkt</label>
+        <select id="preset"></select>
+        <button type="button" id="preset-apply">Übernehmen</button>
+      </p>
+      <div id="profile-fields"></div>
+      <p>
+        <button type="button" id="profile-reset-site">Werte nur dieser Website
+          entfernen</button>
+        <button type="button" id="profile-reset-all">Standard
+          wiederherstellen</button>
+      </p>
+    </details>
     <section aria-labelledby="cmd-title">
       <h2 id="cmd-title">Befehl</h2>
       <form id="cmd-form">

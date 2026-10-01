@@ -40,6 +40,7 @@
 #include "relief/inspector/relief_inspector.h"
 #include "relief/relief_attach.h"
 #include "relief/marks_overlay.h"
+#include "relief/profile_store.h"
 #include "relief/relief_executor.h"
 #include "relief/relief_switches.h"
 #include "relief/relief_task_runner.h"
@@ -166,6 +167,18 @@ ReliefTabHelper::ReliefTabHelper(content::WebContents* contents)
       tab == 1 && command_line.HasSwitch(switches::kReliefInspector);
   show_marks_on_load_ =
       tab == 1 && command_line.HasSwitch(switches::kReliefMarks);
+  // Fähigkeitsprofil (Paket 41): jetzt und nach jedem Laden bzw. jeder
+  // Änderung aus einem anderen Tab.
+  profile_subscription_ =
+      ProfileStore::For(contents->GetBrowserContext())
+          .Subscribe(base::BindRepeating(
+              [](base::WeakPtr<ReliefTabHelper> self) {
+                if (self && !self->applying_) {
+                  self->ApplyProfile(base::DoNothing());
+                }
+              },
+              weak_factory_.GetWeakPtr()));
+  ApplyProfile(base::DoNothing());
   if (tab == 1 && command_line.HasSwitch(switches::kReliefRun)) {
     task_runner_ = std::make_unique<ReliefTaskRunner>(
         *this, *contents,
@@ -382,6 +395,22 @@ bool ReliefTabHelper::OnKeyPress(const input::NativeWebKeyboardEvent& event) {
 void ReliefTabHelper::Interact(
     const std::string& input,
     base::OnceCallback<void(ReliefExecutor::Result)> done) {
+  // Profil „Antworten gesprochen“ (Paket 41): auch getippte Eingaben.
+  if (effects_.speak) {
+    done = base::BindOnce(
+        [](base::WeakPtr<ReliefTabHelper> self,
+           base::OnceCallback<void(ReliefExecutor::Result)> done,
+           ReliefExecutor::Result result) {
+          if (self) {
+            const bool spoken = self->speech_output_.Speak(
+                std::string(bridge::speech_text(result.text)));
+            self->runtime_.AsyncCall(&RuntimeHost::Log)
+                .WithArgs(std::string(spoken ? "tts\tspeak" : "tts\tstumm"));
+          }
+          std::move(done).Run(std::move(result));
+        },
+        weak_factory_.GetWeakPtr(), std::move(done));
+  }
   RunCommand(input, base::BindOnce(
                         [](base::WeakPtr<ReliefTabHelper> self,
                            base::OnceCallback<void(ReliefExecutor::Result)> done,
@@ -394,12 +423,78 @@ void ReliefTabHelper::Interact(
                         weak_factory_.GetWeakPtr(), std::move(done)));
 }
 
+std::string ReliefTabHelper::Site() const {
+  // Datei-Adressen haben keinen Host: dort gilt das globale Profil.
+  return web_contents()->GetPrimaryMainFrame()->GetLastCommittedOrigin().host();
+}
+
+void ReliefTabHelper::ApplyProfile(base::OnceClosure done) {
+  ProfileStore& store =
+      ProfileStore::For(web_contents()->GetBrowserContext());
+  runtime_.AsyncCall(&RuntimeHost::SetProfile)
+      .WithArgs(store.json(), Site())
+      .Then(base::BindOnce(&ReliefTabHelper::OnProfileEffects,
+                           weak_factory_.GetWeakPtr(), std::move(done)));
+}
+
+void ReliefTabHelper::OnProfileEffects(base::OnceClosure done,
+                                       bridge::ProfileEffects effects) {
+  effects_ = effects;
+  // Zoom nur für dieses Dokument (temporär), nicht als Website-Einstellung
+  // in Chromium gespeichert.
+  content::HostZoomMap* zoom =
+      content::HostZoomMap::GetForWebContents(web_contents());
+  const content::GlobalRenderFrameHostId id =
+      web_contents()->GetPrimaryMainFrame()->GetGlobalId();
+  if (effects.zoom == 1.0f) {
+    if (zoom->UsesTemporaryZoomLevel(id)) {
+      zoom->ClearTemporaryZoomLevel(id);
+    }
+  } else {
+    zoom->SetTemporaryZoomLevel(id, blink::ZoomFactorToZoomLevel(effects.zoom));
+  }
+  runtime_.AsyncCall(&RuntimeHost::Log)
+      .WithArgs(base::StringPrintf("profile\tzoom=%.2f\tspeak=%d\tshort=%d",
+                                   effects.zoom, effects.speak,
+                                   effects.short_answers));
+  for (InspectorObserver& observer : observers_) {
+    observer.OnProfileChanged();
+  }
+  std::move(done).Run();
+}
+
+void ReliefTabHelper::ProfileLine(const std::string& line,
+                                  base::OnceCallback<void(std::string)> done) {
+  ProfileStore& store =
+      ProfileStore::For(web_contents()->GetBrowserContext());
+  bridge::ProfileChange change = bridge::profile_line(store.json(), line);
+  std::string text(change.text);
+  if (!change.ok) {
+    std::move(done).Run("Fehler: " + text);
+    return;
+  }
+  // Ohne Benachrichtigung setzen: Die Wirkung kommt hier mit Rückmeldung.
+  ApplyAfterChange(std::string(change.store),
+                   base::BindOnce(std::move(done), std::move(text)));
+}
+
+void ReliefTabHelper::ApplyAfterChange(std::string json,
+                                       base::OnceClosure done) {
+  ProfileStore& store =
+      ProfileStore::For(web_contents()->GetBrowserContext());
+  applying_ = true;
+  store.Set(std::move(json));
+  applying_ = false;
+  ApplyProfile(std::move(done));
+}
+
 void ReliefTabHelper::DidFinishLoad(content::RenderFrameHost* render_frame_host,
                                     const GURL& validated_url) {
   if (!render_frame_host->IsInPrimaryMainFrame()) {
     return;
   }
-  if (show_marks_on_load_) {
+  // Profil „ohne Zeigegerät“ (Paket 41): Sprungmarken nach jedem Laden.
+  if (show_marks_on_load_ || effects_.marks_on_load) {
     show_marks_on_load_ = false;
     // Der Baum kommt kurz nach dem Laden; dann zeigen.
     base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
@@ -590,6 +685,8 @@ void ReliefTabHelper::PrimaryPageChanged(content::Page& page) {
   runtime_.AsyncCall(&RuntimeHost::Log)
       .WithArgs(base::StringPrintf("page\tdropped=%zu\ttrees=%zu\thosts=%zu",
                                    stale.size(), trees_.size(), hosts_.size()));
+  // Neue Seite, womöglich andere Website: Profil und Zoom neu.
+  ApplyProfile(base::DoNothing());
 }
 
 void ReliefTabHelper::DidFinishNavigation(
