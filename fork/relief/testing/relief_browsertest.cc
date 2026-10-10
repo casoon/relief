@@ -5,7 +5,8 @@
 // kommt an, Aktion kommt an, Positionen (auch mit Browser-Zoom und im
 // iframe), cross-site-iframe (OOPIF), Navigation mit Back-Forward-Cache,
 // Discard, begrenzter Neuaufbau nach kaputtem Paket, Bestätigung nicht
-// umgehbar (Befehl über die Runtime bis zum Klick). Die Tests lesen den
+// umgehbar (Befehl über die Runtime bis zum Klick, auch über den MCP-Weg
+// `Relief.runCommand`). Die Tests lesen den
 // Graphen der Runtime über die Deltas, die sie tatsächlich angewandt hat
 // (RuntimeHost::SetDeltaObserverForTesting).
 
@@ -18,6 +19,8 @@
 
 #include "base/command_line.h"
 #include "base/functional/bind.h"
+#include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -34,6 +37,8 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/browser_context.h"
+#include "content/public/browser/devtools_agent_host.h"
+#include "content/public/browser/devtools_agent_host_client.h"
 #include "content/public/browser/host_zoom_map.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/files/file_util.h"
@@ -571,6 +576,106 @@ IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, BestaetigungNurEinmalUndGebunden) {
   // Dieselbe Bestätigung ein zweites Mal: nur eine neue Rückfrage.
   EXPECT_TRUE(rueckfrage("!klicke Jetzt kaufen"));
   EXPECT_EQ("1", content::EvalJs(web_contents(), kKlicks));
+}
+
+// Ein CDP-Client wie Playwright oder der MCP-Server (examples/mcp/):
+// JSON-Nachrichten an den Tab, Antworten je Aufruf.
+class CdpClient : public content::DevToolsAgentHostClient {
+ public:
+  explicit CdpClient(content::WebContents* contents)
+      : host_(content::DevToolsAgentHost::GetOrCreateFor(contents)) {
+    host_->AttachClient(this);
+  }
+  ~CdpClient() override { host_->DetachClient(this); }
+
+  // Ganze Antwort auf den Aufruf: `result` oder `error`.
+  base::DictValue Send(const std::string& method, base::DictValue params) {
+    const int id = ++last_id_;
+    base::DictValue message;
+    message.Set("id", id);
+    message.Set("method", method);
+    message.Set("params", std::move(params));
+    const std::string json = base::WriteJson(message).value_or("{}");
+    host_->DispatchProtocolMessage(this, base::as_byte_span(json));
+    EXPECT_TRUE(base::test::RunUntil([&] { return replies_.contains(id); }));
+    return std::move(replies_[id]);
+  }
+
+  void DispatchProtocolMessage(content::DevToolsAgentHost*,
+                               base::span<const uint8_t> message) override {
+    std::optional<base::DictValue> value =
+        base::JSONReader::ReadDict(base::as_string_view(message),
+                                   base::JSON_PARSE_RFC);
+    if (value && value->FindInt("id")) {
+      const int id = *value->FindInt("id");
+      replies_[id] = std::move(*value);
+    }
+  }
+  void AgentHostClosed(content::DevToolsAgentHost*) override {}
+
+ private:
+  scoped_refptr<content::DevToolsAgentHost> host_;
+  int last_id_ = 0;
+  std::map<int, base::DictValue> replies_;
+};
+
+// MCP-Weg (Paket 142): `Relief.runCommand` über eine echte CDP-Sitzung.
+// Die Rückfrage zum Kauf erscheint im Relief-Panel; „ja“ und „!“ über CDP
+// lösen sie nicht ein, andere Befehle verwerfen sie nicht; „ja“ im Panel
+// kauft genau einmal.
+IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, McpBestaetigungNurInRelief) {
+  GraphRecorder graph(helper());
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), Url("a.test", "/kasse.html")));
+  const std::string main = TreeOf(web_contents()->GetPrimaryMainFrame());
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return graph.Find("Jetzt kaufen", main) && graph.root() == main; }));
+
+  CdpClient cdp(web_contents());
+  auto run = [&](const std::string& command) {
+    base::DictValue params;
+    params.Set("command", command);
+    return cdp.Send("Relief.runCommand", std::move(params));
+  };
+  auto error = [](const base::DictValue& reply) {
+    const std::string* message = reply.FindStringByDottedPath("error.message");
+    return message ? *message : std::string();
+  };
+  constexpr char kKlicks[] = "document.getElementById('s').textContent";
+
+  base::DictValue reply = run("was ist hier");
+  ASSERT_TRUE(reply.FindDict("result")) << reply.DebugString();
+  EXPECT_FALSE(*reply.FindBoolByDottedPath("result.confirmationPending"));
+
+  reply = run("klicke Jetzt kaufen");
+  ASSERT_TRUE(reply.FindDict("result")) << reply.DebugString();
+  EXPECT_TRUE(reply.FindStringByDottedPath("result.answer")
+                  ->starts_with("Bestätigung nötig"))
+      << reply.DebugString();
+  EXPECT_FALSE(*reply.FindBoolByDottedPath("result.acted"));
+  EXPECT_TRUE(*reply.FindBoolByDottedPath("result.confirmationPending"));
+  SidePanelUI* side_panel = SidePanelUI::From(browser());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return side_panel->IsSidePanelEntryShowing(
+        SidePanelEntry::Key(SidePanelEntry::Id::kRelief));
+  }));
+
+  EXPECT_NE(error(run("ja")).find("Keine Bestätigung"), std::string::npos);
+  EXPECT_NE(error(run("!klicke Jetzt kaufen")).find("Keine Bestätigung"),
+            std::string::npos);
+  EXPECT_NE(error(run("was ist hier")).find("Rückfrage ist offen"),
+            std::string::npos);
+  EXPECT_EQ("0", content::EvalJs(web_contents(), kKlicks));
+
+  // In Relief bestätigt (wie „ja“ in der Befehlsleiste): genau ein Kauf.
+  base::test::TestFuture<ReliefExecutor::Result> confirmed;
+  helper().Interact("ja", confirmed.GetCallback());
+  EXPECT_TRUE(confirmed.Get().acted) << confirmed.Get().text;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(web_contents(), kKlicks).ExtractString() == "1";
+  }));
+  // Danach nimmt der Weg wieder Befehle an.
+  EXPECT_TRUE(run("was ist hier").FindDict("result"));
 }
 
 // Formularziel im Fork (Paket 75): Die Rückfrage nennt das Ziel, das der

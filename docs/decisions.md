@@ -130,6 +130,15 @@ einen Konverter. Details in `plan/spezifikation/03-semantisches-datenmodell.md`.
 *Konsequenz:* Erschlossenes wird nie als Tatsache ausgegeben; Uncertain ist nie
 Grundlage einer Aktion ohne Rückfrage.
 
+**Assistenten über MCP bestätigen nichts**
+`Relief.runCommand` (MCP-Server, `examples/mcp/`) nimmt weder „!“ noch
+ein Bestätigungswort an und, solange eine Rückfrage offen ist, nur einen
+Abbruch; bestätigt wird nur in Relief (Panel oder Sprache).
+*Grund:* Ein Assistent ist wie ein Modell, er schlägt vor; sonst könnte er
+seine eigenen Rückfragen beantworten oder sie mit dem nächsten Befehl
+verwerfen. *Konsequenz:* Der Assistent erfährt den Ausgang nicht als
+Ereignis und fragt danach erneut. Details: `plan/spezifikation/07`.
+
 **KI ist Fallback, nicht Wahrheitsquelle**
 Quellenpriorität: HTML → ARIA → AXTree → deterministische Analyse →
 DOM/Layout → KI → Vision. Ist Semantik vorhanden, läuft kein Modell.

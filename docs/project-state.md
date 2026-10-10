@@ -32,8 +32,9 @@ dem Accessibility-Tree laufen; die übrigen als nicht geprüft), umschaltbar
 auf die Semantic View (die Seite als bedienbare Ansicht, jede Bedienung als
 validierte Aktion auf die Originalseite). Dazu Tastatur-Sprungmarken über der Seite
 (Strg+Umschalt+M). Über CDP beantwortet der Build die Domäne `Relief.*`
-(Seitenmodell, Formular-Zusicherungen); `examples/playwright/` nutzt sie
-aus Playwright. Gesprochene Befehle erkennt der Fork live über das Mikrofon (Sprechtaste
+(Seitenmodell, Formular-Zusicherungen, Befehle); `examples/playwright/` nutzt sie
+aus Playwright, `examples/mcp/` als MCP-Server für KI-Assistenten (Rückfragen
+bestätigt nur die Person in Relief, nie der Assistent). Gesprochene Befehle erkennt der Fork live über das Mikrofon (Sprechtaste
 im Panel, Strg+Umschalt+S) oder aus Audiodateien (Apples
 Spracherkennung, auf dem Gerät) und spricht die Antworten über
 Chromiums TTS; „abbrechen“/„stopp“ unterbricht sofort
@@ -211,7 +212,17 @@ node scripts/fork-measure.mjs --port 9222       # Latenz, Build mit --remote-deb
 (cd ~/chromium/src && autoninja -C out/Relief relief_browsertests && out/Relief/relief_browsertests)  # Integrationstests
 scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurück nach fork/
 (cd examples/playwright && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install && npx playwright test)  # Playwright gegen den Build (Relief.*)
+(cd examples/mcp && npm install)                # MCP-Server; Build mit --remote-debugging-port=9222 starten
 ```
+
+Im MCP-Client (etwa Claude) den Server eintragen:
+`{"command": "node", "args": ["<repo>/examples/mcp/server.mjs"]}`
+(`RELIEF_CDP` setzt den Endpunkt). Werkzeuge: `relief_page_model`,
+`relief_command`, `relief_assert`; sie wirken auf den zuletzt aktiven Tab.
+Über `relief_command` gehen weder „ja“ noch „!“, bei offener Rückfrage nur
+„abbrechen“; die Rückfrage erscheint im Relief-Panel und wird dort
+beantwortet. Der Debugging-Port gibt jedem lokalen Client Vollzugriff über
+CDP; die Grenze gilt für den MCP-Server.
 
 ## Geplanter Stack
 
@@ -247,6 +258,7 @@ scripts/fork-export.sh ~/chromium/src           # Änderungen im Checkout zurüc
 | `scripts/fork-apply.sh`, `scripts/fork-export.sh` | Fork auf einen Checkout anwenden (inkl. Kopie der Crate-Quellen) bzw. Patches daraus neu erzeugen |
 | `scripts/cloud-setup.sh` | Setup-Skript für die Cloud-Umgebung auf claude.ai |
 | `.github/workflows/ci.yml` | CI: Rust-Prüfungen und Aufgaben 01–06 gegen Chrome |
+| `examples/playwright/`, `examples/mcp/` | Playwright-Hilfsmodul und MCP-Server über die CDP-Domäne `Relief.*` |
 | `scripts/fork-measure.mjs` | Messknoten über CDP in den Relief-Build schreiben (Ende-zu-Ende-Latenz) |
 | `docs/architecture.md` | Aufbau und Datenfluss |
 | `docs/decisions.md` | aktuell gültige Grundsatzentscheidungen |

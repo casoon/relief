@@ -69,6 +69,27 @@ pub fn parse_input(input: &str) -> Result<(bool, Command), String> {
     Ok((confirmed, parse(input)?))
 }
 
+/// Eingabe, die eine offene Rückfrage einlösen würde: `!` am Anfang oder ein
+/// Bestätigungswort. Der MCP-Weg nimmt sie nicht an (→
+/// `plan/spezifikation/07`, „Bestätigung nicht über den MCP-Weg“).
+pub fn is_confirmation(input: &str) -> bool {
+    input.trim().starts_with('!') || CONFIRM.contains(&reply_word(input).as_str())
+}
+
+/// Eingabe, die eine offene Rückfrage verwirft („abbrechen“, „nein“ …).
+pub fn is_cancel(input: &str) -> bool {
+    CANCEL.contains(&reply_word(input).as_str())
+}
+
+/// Antwortwort ohne Satzzeichen am Ende, klein geschrieben.
+fn reply_word(input: &str) -> String {
+    input
+        .trim()
+        .trim_end_matches(['.', '!'])
+        .trim()
+        .to_lowercase()
+}
+
 /// Eingabe für ein Protokoll: der Wert eines Befehls, der einen Wert setzt
 /// oder wählt, ist verdeckt, unabhängig vom Ziel (das steht beim
 /// Protokollieren noch nicht fest). Andere Befehle bleiben, wie sie
@@ -312,6 +333,13 @@ impl Session {
         self.confirmation = None;
     }
 
+    /// Eine Rückfrage ist offen und noch nicht abgelaufen.
+    pub fn confirmation_open(&self) -> bool {
+        self.confirmation
+            .as_ref()
+            .is_some_and(|c| !c.expired(self.confirmation_ttl))
+    }
+
     /// Ziel der offenen Rückfrage. Der Fork fragt dafür Formularziel und
     /// `autocomplete` beim Renderer an, weil der AXTree sie nicht trägt
     /// (Paket 75, → `spezifikation/07`).
@@ -355,11 +383,7 @@ impl Session {
     /// Auswahl und Rückfrage (→ `spezifikation/05`). Hosts rufen das vor
     /// [`parse_input`] und [`Session::handle`].
     pub fn pending_reply(&mut self, graph: &Graph, model: &SemanticGraph, input: &str) -> Pending {
-        let text = input
-            .trim()
-            .trim_end_matches(['.', '!'])
-            .trim()
-            .to_lowercase();
+        let text = reply_word(input);
         if MORE.contains(&text.as_str()) {
             return Pending::Done(Outcome::Answer(match self.more.take() {
                 Some(rest) => {
@@ -1444,6 +1468,38 @@ mod tests {
         s.discard_confirmation();
         let text = run(&mut s, &model, true, order()).unwrap();
         assert!(text.contains("keine offene Rückfrage"), "{text}");
+    }
+
+    #[test]
+    fn bestaetigung_und_abbruch_erkannt() {
+        for input in [
+            "ja",
+            " Ja. ",
+            "bestätigen",
+            "yes!",
+            "!klicke Kaufen",
+            " !ja",
+        ] {
+            assert!(is_confirmation(input), "{input}");
+        }
+        for input in ["was ist hier", "klicke ja", "1", "abbrechen"] {
+            assert!(!is_confirmation(input), "{input}");
+        }
+        assert!(is_cancel("Abbrechen."));
+        assert!(is_cancel("nein"));
+        assert!(!is_cancel("ja"));
+    }
+
+    #[test]
+    fn offene_rueckfrage_nur_bis_zum_ablauf() {
+        let model = crate::graph::sample_tree();
+        let mut s = Session::new();
+        assert!(!s.confirmation_open());
+        assert!(run(&mut s, &model, false, order()).is_some());
+        assert!(s.confirmation_open());
+        let mut expired = Session::with_confirmation_ttl(Duration::ZERO);
+        assert!(run(&mut expired, &model, false, order()).is_some());
+        assert!(!expired.confirmation_open());
     }
 
     #[test]

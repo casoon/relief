@@ -114,6 +114,14 @@ bridge::DevToolsReply RuntimeHost::DevToolsCommand(const std::string& method,
   return bridge::devtools_command(*runtime_, method, params);
 }
 
+bridge::DevToolsReply RuntimeHost::ExternalInput(const std::string& params) {
+  Log("devtools\tRelief.runCommand");
+  bridge::DevToolsReply reply =
+      bridge::devtools_external_input(*runtime_, params);
+  Log(reply.ok ? "quelle\tmcp" : "quelle\tmcp\tabgelehnt");
+  return reply;
+}
+
 std::string RuntimeHost::FinishCommand() {
   return std::string(bridge::finish_command(*runtime_));
 }

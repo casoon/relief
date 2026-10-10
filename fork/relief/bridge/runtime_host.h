@@ -88,6 +88,10 @@ class RuntimeHost {
   // CDP-Domäne `Relief.*` (Paket 45); protokolliert die Methode.
   bridge::DevToolsReply DevToolsCommand(const std::string& method,
                                         const std::string& params);
+  // Eingabe von `Relief.runCommand` prüfen (Paket 142): keine Bestätigung,
+  // bei offener Rückfrage nur Abbruch. Protokolliert Quelle und Ablehnung,
+  // die Eingabe selbst erst RunCommand (Wert verdeckt).
+  bridge::DevToolsReply ExternalInput(const std::string& params);
   std::string DescribePage();
   std::string InspectorJson();
   rust::Vec<bridge::MarkBox> ShowMarks();

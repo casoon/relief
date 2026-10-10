@@ -148,6 +148,12 @@ Seitenmodell und Formular-Zusicherungen ab (`examples/playwright/`),
 beschrieben in
 [spezifikation/12](spezifikation/12-produktumfang.md#playwright-anbindung-umgesetzt-2026-09-30-paket-45).
 
+KI-Assistenten bedienen Relief über einen MCP-Server (`examples/mcp/`,
+`Relief.runCommand`); Rückfragen bestätigt nur die Person in Relief,
+beschrieben in
+[spezifikation/12](spezifikation/12-produktumfang.md#mcp-server-umgesetzt-2026-10-10-paket-142)
+und [07](spezifikation/07-privacy-und-sicherheit.md#bestätigung-nicht-über-den-mcp-weg-umgesetzt-paket-142-im-fork-belegt).
+
 Semantic View im Relief-Panel: die Seite als bedienbare Ansicht aus dem
 Graph, jede Bedienung als validierte Aktion auf die Originalseite,
 beschrieben in
@@ -177,7 +183,7 @@ oder Finder), `--disable-relief` schaltet es ab (Paket 117), beschrieben in
 - Linie A: 41, 26, 29 erledigt (Nachträge 113, 116; 114, 115 erledigt) (40, 80, 91, 110 erledigt);
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 und 44 erledigt, 43 zurückgestellt; 130 wartet auf ein erneutes Auftreten (85, 105, 106 erledigt).
-- Produkt: 37 erst vor einer Weitergabe an Dritte; 142 (MCP) beginnt mit der Bestätigungsfrage.
+- Produkt: 37 erst vor einer Weitergabe an Dritte (142 MCP-Server erledigt).
 - Vor jeder Modellintegration (28 im Fork, 34): 48 ✓, 58 ✓, 75 ✓.
 
 | Nr | Thema | Umgebung | Status | Abhängig von | Datei |
@@ -195,4 +201,3 @@ oder Finder), `--disable-relief` schaltet es ab (Paket 117), beschrieben in
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
 | 130 | CDP-Host: `tabfolge` in einen fremden Frame, Ursache des seltenen Ausfalls | Cloud | wartet auf erneutes Auftreten | 106 ✓ | [130](130-tabfolge-ausfall-ursache.md) |
-| 142 | MCP-Server über `Relief.*` (Bestätigung nur in Relief) | Cloud + M4 | offen (Schritt 1: Entscheidung) | 45 ✓, 48 ✓, 58 ✓ | [142](142-mcp-server.md) |

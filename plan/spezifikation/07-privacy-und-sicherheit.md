@@ -259,6 +259,47 @@ deshalb vor jedem `!klicke …` für HIGH die Rückfrage (`03-form.txt`,
 `06-form-assertions.txt`; „Rückruf anfordern“ ist HIGH, weil es „order“
 enthält).
 
+### Bestätigung nicht über den MCP-Weg [umgesetzt, Paket 142; im Fork belegt]
+
+Assistenten (MCP-Clients) bedienen Relief über `Relief.runCommand`
+(→ spezifikation/12, „MCP-Server“). Für Relief sind sie wie ein Modell: Sie
+schlagen vor, bestätigen aber nichts.
+
+- **Entscheidung:** Eine Rückfrage bestätigt nur die Nutzerin oder der
+  Nutzer in Relief (Befehlsleiste im Panel oder Sprache). Über den MCP-Weg
+  geht keine Eingabe mit „!“ und kein Bestätigungswort („ja“,
+  „bestätigen“ …); die Antwort ist ein Fehler „Keine Bestätigung über
+  diesen Weg“ (`relief_interaction::is_confirmation`).
+- **Entscheidung:** Solange eine Rückfrage offen und nicht abgelaufen ist
+  (`Session::confirmation_open`, 60 s), nimmt der Weg nur einen Abbruch an
+  (`is_cancel`); sonst Fehler „Eine Rückfrage ist offen“. Grund: Jede
+  Eingabe nimmt das Token heraus; ein weiterer Befehl des Assistenten würde
+  die Rückfrage verwerfen, bevor die Person sie gesehen hat. Abgelehnte
+  Eingaben erreicht die Sitzung nicht (`devtools::external_input`).
+- **Entscheidung:** Der Assistent erfährt den Ausgang einer Rückfrage nicht
+  als Ereignis; er fragt danach erneut (`Relief.getPageModel` ist nur
+  lesend und geht jederzeit, „was ist hier“ nach der Rückfrage).
+- Antwort und Rückfrage erscheinen im Relief-Panel als „(Assistent) …“
+  (Wert verdeckt wie in Protokollen); eine Rückfrage öffnet das Panel, wie
+  bei Sprungmarken (`ReliefTabHelper::ShowExternalAnswer`).
+- Protokoll: vor der Eingabe `devtools\tRelief.runCommand` und
+  `quelle\tmcp` bzw. `quelle\tmcp\tabgelehnt`, danach wie jede Eingabe
+  (`command` mit verdecktem Wert, `security`).
+- **Belegt:** `devtools.rs` `keine_bestaetigung_von_aussen`,
+  `befehl_von_aussen_beantwortet`; `session.rs`
+  `bestaetigung_und_abbruch_erkannt`, `offene_rueckfrage_nur_bis_zum_ablauf`;
+  `relief_browsertests --gtest_filter=*Mcp*` (M4, 2026-10-10): echte
+  CDP-Sitzung auf `kasse.html`, Rückfrage im Panel, „ja“, „!klicke …“ und
+  „was ist hier“ über CDP abgelehnt, Zähler 0; „ja“ in Relief → genau ein
+  Kauf; danach nimmt der Weg wieder Befehle an.
+- **Grenze [Annahme]:** Die Grenze gilt für den MCP-Server, der nur
+  `Relief.*` spricht. Ein Client mit Zugang zum Debugging-Port kann über
+  andere CDP-Domänen (`Runtime.evaluate`, `Input.*`) ohnehin alles; der
+  Port ist Vollzugriff und bleibt lokal und ausdrücklich eingeschaltet.
+- Seiteninhalt geht an den Assistenten und damit meist an ein Cloud-Modell;
+  sensible Werte sind in Antworten verdeckt (→ „Sensible Werte außerhalb
+  der Rückfrage“), das Seitenmodell trägt Namen, keine Feldwerte.
+
 ### Grenzen je Aufgabe [umgesetzt, Werte Annahme]
 
 **Einziger Weg zu einem Anbieter** (Typ, Paket 58): `ModelProvider::complete`
