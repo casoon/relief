@@ -300,6 +300,31 @@ schlagen vor, bestätigen aber nichts.
   sensible Werte sind in Antworten verdeckt (→ „Sensible Werte außerhalb
   der Rückfrage“), das Seitenmodell trägt Namen, keine Feldwerte.
 
+### Werkzeuge der Website (WebMCP) [umgesetzt, Paket 143; im Fork belegt]
+
+Name, Beschreibung, Schema und Anmerkungen eines Werkzeugs schreibt die
+Website; sie sind Prompt-Injection-Fläche wie ein `aria-label`
+(→ Threat Model, „Manipulierte Semantik“).
+
+- Beschreibungen und Antworten der Website erscheinen nur als gekürztes,
+  einzeiliges Zitat (`tools::quote`, 160 Zeichen) mit „nicht geprüft“; sie
+  gehen an kein Modell und ändern weder Risiko noch Rückfrage (belegt:
+  `tools.rs` `beschreibung_aendert_das_risiko_nicht`, Browser-Test mit
+  Injektionstext). Anmerkungen heben das Risiko, senken es nie unter
+  MEDIUM.
+- Bestätigung → 05, „Werkzeuge der Website“; der MCP-Weg bestätigt auch
+  Werkzeugaufrufe nicht (→ „Bestätigung nicht über den MCP-Weg“).
+- **Zugang** [Entscheidung, Paket 143]: eine eigene DevTools-Sitzung je Tab
+  mit der Domäne `WebMCP` (`fork/relief/webmcp_client.cc`), kein Patch
+  außerhalb `//relief/`. Die Sitzung ist nicht vertrauenswürdig
+  (`IsTrusted` false) und schickt nur `WebMCP.*`. Relief schaltet das
+  Blink-Feature nicht selbst ein (Entscheidung Nutzer, 2026-10-10).
+  **Belegt:** Der eigene Build hat `WebMCP` trotzdem an, weil nicht
+  offizielle Builds Chromiums Feldversuchs-Testkonfiguration übernehmen
+  (`testing/variations/fieldtrial_testing_config.json`,
+  `disable_fieldtrial_testing_config = false`); jede Seite in einem
+  sicheren Kontext sieht dort `document.modelContext`.
+
 ### Grenzen je Aufgabe [umgesetzt, Werte Annahme]
 
 **Einziger Weg zu einem Anbieter** (Typ, Paket 58): `ModelProvider::complete`

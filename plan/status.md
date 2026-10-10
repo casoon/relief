@@ -148,6 +148,11 @@ Seitenmodell und Formular-Zusicherungen ab (`examples/playwright/`),
 beschrieben in
 [spezifikation/12](spezifikation/12-produktumfang.md#playwright-anbindung-umgesetzt-2026-09-30-paket-45).
 
+Werkzeuge, die Websites über WebMCP erklären, liest der Fork über eine
+eigene DevTools-Sitzung je Tab, sagt sie an und ruft sie geprüft auf,
+beschrieben in
+[spezifikation/12](spezifikation/12-produktumfang.md#werkzeuge-der-website-webmcp-umgesetzt-2026-10-10-paket-143).
+
 KI-Assistenten bedienen Relief über einen MCP-Server (`examples/mcp/`,
 `Relief.runCommand`); Rückfragen bestätigt nur die Person in Relief,
 beschrieben in
@@ -176,11 +181,11 @@ oder Finder), `--disable-relief` schaltet es ab (Paket 117), beschrieben in
 
 **Sofort startbar:**
 - Cloud + M4: 116 (Cloud-STT, Anbieter wählen)
-- M4: 43 (VoiceOver im Test)
+- M4: 43 (VoiceOver im Test), 144 (WebMCP-Kosten), 145 (`load` auf großer Seite)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
-- Linie A: 41, 26, 29 erledigt (Nachträge 113, 116, 143; 114, 115 erledigt) (40, 80, 91, 110 erledigt);
+- Linie A: 41, 26, 29 erledigt (Nachträge 113, 116; 114, 115, 143 erledigt) (40, 80, 91, 110 erledigt);
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 und 44 erledigt, 43 zurückgestellt; 130 wartet auf ein erneutes Auftreten (85, 105, 106 erledigt).
 - Produkt: 37 erst vor einer Weitergabe an Dritte (142 MCP-Server erledigt).
@@ -201,4 +206,5 @@ oder Finder), `--disable-relief` schaltet es ab (Paket 117), beschrieben in
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
 | 130 | CDP-Host: `tabfolge` in einen fremden Frame, Ursache des seltenen Ausfalls | Cloud | wartet auf erneutes Auftreten | 106 ✓ | [130](130-tabfolge-ausfall-ursache.md) |
-| 143 | Von Websites erklärte Werkzeuge (WebMCP) lesen, ansagen, geprüft ausführen | Cloud + M4 | offen (Schritt 1: Zugang im Fork) | 48 ✓, 58 ✓, 142 ✓ | [143](143-webmcp.md) |
+| 144 | Kosten der WebMCP-Sitzung je Tab messen (ruhiger Rechner) | M4 | offen | 143 ✓ | [144](144-webmcp-kosten.md) |
+| 145 | Fehlendes `load`-Ereignis auf großer Seite (Nebenbefund 143) | M4 | offen | — | [145](145-load-ereignis-grosse-seite.md) |

@@ -13,6 +13,7 @@
 //! | [`SemanticNode`], [`States`], [`Relations`] | ein Knoten mit typisierten Eigenschaften |
 //! | [`Fact`], [`Certainty`], [`Source`] | Herkunft einer Aussage |
 //! | [`TreeId`], [`NodeId`], [`NodeRef`], [`GraphVersion`] | Identität und Version |
+//! | [`DeclaredTool`] | von der Website über WebMCP erklärtes Werkzeug, je Baum, außerhalb der Deltas |
 //! | [`TreeDelta`], [`TreeUpdate`] | inkrementelle Änderung; [`TreeDelta::between`] und [`SemanticGraph::apply`] |
 //! | `perception` | Konverter `a11y_perception::AXTree` → Modell (Feature `perception`, Standard; im Fork-Build aus) |
 //!
@@ -33,6 +34,7 @@ mod node;
 #[cfg(feature = "perception")]
 pub mod perception;
 mod role;
+mod tool;
 
 pub use delta::{ApplyError, BoundsChange, TreeDelta, TreeUpdate};
 pub use fact::{Certainty, Fact, Source};
@@ -43,3 +45,4 @@ pub use node::{
     SemanticNode, States, Toggle,
 };
 pub use role::Role;
+pub use tool::DeclaredTool;

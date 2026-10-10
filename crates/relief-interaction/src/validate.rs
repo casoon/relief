@@ -119,7 +119,7 @@ fn is_steppable(role: &Role) -> bool {
 
 /// Signalwörter für folgenreiche Aktionen. Konservativ: lieber einmal zu oft
 /// nachfragen. Die Einstufung ist selbst eine Inferenz.
-const HIGH_RISK_WORDS: &[&str] = &[
+pub(crate) const HIGH_RISK_WORDS: &[&str] = &[
     "kaufen",
     "bestellen",
     "bestellung",

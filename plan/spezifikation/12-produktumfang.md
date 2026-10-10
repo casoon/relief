@@ -53,6 +53,7 @@ Semantic View ab (→ 09). Dazu kommen:
 | Änderungen ansagen | „Warenkorb jetzt 1“ aus dem Delta | in 25/26 |
 | Fehlende Namen ergänzen | Resolver, auf dem Gerät über das Modell des Betriebssystems möglich (Stufe `os`, → 06) | 28 |
 | MCP-Server | Assistenten wie Claude lesen das Seitenmodell und schicken Befehle; bestätigt wird nur in Relief | 142 ✓ (unten) |
+| Werkzeuge der Website (WebMCP) | erklärte Werkzeuge ansagen und ohne die Oberfläche dahinter aufrufen, geprüft und mit Rückfrage | 143 ✓ (unten) |
 
 ### MCP-Server [umgesetzt 2026-10-10, Paket 142]
 
@@ -89,6 +90,44 @@ Relief (→ 07, „Bestätigung nicht über den MCP-Weg“).
   oder ein Tab-Wechsel während eines Ablaufs sind nicht abgedeckt. Nicht
   als npm-Paket oder in einem MCP-Verzeichnis veröffentlicht. Von Websites
   erklärte Werkzeuge (WebMCP) liest Relief nicht.
+
+### Werkzeuge der Website (WebMCP) [umgesetzt 2026-10-10, Paket 143]
+
+Websites können über WebMCP (Entwurf der W3C Web Machine Learning
+Community Group, `document.modelContext`) Werkzeuge erklären. Relief liest
+sie als Quelle neben dem AXTree (→ 03), sagt sie an und ruft sie über
+geprüfte Pläne auf (→ 05, 07).
+
+- **Weg im Fork:** `WebMcpClient` je Tab: DevTools-Sitzung an
+  `DevToolsAgentHost::GetOrCreateFor(WebContents)`, `WebMCP.enable`, je
+  Frame die Liste des aktuellen Dokuments aus `toolsAdded`/`toolsRemoved`;
+  Frame → Dokumentbaum über das DevTools-Frame-Token und
+  `GetAXTreeID()`; ein neues Dokument im selben Frame beginnt leer. Nach
+  Back-Forward-Cache `disable`/`enable` (Blink meldet die Werkzeuge der
+  wiederhergestellten Seite nicht von selbst). Aufruf über
+  `WebMCP.invokeTool`, Antwort aus `toolResponded`, höchstens 5 s.
+- **Belegt** (M4, 2026-10-10): `relief_browsertests` 25/25, darunter
+  `WebMcpWerkzeuge` (Testseite `fork/relief/testing/data/webmcp.html` über
+  `localhost`: vier Werkzeuge, davon eines deklarativ; „was ist hier“ nennt
+  sie; das nur lesende antwortet ohne Rückfrage mit Zitat; das
+  folgenreiche bucht erst nach „ja“, genau einmal; „!“ danach nur neue
+  Rückfrage; das Werkzeug mit Injektionstext verlangt eine Rückfrage) und
+  `WebMcpOhneFeature` (`--disable-blink-features=WebMCP`: keine API, keine
+  Werkzeuge). Back-Forward-Cache, Discard und OOPIF-Tests unverändert grün
+  mit der zusätzlichen Sitzung je Tab.
+- **Kosten** [offen]: gemessen auf dem M4 (2026-10-10/11) mit einer Seite
+  von ~9 000 Knoten über `localhost`, je 4 Starts mit und ohne Client im
+  Wechsel, 8 Ladevorgänge: Median der Ladezeit ohne Client 935–2 173 ms,
+  mit 140–1 441 ms; die Streuung innerhalb einer Variante übersteigt jeden
+  Unterschied (Lastdurchschnitt 6–10 durch andere Prozesse). Ein Unterschied
+  ist weder belegt noch ausgeschlossen; wiederholen auf ruhigem Rechner
+  (→ Paket 144).
+  [Annahme] Die Sitzung aktiviert im Renderer nur den WebMCP-Agenten.
+  Nebenbefund: Auf dieser Seite kommt in beiden Varianten bei etwa jedem
+  vierten Laden kein `load`-Ereignis innerhalb von 10 s (→ Paket 145).
+- **Grenze:** Die Sitzung des Tabs sieht Werkzeuge in Frames im Prozess des
+  Hauptdokuments, nicht in cross-site-iframes (OOPIF). Eingaben nur als
+  flache Felder. Der MCP-Server (142) reicht Werkzeuge nicht weiter.
 
 ### Formular-Assistent [umgesetzt 2026-09-30, Paket 39]
 

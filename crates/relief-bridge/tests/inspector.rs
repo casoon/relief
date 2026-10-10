@@ -170,3 +170,23 @@ fn semantische_ansicht_bedient_ueber_validierte_aktionen() {
         Reply::Answer(_)
     ));
 }
+
+#[test]
+fn werkzeuge_der_website_mit_herkunft() {
+    let mut rt = runtime_shop();
+    let tree = rt.graph().root.clone().unwrap();
+    rt.set_tools(
+        &tree.0,
+        r#"[{"name":"groesse_waehlen","description":"Wählt die Größe.","frameId":"F",
+             "annotations":{"readOnly":true}}]"#,
+    )
+    .unwrap();
+    let view: Value = serde_json::from_str(&inspector_json(&rt)).unwrap();
+    let tool = eintrag(&view, "tools", "groesse_waehlen — „Wählt die Größe.“");
+    assert_eq!(tool["certainty"], "inferred");
+    assert_eq!(tool["origin"], "von der Website erklärt, nicht geprüft");
+    assert!(tool["key"].as_str().unwrap().starts_with("werkzeug:"));
+    // Kein Ort im Dokument.
+    let key = tool["key"].as_str().unwrap().to_string();
+    assert!(matches!(rt.show(&key), Reply::Answer(_)));
+}

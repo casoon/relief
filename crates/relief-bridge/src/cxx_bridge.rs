@@ -299,6 +299,8 @@ pub mod ffi {
         Perform,
         Escape,
         Scroll,
+        /// Werkzeug der Website aufrufen (`tool_*`), dann `finish_tool`.
+        InvokeTool,
     }
 
     #[derive(Debug)]
@@ -338,6 +340,10 @@ pub mod ffi {
         text: String,
         steps: Vec<Step>,
         scroll: ScrollDirection,
+        /// Bei `InvokeTool`: Baum des Dokuments, Name, Eingabe als JSON.
+        tool_tree: String,
+        tool_name: String,
+        tool_input: String,
     }
 
     /// Sprungmarke mit Position (Seitenkoordinaten, CSS-Pixel).
@@ -479,6 +485,13 @@ pub mod ffi {
         /// Antwort auf die ausgeführten Schritte bzw. Escape, gegen den
         /// jetzigen Graphen (`Runtime::finish`).
         fn finish_command(runtime: &mut Runtime) -> String;
+        /// Antwort nach einem Werkzeugaufruf (`Runtime::finish_tool`):
+        /// `status` und `output` (JSON) wie `WebMCP.toolResponded`.
+        fn finish_tool(runtime: &mut Runtime, status: &str, output: &str) -> String;
+        /// Werkzeuge des Dokuments `tree` ersetzen (`Runtime::set_tools`,
+        /// `tools_json`: `WebMCP.Tool`-Objekte); Anzahl, -1 wenn nicht
+        /// lesbar.
+        fn set_tools(runtime: &mut Runtime, tree: &str, tools_json: &str) -> i32;
         /// Security-Log seit dem letzten Abholen, ein JSON-Objekt je Eintrag
         /// (`Runtime::take_security_log`).
         fn take_security_log(runtime: &mut Runtime) -> Vec<String>;
@@ -737,6 +750,9 @@ fn reply_to_ffi(reply: Reply) -> ffi::Reply {
         text: String::new(),
         steps: Vec::new(),
         scroll: ffi::ScrollDirection::Down,
+        tool_tree: String::new(),
+        tool_name: String::new(),
+        tool_input: String::new(),
     };
     match reply {
         Reply::Answer(text) => out.text = text,
@@ -753,6 +769,12 @@ fn reply_to_ffi(reply: Reply) -> ffi::Reply {
         Reply::Perform(steps) => {
             out.kind = ffi::ReplyKind::Perform;
             out.steps = steps.into_iter().map(step_to_ffi).collect();
+        }
+        Reply::InvokeTool { tree, name, input } => {
+            out.kind = ffi::ReplyKind::InvokeTool;
+            out.tool_tree = tree;
+            out.tool_name = name;
+            out.tool_input = input;
         }
     }
     out
@@ -785,6 +807,16 @@ fn step_to_ffi(step: Step) -> ffi::Step {
 
 fn finish_command(runtime: &mut Runtime) -> String {
     runtime.finish()
+}
+
+fn finish_tool(runtime: &mut Runtime, status: &str, output: &str) -> String {
+    runtime.finish_tool(status, output)
+}
+
+fn set_tools(runtime: &mut Runtime, tree: &str, tools_json: &str) -> i32 {
+    runtime
+        .set_tools(tree, tools_json)
+        .map_or(-1, |n| i32::try_from(n).unwrap_or(i32::MAX))
 }
 
 fn take_security_log(runtime: &mut Runtime) -> Vec<String> {

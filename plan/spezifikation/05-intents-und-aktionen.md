@@ -542,6 +542,35 @@ Browserdaten erzeugt, nicht aus einer freien Modellzusammenfassung. Er nennt
 mindestens Verb, Ziel und Wert beziehungsweise Zieladresse; sensible Werte
 werden passend maskiert.
 
+### Werkzeuge der Website (WebMCP) [umgesetzt, Paket 143; im Fork belegt]
+
+Befehle: „werkzeuge“ listet die erklärten Werkzeuge (Name, Beschreibung
+als Zitat, Eingaben aus dem Schema, Risiko), „was ist hier“ nennt ihre Zahl,
+„werkzeug <Name> [mit <Feld> = <Wert>, …]“ ruft eines auf
+(`relief_interaction::tools`, `Command::InvokeTool`). Ein Komma ohne
+folgendes „=“ gehört zum Wert davor.
+
+- **Eingaben** aus dem Schema der Website (nur `properties` der obersten
+  Ebene): Typ `integer`/`number`/`boolean`/Text, `enum`, `required`; fehlt
+  ein Pflichtfeld, nennt die Antwort alle mit Beispiel. Felder mit
+  `format: password` oder Namen wie „pin“, „iban“, „passwort“ sind in
+  Rückfrage und Antwort verdeckt; in Protokollen alles hinter „mit“.
+- **Risiko** [Entscheidung]: HIGH bei `consequential`, ohne `read_only`
+  oder mit Signalwort im Namen (wie bei Buttons); sonst MEDIUM, nie LOW —
+  `read_only` ist eine Behauptung. Die Beschreibung fließt nicht ein. HIGH
+  verlangt eine Rückfrage, MEDIUM mit Profil „Änderungen erst nach
+  Rückfrage“ auch.
+- **Bestätigung**: gebunden an Seite, Dokument, Werkzeug samt Definition,
+  Eingabe und Risiko (`security::ToolBinding`); erklärt die Website das
+  Werkzeug neu oder ändert sich eine Eingabe, gilt sie nicht. Die
+  Rückfrage nennt Werkzeug, Dokument, Eingaben und die Beschreibung als
+  Zitat. Security-Log: Aktionsart `invoke_tool`, ohne Name und Eingabe.
+- **Ausführung** (`Outcome::InvokeTool`): Der Host ruft auf, wartet auf die
+  Antwort (Fork: höchstens 5 s), dann auf Ruhe; die Antwort nennt das
+  Ergebnis der Website als gekürztes Zitat („nicht geprüft“) und was sich
+  auf der Seite geändert hat. Ein Aufruf zählt als Handlung, auch wenn er
+  scheitert. Nur im Fork; der CDP-Host liest keine Werkzeuge.
+
 ### Die Einstufung ist selbst eine Inferenz [Annahme]
 
 Ob ein Button „Bestellung auslösen" bedeutet, weiß Relief nur aus Name,

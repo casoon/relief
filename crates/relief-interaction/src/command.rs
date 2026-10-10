@@ -51,6 +51,10 @@ pub enum Command {
     FirstError,
     /// Zurück an den Ort vor dem Sprung zum Fehler.
     Back,
+    /// Von der Website erklärte Werkzeuge (WebMCP, Paket 143).
+    Tools,
+    /// Werkzeug aufrufen: Name, Eingaben als (Feld, Wert).
+    InvokeTool(String, Vec<(String, String)>),
     Help,
 }
 
@@ -117,6 +121,26 @@ pub fn parse(input: &str) -> Result<Command, String> {
     }
     if lower == "help" || lower == "hilfe" {
         return Ok(Command::Help);
+    }
+    // Werkzeuge der Website (WebMCP) — vor „welche … gibt es“.
+    const TOOLS: &[&str] = &[
+        "werkzeuge",
+        "welche werkzeuge gibt es",
+        "liste werkzeuge",
+        "list tools",
+        "tools",
+    ];
+    if TOOLS.contains(&lower.as_str()) {
+        return Ok(Command::Tools);
+    }
+    if let Some(rest) = strip_any(
+        text,
+        &["werkzeug ", "nutze werkzeug ", "tool ", "use tool "],
+    ) {
+        return Ok(match split_word(rest, &[" mit ", " with "]) {
+            Some((name, inputs)) => Command::InvokeTool(clean(name), tool_inputs(inputs)?),
+            None => Command::InvokeTool(clean(rest), Vec::new()),
+        });
     }
     if let Some(cmd) = parse_fixed(&lower) {
         return Ok(cmd);
@@ -472,7 +496,8 @@ nächstes/vorheriges Formularfeld · lies den Abschnitt [<Name>] · welche <Opti
 öffne <Ziel> · schließe den Dialog · fülle <Feld> mit <Wert> · wähle <Option> [bei <Feld>] · \
 erhöhe/verringere <Feld> · scrolle nach unten/oben/zum Anfang/zum Ende · \
 welcher Dialog ist offen · cookies ablehnen · cookie-einstellungen öffnen · \
-was ist hinter dem Dialog · was fehlt noch · fehler vorlesen · zum ersten fehler · zurück";
+was ist hinter dem Dialog · was fehlt noch · fehler vorlesen · zum ersten fehler · zurück · \
+werkzeuge · werkzeug <Name> [mit <Feld> = <Wert>, …]";
 
 fn strip_any<'a>(text: &'a str, prefixes: &[&str]) -> Option<&'a str> {
     let lower = text.to_lowercase();
@@ -500,6 +525,30 @@ fn split_word<'a>(text: &'a str, words: &[&str]) -> Option<(&'a str, &'a str)> {
         .find_map(|w| lower.find(w).map(|i| (&text[..i], &text[i + w.len()..])))
 }
 
+/// „datum = 14.10., personen = 2“ → Paare. Ein Komma ohne folgendes „=“
+/// gehört zum Wert davor.
+fn tool_inputs(text: &str) -> Result<Vec<(String, String)>, String> {
+    let mut pairs: Vec<(String, String)> = Vec::new();
+    for part in text.split(',') {
+        match part.split_once('=') {
+            Some((key, value)) => pairs.push((key.trim().to_string(), clean(value))),
+            None => match pairs.last_mut() {
+                Some((_, value)) => {
+                    value.push(',');
+                    value.push_str(part);
+                }
+                None => {
+                    return Err(format!(
+                        "Eingaben als „Feld = Wert, …“, nicht verstanden: „{}“.",
+                        text.trim()
+                    ))
+                }
+            },
+        }
+    }
+    Ok(pairs)
+}
+
 /// Artikel und Anführungszeichen weg: „den Warenkorb“ → „Warenkorb“.
 fn clean(s: &str) -> String {
     let s = s.trim().trim_matches(['"', '„', '“', '\'']);
@@ -514,6 +563,33 @@ fn clean(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn werkzeuge_der_website() {
+        assert_eq!(parse("Welche Werkzeuge gibt es?"), Ok(Command::Tools));
+        assert_eq!(
+            parse("werkzeug suche"),
+            Ok(Command::InvokeTool("suche".into(), vec![]))
+        );
+        assert_eq!(
+            parse("Werkzeug termin_buchen mit datum = 14.10.2026, personen = 2"),
+            Ok(Command::InvokeTool(
+                "termin_buchen".into(),
+                vec![
+                    ("datum".into(), "14.10.2026".into()),
+                    ("personen".into(), "2".into())
+                ]
+            ))
+        );
+        assert_eq!(
+            parse("werkzeug notiz mit text = Hallo, Welt"),
+            Ok(Command::InvokeTool(
+                "notiz".into(),
+                vec![("text".into(), "Hallo, Welt".into())]
+            ))
+        );
+        assert!(parse("werkzeug notiz mit Hallo").is_err());
+    }
+
     use super::*;
 
     #[test]
