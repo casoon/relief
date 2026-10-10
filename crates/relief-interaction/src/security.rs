@@ -223,9 +223,13 @@ impl Confirmation {
         }
     }
 
+    pub(crate) fn expired(&self, ttl: Duration) -> bool {
+        self.issued.elapsed() >= ttl
+    }
+
     /// Einlösen für den Plan, der jetzt entstanden ist.
     pub(crate) fn redeem(self, now: &Binding, ttl: Duration) -> Result<PlanId, Reason> {
-        if self.issued.elapsed() >= ttl {
+        if self.expired(ttl) {
             return Err(Reason::Expired);
         }
         match self.binding.changed(now) {

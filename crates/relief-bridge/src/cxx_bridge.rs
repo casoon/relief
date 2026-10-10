@@ -469,6 +469,10 @@ pub mod ffi {
         /// Methode der CDP-Domäne `Relief.*`, Parameter als JSON
         /// (`devtools::command`).
         fn devtools_command(runtime: &Runtime, method: &str, params: &str) -> DevToolsReply;
+        /// Eingabe von `Relief.runCommand`, wenn der MCP-Weg sie annimmt:
+        /// `ok` mit der Eingabe als Text in `json`, sonst die Fehlermeldung
+        /// (`devtools::external_input`).
+        fn devtools_external_input(runtime: &Runtime, params: &str) -> DevToolsReply;
         /// Eingabe für Protokoll und Log der Befehlsleiste, Wert verdeckt
         /// (`relief_interaction::redact_input`).
         fn redact_input(input: &str) -> String;
@@ -702,6 +706,19 @@ fn devtools_command(runtime: &Runtime, method: &str, params: &str) -> ffi::DevTo
         Ok(value) => ffi::DevToolsReply {
             ok: true,
             json: value.to_string(),
+        },
+        Err(message) => ffi::DevToolsReply {
+            ok: false,
+            json: message,
+        },
+    }
+}
+
+fn devtools_external_input(runtime: &Runtime, params: &str) -> ffi::DevToolsReply {
+    match crate::devtools::external_input(runtime, params) {
+        Ok(input) => ffi::DevToolsReply {
+            ok: true,
+            json: input,
         },
         Err(message) => ffi::DevToolsReply {
             ok: false,

@@ -52,6 +52,43 @@ Semantic View ab (→ 09). Dazu kommen:
 | Fähigkeitsprofile | kombinierbare Fähigkeiten steuern Ausgabe, Eingabe und Darstellung; keine Diagnosemodi (→ 08) | 41 |
 | Änderungen ansagen | „Warenkorb jetzt 1“ aus dem Delta | in 25/26 |
 | Fehlende Namen ergänzen | Resolver, auf dem Gerät über das Modell des Betriebssystems möglich (Stufe `os`, → 06) | 28 |
+| MCP-Server | Assistenten wie Claude lesen das Seitenmodell und schicken Befehle; bestätigt wird nur in Relief | 142 ✓ (unten) |
+
+### MCP-Server [umgesetzt 2026-10-10, Paket 142]
+
+Relief als Werkzeug für KI-Assistenten über das Model Context Protocol,
+ohne die Grenze aus 07 aufzugeben: Der Assistent schickt Befehle in
+Sprache, Relief löst auf, prüft, fragt zurück; bestätigt wird nur in
+Relief (→ 07, „Bestätigung nicht über den MCP-Weg“).
+
+- **Server:** `examples/mcp/server.mjs` (Node, eigener Prozess, stdio),
+  spricht den aktiven Tab über CDP an (`/json/list`, erstes Ziel vom Typ
+  `page` ohne `chrome:`/`devtools:`; `RELIEF_CDP`, Standard
+  `http://127.0.0.1:9222`), eine WebSocket-Verbindung je Aufruf.
+  Werkzeuge: `relief_page_model` → `Relief.getPageModel`, `relief_command`
+  → `Relief.runCommand`, `relief_assert` → `Relief.assert`. Keine
+  Werkzeuge für Koordinaten, Selektoren oder JavaScript; Herkunftsangaben
+  gehen unverändert an den Assistenten.
+- **Abhängigkeiten** [Entscheidung]: das offizielle MCP-SDK
+  (`@modelcontextprotocol/sdk` 1.30.1) und `zod` 4.6.5, das das SDK für
+  Werkzeugschemas verlangt; Node statt Rust, weil der Server nur CDP und MCP
+  übersetzt, außerhalb des Kerns liegt und wie `examples/playwright/`
+  daneben steht.
+- **`Relief.runCommand`** (`crates/relief-bridge/src/devtools.rs`,
+  `ReliefTabHelper::DevToolsCommand`): Parameter `command`, Ergebnis
+  `answer`, `acted` (auf der Seite gesendet), `confirmationPending`.
+  Ausgeführt wie eine Eingabe der Befehlsleiste (`Interact`, mit Angaben
+  zum Formularziel), nur im Fork; der CDP-Host kennt die Domäne nicht.
+- **Belegt** (M4, 2026-10-10): MCP-Client aus dem SDK über stdio gegen den
+  eigenen Build auf `form-clean.html`: drei Werkzeuge gelistet; „was ist
+  hier“ und „fülle Name mit Test“ (ausgeführt), `feldnamen` ohne Befund;
+  „klicke Rückruf anfordern“ → Rückfrage mit Formularziel und
+  `confirmationPending`; „ja“ und „was ist hier“ → Fehler; „abbrechen“ →
+  „Abgebrochen. Nichts ausgeführt.“
+- **Grenze:** Der Server wählt den zuletzt aktiven Tab; mehrere Fenster
+  oder ein Tab-Wechsel während eines Ablaufs sind nicht abgedeckt. Nicht
+  als npm-Paket oder in einem MCP-Verzeichnis veröffentlicht. Von Websites
+  erklärte Werkzeuge (WebMCP) liest Relief nicht.
 
 ### Formular-Assistent [umgesetzt 2026-09-30, Paket 39]
 
@@ -425,6 +462,7 @@ die Domäne `Relief.*` (`crates/relief-bridge/src/devtools.rs`):
 |---|---|---|
 | `Relief.getPageModel` | — | `pageType` (Wert, Herkunft, Evidence), `groups` (Art, Name, Bedienelemente), `primaryAction`, Zahl der Bedienelemente |
 | `Relief.assert` | `assertion` wie `assert:` | `findings` (`a11y-report`), `failed` |
+| `Relief.runCommand` | `command` (Befehl in Sprache) | `answer`, `acted`, `confirmationPending`; führt aus, → „MCP-Server“ |
 
 - **Weg:** `ChromeDevToolsManagerDelegate::HandleCommand` reicht Nachrichten
   mit Methode `Relief.*` an `relief::HandleDevToolsCommand`

@@ -10,6 +10,7 @@
 
 #include "base/command_line.h"
 #include "base/functional/bind.h"
+#include "base/json/json_writer.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -20,6 +21,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "base/values.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/browser_accessibility_state.h"
@@ -321,26 +323,29 @@ void ReliefTabHelper::ChooseMark(std::string label) {
            base::BindOnce(
                [](base::WeakPtr<ReliefTabHelper> self, std::string input,
                   ReliefExecutor::Result result) {
-                 if (!self) {
-                   return;
-                 }
-                 // Rückfragen und Fehler gehören in die Leiste: dort lassen
-                 // sie sich beantworten.
-                 const bool needs_panel = !result.acted;
-                 self->external_answer_ = std::pair(input, result);
-                 for (InspectorObserver& observer : self->observers_) {
-                   observer.OnExternalAnswer(input, result);
-                   self->external_answer_.reset();
-                 }
-                 if (needs_panel) {
-                   if (tabs::TabInterface* tab =
-                           tabs::TabInterface::MaybeGetFromContents(
-                               self->web_contents())) {
-                     ShowInspector(*tab);
-                   }
+                 if (self) {
+                   self->ShowExternalAnswer(input, result);
                  }
                },
                weak_factory_.GetWeakPtr(), input));
+}
+
+void ReliefTabHelper::ShowExternalAnswer(const std::string& input,
+                                         const ReliefExecutor::Result& result) {
+  // Rückfragen und Fehler gehören in die Leiste: dort lassen sie sich
+  // beantworten.
+  const bool needs_panel = !result.acted;
+  external_answer_ = std::pair(input, result);
+  for (InspectorObserver& observer : observers_) {
+    observer.OnExternalAnswer(input, result);
+    external_answer_.reset();
+  }
+  if (needs_panel) {
+    if (tabs::TabInterface* tab =
+            tabs::TabInterface::MaybeGetFromContents(web_contents())) {
+      ShowInspector(*tab);
+    }
+  }
 }
 
 void ReliefTabHelper::WatchKeys(content::RenderFrameHost* frame) {
@@ -1153,9 +1158,53 @@ void ReliefTabHelper::DevToolsCommand(
     const std::string& method,
     const std::string& params,
     base::OnceCallback<void(bridge::DevToolsReply)> done) {
+  if (method == "Relief.runCommand") {
+    runtime_.AsyncCall(&RuntimeHost::ExternalInput)
+        .WithArgs(params)
+        .Then(base::BindOnce(&ReliefTabHelper::OnExternalInput,
+                             weak_factory_.GetWeakPtr(), std::move(done)));
+    return;
+  }
   runtime_.AsyncCall(&RuntimeHost::DevToolsCommand)
       .WithArgs(method, params)
       .Then(std::move(done));
+}
+
+void ReliefTabHelper::OnExternalInput(
+    base::OnceCallback<void(bridge::DevToolsReply)> done,
+    bridge::DevToolsReply checked) {
+  if (!checked.ok) {
+    std::move(done).Run(std::move(checked));
+    return;
+  }
+  const std::string input(checked.json);
+  Interact(
+      input,
+      base::BindOnce(
+          [](base::WeakPtr<ReliefTabHelper> self, std::string input,
+             base::OnceCallback<void(bridge::DevToolsReply)> done,
+             ReliefExecutor::Result result) {
+            if (!self) {
+              return;
+            }
+            self->ShowExternalAnswer(
+                "(Assistent) " + std::string(bridge::redact_input(input)),
+                result);
+            self->runtime_.AsyncCall(&RuntimeHost::ConfirmationTarget)
+                .Then(base::BindOnce(
+                    [](base::OnceCallback<void(bridge::DevToolsReply)> done,
+                       ReliefExecutor::Result result, bridge::Found open) {
+                      base::DictValue body;
+                      body.Set("answer", result.text);
+                      body.Set("acted", result.acted);
+                      body.Set("confirmationPending", open.found);
+                      std::move(done).Run(bridge::DevToolsReply{
+                          true,
+                          rust::String(base::WriteJson(body).value_or("{}"))});
+                    },
+                    std::move(done), std::move(result)));
+          },
+          weak_factory_.GetWeakPtr(), input, std::move(done)));
 }
 
 void ReliefTabHelper::ToggleListening(

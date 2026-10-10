@@ -147,7 +147,10 @@ class ReliefTabHelper
             base::OnceCallback<void(ReliefExecutor::Result)> done);
   void FinishCommand(base::OnceCallback<void(std::string)> done);
   // Methode der CDP-Domäne `Relief.*` gegen den aktuellen Graphen
-  // (Paket 45, → devtools/relief_devtools.h).
+  // (Paket 45, → devtools/relief_devtools.h). `Relief.runCommand`
+  // (Paket 142) führt einen Befehl wie die Befehlsleiste aus, nachdem die
+  // Runtime ihn für den MCP-Weg zugelassen hat; Antwort und Rückfrage
+  // erscheinen im Relief-Panel, bestätigt wird nur dort.
   void DevToolsCommand(const std::string& method,
                        const std::string& params,
                        base::OnceCallback<void(bridge::DevToolsReply)> done);
@@ -245,6 +248,13 @@ class ReliefTabHelper
   void HideMarks();
   bool OnMarksKey(const input::NativeWebKeyboardEvent& event);
   void ChooseMark(std::string label);
+  // Antwort auf eine Eingabe, die nicht aus der Befehlsleiste kam
+  // (Sprungmarke, Assistent), ins Panel; Rückfragen und Fehler öffnen es,
+  // damit sie sich dort beantworten lassen.
+  void ShowExternalAnswer(const std::string& input,
+                          const ReliefExecutor::Result& result);
+  void OnExternalInput(base::OnceCallback<void(bridge::DevToolsReply)> done,
+                       bridge::DevToolsReply checked);
   void NotifyGraphChanged();
   // Blink-Pixel je CSS-Pixel für die Positionen: Geräte-Skalierung ×
   // Browser-Zoom.
