@@ -177,7 +177,7 @@ oder Finder), `--disable-relief` schaltet es ab (Paket 117), beschrieben in
 - Linie A: 41, 26, 29 erledigt (Nachträge 113, 116; 114, 115 erledigt) (40, 80, 91, 110 erledigt);
   47 läuft mit 20 und 25 als Abnahme mit.
 - Linie B: 45 und 44 erledigt, 43 zurückgestellt; 130 wartet auf ein erneutes Auftreten (85, 105, 106 erledigt).
-- Produkt: 37 erst vor einer Weitergabe an Dritte.
+- Produkt: 37 erst vor einer Weitergabe an Dritte; 142 (MCP) beginnt mit der Bestätigungsfrage.
 - Vor jeder Modellintegration (28 im Fork, 34): 48 ✓, 58 ✓, 75 ✓.
 
 | Nr | Thema | Umgebung | Status | Abhängig von | Datei |
@@ -195,3 +195,4 @@ oder Finder), `--disable-relief` schaltet es ab (Paket 117), beschrieben in
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
 | 130 | CDP-Host: `tabfolge` in einen fremden Frame, Ursache des seltenen Ausfalls | Cloud | wartet auf erneutes Auftreten | 106 ✓ | [130](130-tabfolge-ausfall-ursache.md) |
+| 142 | MCP-Server über `Relief.*` (Bestätigung nur in Relief) | Cloud + M4 | offen (Schritt 1: Entscheidung) | 45 ✓, 48 ✓, 58 ✓ | [142](142-mcp-server.md) |
