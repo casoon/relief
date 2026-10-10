@@ -17,6 +17,7 @@
 //! | [`validate`] | Bedienelement + Aktion → [`validate::ActionPlan`] mit Risikoklasse |
 //! | [`respond`] | Antworttexte für Abfragen und Aktionsergebnisse |
 //! | [`session`] | Eingabe → Antwort oder auszuführender Plan; Position; Rückfragen; Aufgabendateien |
+//! | [`tools`] | von der Website erklärte Werkzeuge (WebMCP): Liste, Eingaben nach Schema, Risiko |
 //! | [`security`] | Bestätigungstoken, Security-Log, Grenzen (Namen) |
 //! | `assertions` | Formular-Zusicherungen → Befunde (`a11y-report`); nur mit Feature `assertions` |
 
@@ -40,6 +41,7 @@ pub mod rules;
 pub mod security;
 pub mod session;
 pub mod speech;
+pub mod tools;
 pub mod validate;
 
 pub use command::{parse, Command, ScrollDirection, Step};

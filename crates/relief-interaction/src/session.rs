@@ -35,9 +35,11 @@ use crate::resolve::{
 };
 use crate::respond;
 use crate::security::{
-    action_name, is_sensitive_field, Binding, Confirmation, Decision, PlanId, Reason,
-    SecurityEvent, SecurityLog, CONFIRMATION_TTL, HTML_AUTOCOMPLETE, INPUT_TYPE,
+    action_name, is_sensitive_field, Binding, Bound, Confirmation, Decision, PlanId, Reason,
+    SecurityEvent, SecurityLog, ToolBinding, CONFIRMATION_TTL, HTML_AUTOCOMPLETE, INPUT_TYPE,
+    TOOL_ACTION,
 };
+use crate::tools::{self, ToolPlan};
 use crate::validate::{plan_navigation, plan_on_page, ActionKind, ActionPlan, Risk};
 
 /// Was der Host als Nächstes tun soll.
@@ -57,6 +59,9 @@ pub enum Outcome {
     /// Dokument scrollen (kein Zielelement, LOW), Antwort über
     /// [`respond::scrolled`].
     Scroll(ScrollDirection),
+    /// Geprüften Aufruf eines Werkzeugs der Website ausführen (WebMCP,
+    /// Paket 143), Ruhe abwarten, dann [`Session::tool_performed`].
+    InvokeTool { plan: ToolPlan, label: String },
 }
 
 /// Eingabe ohne Seitenstand zerlegen: `!` am Anfang bestätigt die eben
@@ -101,6 +106,8 @@ pub fn redact_input(input: &str) -> String {
         Ok((_, Command::SetValue(_, value) | Command::Select(_, value))) if !value.is_empty() => {
             input.replace(&value, "(verdeckt)")
         }
+        // Werkzeug: Name bleibt, alles hinter „mit“ ist Eingabe.
+        Ok((_, Command::InvokeTool(_, pairs))) if !pairs.is_empty() => redact_unparsed(input),
         Ok(_) => input.to_string(),
         Err(_) => redact_unparsed(input),
     }
@@ -204,6 +211,9 @@ pub struct Session {
     /// Ziel der offenen Rückfrage: „ja“ plant genau dieses neu und löst
     /// die Rückfrage ein.
     confirm_target: Option<(Control, ActionKind)>,
+    /// Werkzeugaufruf der offenen Rückfrage (Name, Eingaben): „ja“ plant
+    /// ihn neu und löst die Rückfrage ein.
+    confirm_tool: Option<(String, Vec<(String, String)>)>,
     /// Warum die Bestätigung vor der offenen Rückfrage nicht galt; eine
     /// neu gestellte Rückfrage ([`Session::reconfirm`]) nennt ihn wieder.
     confirm_refused: Option<Reason>,
@@ -274,6 +284,7 @@ impl Default for Session {
             choices: None,
             last_input: None,
             confirm_target: None,
+            confirm_tool: None,
             confirm_refused: None,
             carry_refusal: None,
             effects: crate::profile::Effects::default(),
@@ -398,6 +409,7 @@ impl Session {
             let open = choices.is_some() || self.confirmation.is_some();
             self.confirmation = None;
             self.confirm_target = None;
+            self.confirm_tool = None;
             self.last_input = None;
             return Pending::Done(Outcome::Answer(if open {
                 "Abgebrochen. Nichts ausgeführt.".into()
@@ -406,6 +418,10 @@ impl Session {
             }));
         }
         if CONFIRM.contains(&text.as_str()) && self.confirmation.is_some() {
+            if let Some((name, pairs)) = self.confirm_tool.take() {
+                let offered = self.confirmation.take();
+                return Pending::Done(self.plan_tool(model, &name, pairs, true, offered));
+            }
             if let Some((control, kind)) = self.confirm_target.take() {
                 // Gegen den aktuellen Stand: dasselbe Element, falls noch da.
                 let current = graph
@@ -542,10 +558,22 @@ impl Session {
         // Jede Eingabe verbraucht die offene Rückfrage (einlösen oder verwerfen).
         let offered = self.confirmation.take();
         self.confirm_target = None;
+        self.confirm_tool = None;
         let here = self.position(focus);
         let (target, kind) = match cmd {
             Command::Help => return Outcome::Answer(command::HELP.into()),
-            Command::Describe => return Outcome::Answer(respond::describe(graph)),
+            Command::Describe => {
+                let mut text = respond::describe(graph);
+                if let Some(tools) = tools::summary(model) {
+                    text.push(' ');
+                    text.push_str(&tools);
+                }
+                return Outcome::Answer(text);
+            }
+            Command::Tools => return Outcome::Answer(tools::list(model)),
+            Command::InvokeTool(name, pairs) => {
+                return self.plan_tool(model, &name, pairs, confirmed, offered)
+            }
             Command::ListActions => return Outcome::Answer(respond::list_actions(graph)),
             Command::ListHeadings => return Outcome::Answer(respond::list_headings(graph)),
             Command::Overlays => return Outcome::Answer(respond::overlays(graph)),
@@ -803,7 +831,7 @@ impl Session {
             let (id, redeemed) = match offered {
                 Some(token) => (
                     Some(token.id),
-                    token.redeem(&binding, self.confirmation_ttl),
+                    token.redeem(&Bound::Action(binding.clone()), self.confirmation_ttl),
                 ),
                 None => (None, Err(Reason::NoPrompt)),
             };
@@ -839,6 +867,7 @@ impl Session {
         }
         self.confirmation = Some(Confirmation::new(id, binding));
         self.confirm_target = Some((control, kind_for_confirm));
+        self.confirm_tool = None;
         self.confirm_refused = refused;
         Outcome::Answer(answer)
     }
@@ -884,6 +913,127 @@ impl Session {
                 focus_before.as_ref(),
                 position_after.as_ref(),
                 sensitive.then_some(&plan.target),
+            )
+        )
+    }
+
+    /// Aufruf eines Werkzeugs der Website (Paket 143): finden, Eingabe nach
+    /// Schema bilden, Risiko einstufen; HIGH (und mit Profil auch MEDIUM)
+    /// nur über eine eingelöste Rückfrage, die an Werkzeug, Definition,
+    /// Dokument und Eingabe gebunden ist.
+    fn plan_tool(
+        &mut self,
+        model: &SemanticGraph,
+        name: &str,
+        pairs: Vec<(String, String)>,
+        confirmed: bool,
+        offered: Option<Confirmation>,
+    ) -> Outcome {
+        let (tree, tool) = match tools::find(model, name) {
+            Ok(found) => found,
+            Err(msg) => return Outcome::Answer(msg),
+        };
+        let input = match tools::build_input(tool, &pairs) {
+            Ok(input) => input,
+            Err(msg) => {
+                self.log.push(SecurityEvent::rejected(TOOL_ACTION));
+                return Outcome::Answer(msg);
+            }
+        };
+        let mut plan = tools::plan(tree, tool, input);
+        if self.effects.confirm_changes && !plan.requires_confirmation {
+            plan.requires_confirmation = true;
+            plan.notes
+                .push("Profil: Änderungen erst nach Rückfrage".into());
+        }
+        let label = format!("Werkzeug „{}“ der Website", tool.name);
+        if !plan.requires_confirmation {
+            let id = self.next_plan();
+            self.log
+                .push(SecurityEvent::tool(Decision::Perform, Some(id), &plan));
+            return Outcome::InvokeTool { plan, label };
+        }
+
+        let binding = ToolBinding::new(&plan, tool, model);
+        let mut refused = None;
+        if confirmed {
+            let (id, redeemed) = match offered {
+                Some(token) => (
+                    Some(token.id),
+                    token.redeem(&Bound::Tool(binding.clone()), self.confirmation_ttl),
+                ),
+                None => (None, Err(Reason::NoPrompt)),
+            };
+            match redeemed {
+                Ok(id) => {
+                    self.log.push(SecurityEvent::tool(
+                        Decision::PerformConfirmed,
+                        Some(id),
+                        &plan,
+                    ));
+                    return Outcome::InvokeTool { plan, label };
+                }
+                Err(reason) => {
+                    self.log
+                        .push(SecurityEvent::tool(Decision::Reject, id, &plan).because(reason));
+                    refused = Some(reason);
+                }
+            }
+        }
+
+        let id = self.next_plan();
+        self.log.push(SecurityEvent::tool(
+            Decision::AskConfirmation,
+            Some(id),
+            &plan,
+        ));
+        let origin = model
+            .trees
+            .get(&plan.tree)
+            .and_then(|t| t.data.url.as_deref())
+            .map(|u| format!(", Dokument: {}", u.split(['?', '#']).next().unwrap_or(u)))
+            .unwrap_or_default();
+        let answer = format!(
+            "Bestätigung nötig ({:?}): {} — Aktion: {label}{origin}, Eingaben: {}. \
+             Beschreibung der Website (nicht geprüft): {}. „ja“ (oder „!“ vor denselben \
+             Befehl) bestätigt einmal und nur genau diesen Aufruf, „abbrechen“ verwirft ihn.{}",
+            plan.risk,
+            plan.notes.join("; "),
+            tools::input_text(tool, &plan.input),
+            tools::quote(&tool.description),
+            refused
+                .map(|r| format!(" Die Bestätigung galt nicht: {r}."))
+                .unwrap_or_default(),
+        );
+        self.confirmation = Some(Confirmation::new(id, binding));
+        self.confirm_tool = Some((tool.name.clone(), pairs));
+        self.confirm_target = None;
+        Outcome::Answer(answer)
+    }
+
+    /// Antwort nach einem Werkzeugaufruf (→ [`Outcome::InvokeTool`]):
+    /// Antwort der Website als Zitat (`status` wie WebMCP:
+    /// `Completed`, `Canceled`, `Error`), dann was sich auf der Seite
+    /// geändert hat.
+    pub fn tool_performed(
+        &mut self,
+        label: &str,
+        status: &str,
+        output: &str,
+        before: &SemanticGraph,
+        after: &SemanticGraph,
+    ) -> String {
+        let focus_before = self.position(focused(before).as_ref());
+        let position_after = self.position(focused(after).as_ref());
+        format!(
+            "{label} aufgerufen. {} {}",
+            tools::response_text(status, output),
+            respond::describe_diff_at(
+                before,
+                after,
+                focus_before.as_ref(),
+                position_after.as_ref(),
+                None,
             )
         )
     }
@@ -1468,6 +1618,155 @@ mod tests {
         s.discard_confirmation();
         let text = run(&mut s, &model, true, order()).unwrap();
         assert!(text.contains("keine offene Rückfrage"), "{text}");
+    }
+
+    /// Eingabe wie im Host: offene Rückfrage zuerst, dann Befehl.
+    fn say(s: &mut Session, model: &SemanticGraph, input: &str) -> Outcome {
+        let graph = Graph::build(model);
+        match s.pending_reply(&graph, model, input) {
+            Pending::Done(outcome) => outcome,
+            Pending::Command => {
+                let (confirmed, cmd) = parse_input(input).unwrap();
+                s.handle(&graph, model, confirmed, cmd, None)
+            }
+        }
+    }
+
+    fn with_tool(tool: relief_model::DeclaredTool) -> SemanticGraph {
+        let mut model = crate::graph::sample_tree();
+        let root = model.root.clone().unwrap();
+        model.set_tools(root, vec![tool]);
+        model
+    }
+
+    fn termin(read_only: bool, consequential: bool) -> relief_model::DeclaredTool {
+        relief_model::DeclaredTool {
+            name: "termin_buchen".into(),
+            description: "Bucht einen Termin.".into(),
+            input_schema: Some(
+                r#"{"type":"object","properties":{"datum":{"type":"string"}},"required":["datum"]}"#
+                    .into(),
+            ),
+            read_only,
+            untrusted_content: false,
+            consequential,
+            dom_node_id: None,
+        }
+    }
+
+    fn answer(outcome: Outcome) -> String {
+        match outcome {
+            Outcome::Answer(text) => text,
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn werkzeug_nur_nach_rueckfrage() {
+        let model = with_tool(termin(false, true));
+        let mut s = Session::new();
+        let ask = answer(say(
+            &mut s,
+            &model,
+            "werkzeug termin_buchen mit datum = morgen",
+        ));
+        assert!(ask.starts_with("Bestätigung nötig (High)"), "{ask}");
+        assert!(ask.contains("laut Website folgenreich"), "{ask}");
+        assert!(ask.contains("datum = „morgen“"), "{ask}");
+        let Outcome::InvokeTool { plan, .. } = say(&mut s, &model, "ja") else {
+            panic!("„ja“ führt den Aufruf aus");
+        };
+        assert_eq!(plan.input, r#"{"datum":"morgen"}"#);
+        // Dieselbe Bestätigung ein zweites Mal: nichts offen.
+        let again = answer(say(
+            &mut s,
+            &model,
+            "!werkzeug termin_buchen mit datum = morgen",
+        ));
+        assert!(again.contains("keine offene Rückfrage"), "{again}");
+        assert_eq!(
+            decisions(&mut s),
+            vec![
+                Decision::AskConfirmation,
+                Decision::PerformConfirmed,
+                Decision::Reject,
+                Decision::AskConfirmation
+            ]
+        );
+    }
+
+    #[test]
+    fn werkzeug_neu_erklaert_verlangt_neue_bestaetigung() {
+        let model = with_tool(termin(false, true));
+        let mut s = Session::new();
+        answer(say(
+            &mut s,
+            &model,
+            "werkzeug termin_buchen mit datum = morgen",
+        ));
+        let mut changed = termin(false, true);
+        changed.description = "Bucht und bezahlt sofort.".into();
+        let changed = with_tool(changed);
+        let text = answer(say(&mut s, &changed, "ja"));
+        assert!(text.starts_with("Bestätigung nötig"), "{text}");
+        assert!(text.contains("galt nicht"), "{text}");
+        // Andere Eingabe vor „ja“: neue Rückfrage, keine Ausführung.
+        answer(say(
+            &mut s,
+            &model,
+            "werkzeug termin_buchen mit datum = morgen",
+        ));
+        let text = answer(say(
+            &mut s,
+            &model,
+            "!werkzeug termin_buchen mit datum = heute",
+        ));
+        assert!(text.contains("galt nicht"), "{text}");
+    }
+
+    #[test]
+    fn nur_lesendes_werkzeug_ohne_rueckfrage_ausser_mit_profil() {
+        let model = with_tool(termin(true, false));
+        let mut s = Session::new();
+        assert!(matches!(
+            say(&mut s, &model, "werkzeug termin_buchen mit datum = morgen"),
+            Outcome::InvokeTool { .. }
+        ));
+        s.set_effects(crate::profile::Effects {
+            confirm_changes: true,
+            ..Default::default()
+        });
+        let text = answer(say(
+            &mut s,
+            &model,
+            "werkzeug termin_buchen mit datum = morgen",
+        ));
+        assert!(text.starts_with("Bestätigung nötig (Medium)"), "{text}");
+    }
+
+    #[test]
+    fn werkzeug_eingaben_und_liste() {
+        let model = with_tool(termin(false, true));
+        let mut s = Session::new();
+        let text = answer(say(&mut s, &model, "werkzeug termin_buchen"));
+        assert!(text.contains("braucht noch: datum"), "{text}");
+        let list = answer(say(&mut s, &model, "werkzeuge"));
+        assert!(
+            list.contains("termin_buchen — „Bucht einen Termin.“"),
+            "{list}"
+        );
+        let here = answer(say(&mut s, &model, "was ist hier"));
+        assert!(here.contains("erklärt 1 Werkzeug"), "{here}");
+        let none = answer(say(&mut s, &crate::graph::sample_tree(), "werkzeuge"));
+        assert!(none.contains("keine Werkzeuge"), "{none}");
+        // Log: Art ohne Name und Eingabe.
+        let log = serde_json::to_string(&s.take_security_log()).unwrap();
+        assert!(log.contains("invoke_tool"), "{log}");
+        assert!(!log.contains("termin") && !log.contains("datum"), "{log}");
+        assert_eq!(
+            redact_input("werkzeug termin_buchen mit datum = 14.10.2026"),
+            "werkzeug termin_buchen mit (verdeckt)"
+        );
     }
 
     #[test]

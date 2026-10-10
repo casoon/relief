@@ -27,6 +27,7 @@ rust_static_library("relief_model_rs") {
     "crates/relief-model/src/lib.rs",
     "crates/relief-model/src/node.rs",
     "crates/relief-model/src/role.rs",
+    "crates/relief-model/src/tool.rs",
   ]
   deps = [ "//third_party/rust/serde/v1:lib" ]
 }
@@ -54,6 +55,7 @@ rust_static_library("relief_interaction_rs") {
     "crates/relief-interaction/src/security.rs",
     "crates/relief-interaction/src/session.rs",
     "crates/relief-interaction/src/speech.rs",
+    "crates/relief-interaction/src/tools.rs",
     "crates/relief-interaction/src/validate.rs",
   ]
   # Befunde im Inspector (Paket 21); Zusicherungen für `Relief.assert`
@@ -88,6 +90,7 @@ rust_static_library("relief_bridge_rs") {
     "crates/relief-bridge/src/profile.rs",
     "crates/relief-bridge/src/runtime.rs",
     "crates/relief-bridge/src/semantic.rs",
+    "crates/relief-bridge/src/webmcp.rs",
   ]
   cxx_bindings = [ "crates/relief-bridge/src/cxx_bridge.rs" ]
 
@@ -152,6 +155,8 @@ source_set("relief") {
     "speech/speech_output.h",
     "speech/speech_recognition.h",
     "speech/speech_recognition_mac.mm",
+    "webmcp_client.cc",
+    "webmcp_client.h",
   ]
   frameworks = [
     "AVFoundation.framework",

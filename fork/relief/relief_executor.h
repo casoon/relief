@@ -62,6 +62,7 @@ class ReliefExecutor {
  private:
   void Finish();
   void OnScrolled(bridge::ScrollDirection direction, int before);
+  void OnToolResponded(std::string status, std::string output);
   void Complete(std::string text);
   void CheckQuiet();
 

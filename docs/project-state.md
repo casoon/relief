@@ -42,7 +42,11 @@ Chromiums TTS; „abbrechen“/„stopp“ unterbricht sofort
 „Fähigkeiten“ im Panel, global oder je Website, lokal gespeichert) ändert
 Ansage (kurz mit „mehr“, gesprochen), Eingabe (mehr Rückfragen) und
 Darstellung (Zoom, Kontrast, Startansicht); Webseiten erfahren Bewegung
-und Kontrast als `prefers-reduced-motion`/`prefers-contrast`.
+und Kontrast als `prefers-reduced-motion`/`prefers-contrast`. Werkzeuge, die
+eine Website über WebMCP erklärt, liest der Fork über eine eigene
+DevTools-Sitzung je Tab: „werkzeuge“ listet sie, „werkzeug <Name> mit <Feld> =
+<Wert>“ ruft eines auf, folgenreiche erst nach Rückfrage; Beschreibung und
+Antwort der Website gelten als nicht geprüft.
 
 ## Ausführen
 

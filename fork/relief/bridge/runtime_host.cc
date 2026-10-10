@@ -122,6 +122,18 @@ bridge::DevToolsReply RuntimeHost::ExternalInput(const std::string& params) {
   return reply;
 }
 
+void RuntimeHost::SetTools(const std::string& tree,
+                           const std::string& tools_json) {
+  const int count = bridge::set_tools(*runtime_, tree, tools_json);
+  Log("webmcp\ttools\t" + tree + "\t" + base::NumberToString(count));
+}
+
+std::string RuntimeHost::FinishTool(const std::string& status,
+                                    const std::string& output) {
+  Log("webmcp\tresponded\t" + status);
+  return std::string(bridge::finish_tool(*runtime_, status, output));
+}
+
 std::string RuntimeHost::FinishCommand() {
   return std::string(bridge::finish_command(*runtime_));
 }

@@ -24,6 +24,7 @@
 #include "relief/bridge/ax_tree_mirror.h"
 #include "relief/bridge/runtime_host.h"
 #include "relief/relief_executor.h"
+#include "relief/webmcp_client.h"
 #include "relief/speech/speech_output.h"
 #include "ui/accessibility/ax_action_handler_registry.h"
 #include "ui/accessibility/ax_tree_id.h"
@@ -175,6 +176,15 @@ class ReliefTabHelper
   bool ScrollMainTo(int y);
   // Führt Antworten der Runtime aus (Schritte, Ruhe, Antwort); eine je Tab.
   ReliefExecutor& executor() { return *executor_; }
+  // Werkzeuge der Website (Paket 143): Aufruf über die DevTools-Sitzung
+  // des Tabs, Antwort danach gegen den Stand nach der Ruhe.
+  void InvokeTool(const std::string& tree,
+                  const std::string& name,
+                  const std::string& input,
+                  WebMcpClient::Responded done);
+  void FinishTool(const std::string& status,
+                  const std::string& output,
+                  base::OnceCallback<void(std::string)> done);
   // Letztes AX-Paket (Baum oder Positionen); Ruhe = keines seit einer Weile.
   base::TimeTicks last_packet() const { return last_packet_; }
   // Der Baum des aktuellen Hauptdokuments ist in der Runtime.
@@ -289,6 +299,7 @@ class ReliefTabHelper
   int resets_ = 0;
   base::TimeTicks last_packet_;
   std::unique_ptr<ReliefExecutor> executor_;
+  std::unique_ptr<WebMcpClient> webmcp_;
   // --relief-run, nur im ersten Tab.
   std::unique_ptr<ReliefTaskRunner> task_runner_;
   base::ObserverList<InspectorObserver> observers_;

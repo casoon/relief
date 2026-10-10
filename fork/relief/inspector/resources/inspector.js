@@ -77,7 +77,8 @@ function addDetail(term, value) {
 function renderDetails() {
   const item = items.get(nodes.value);
   details.replaceChildren();
-  showButton.disabled = !item;
+  // Werkzeuge (WebMCP) haben keinen Ort im Dokument.
+  showButton.disabled = !item || item.key.startsWith('werkzeug:');
   details.hidden = !item;
   detailsEmpty.hidden = !!item;
   if (!item) {
@@ -194,7 +195,8 @@ function render(json) {
   nodes.replaceChildren(
       group('Bereiche', view.regions, view.focus),
       group('Überschriften', view.headings, view.focus),
-      group('Bedienelemente', view.controls, view.focus));
+      group('Bedienelemente', view.controls, view.focus),
+      group('Werkzeuge der Website', view.tools, view.focus));
   // Auswahl über Aktualisierungen hinweg halten, solange der Knoten besteht.
   if (items.has(selected)) {
     nodes.value = selected;

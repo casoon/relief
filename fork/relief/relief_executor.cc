@@ -49,6 +49,16 @@ void ReliefExecutor::Execute(bridge::Reply reply, Done done) {
                    base::BindOnce(&ReliefExecutor::Finish,
                                   weak_factory_.GetWeakPtr()));
       return;
+    case bridge::ReplyKind::InvokeTool:
+      // Ob das Werkzeug schon etwas getan hat, weiß Relief erst aus der
+      // Antwort und dem Baum danach: als gehandelt zählen.
+      acted_ = true;
+      helper_->InvokeTool(std::string(reply.tool_tree),
+                          std::string(reply.tool_name),
+                          std::string(reply.tool_input),
+                          base::BindOnce(&ReliefExecutor::OnToolResponded,
+                                         weak_factory_.GetWeakPtr()));
+      return;
     case bridge::ReplyKind::Escape:
       helper_->PressKey(bridge::Key::Escape);
       acted_ = true;
@@ -111,6 +121,21 @@ void ReliefExecutor::Execute(bridge::Reply reply, Done done) {
 void ReliefExecutor::Finish() {
   helper_->FinishCommand(
       base::BindOnce(&ReliefExecutor::Complete, weak_factory_.GetWeakPtr()));
+}
+
+void ReliefExecutor::OnToolResponded(std::string status, std::string output) {
+  WaitForQuiet(kActionMin, kActionMax,
+               base::BindOnce(
+                   [](base::WeakPtr<ReliefExecutor> self, std::string status,
+                      std::string output) {
+                     if (self) {
+                       self->helper_->FinishTool(
+                           status, output,
+                           base::BindOnce(&ReliefExecutor::Complete, self));
+                     }
+                   },
+                   weak_factory_.GetWeakPtr(), std::move(status),
+                   std::move(output)));
 }
 
 void ReliefExecutor::OnScrolled(bridge::ScrollDirection direction,

@@ -29,6 +29,7 @@ mod inspector;
 pub mod profile;
 mod runtime;
 mod semantic;
+mod webmcp;
 
 pub use command::{ax_steps, AxStep, Key, Reply, Step};
 pub use cxx_bridge::{delta_from_ffi, delta_to_ffi, ffi};

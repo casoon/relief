@@ -48,6 +48,13 @@ pub enum Reply {
     Escape,
     /// Dokument scrollen; Antwort über `respond::scrolled`.
     Scroll(ScrollDirection),
+    /// Werkzeug der Website im Dokument `tree` aufrufen (WebMCP, Paket 143),
+    /// Antwort und Ruhe abwarten, [`Runtime::finish_tool`].
+    InvokeTool {
+        tree: String,
+        name: String,
+        input: String,
+    },
 }
 
 /// Stand vor einer Aktion, bis ihre Antwort feststeht.
@@ -62,6 +69,10 @@ pub enum Pending {
     Escape {
         target: String,
         reaches: Option<String>,
+        before: SemanticGraph,
+    },
+    Tool {
+        label: String,
         before: SemanticGraph,
     },
 }
@@ -101,6 +112,17 @@ impl Runtime {
                     before: self.graph.clone(),
                 });
                 Reply::Escape
+            }
+            Outcome::InvokeTool { plan, label } => {
+                self.pending = Some(Pending::Tool {
+                    label,
+                    before: self.graph.clone(),
+                });
+                Reply::InvokeTool {
+                    tree: plan.tree.0,
+                    name: plan.name,
+                    input: plan.input,
+                }
             }
             Outcome::Perform { plan, label } => match ax_steps(&self.graph, &plan) {
                 Ok(steps) => {
@@ -147,7 +169,32 @@ impl Runtime {
             }) => self
                 .session
                 .escaped(&target, reaches.as_deref(), &before, &self.graph),
+            Some(Pending::Tool { label, .. }) => format!("{label}: Antwort fehlt."),
         }
+    }
+
+    /// Antwort nach einem Werkzeugaufruf, gegen den jetzigen Stand:
+    /// `status` und `output` wie WebMCP `toolResponded` (Ausgabe als JSON).
+    pub fn finish_tool(&mut self, status: &str, output: &str) -> String {
+        let answer = match self.pending.take() {
+            Some(Pending::Tool { label, before }) => {
+                self.session
+                    .tool_performed(&label, status, output, &before, &self.graph)
+            }
+            _ => "Kein Werkzeugaufruf ausstehend.".into(),
+        };
+        self.session.present(answer)
+    }
+
+    /// Werkzeuge, die das Dokument `tree` erklärt, aus der Liste der
+    /// CDP-Domäne `WebMCP` (`Tool`-Objekte als JSON-Array); ersetzt die
+    /// bisherigen. Fehler: nicht lesbar, nichts geändert.
+    pub fn set_tools(&mut self, tree: &str, tools_json: &str) -> Result<usize, String> {
+        let tools = crate::webmcp::parse_tools(tools_json)?;
+        let count = tools.len();
+        self.graph
+            .set_tools(relief_model::TreeId(tree.into()), tools);
+        Ok(count)
     }
 
     /// Ziel der offenen Rückfrage (→ [`Runtime::apply_form_facts`]).

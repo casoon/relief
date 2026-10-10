@@ -678,6 +678,99 @@ IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, McpBestaetigungNurInRelief) {
   EXPECT_TRUE(run("was ist hier").FindDict("result"));
 }
 
+// Werkzeuge der Website (WebMCP, Paket 143). Relief schaltet das
+// Blink-Feature nicht selbst ein; der Test tut es wie ein Startflag.
+// `localhost` ist ein sicherer Kontext, `document.modelContext` gibt es nur
+// dort.
+class ReliefWebMcpBrowserTest : public ReliefBrowserTest {
+ protected:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    ReliefBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitchASCII("enable-blink-features", "WebMCP");
+  }
+
+  ReliefExecutor::Result Say(const std::string& input) {
+    base::test::TestFuture<ReliefExecutor::Result> result;
+    helper().Interact(input, result.GetCallback());
+    return result.Take();
+  }
+};
+
+// Werkzeuge kommen über die DevTools-Sitzung des Tabs an, „was ist hier“
+// nennt sie; das nur lesende läuft ohne Rückfrage, das folgenreiche erst
+// nach „ja“ und genau einmal; ein Injektionstext in der Beschreibung ändert
+// weder Risiko noch Rückfrage. Gezählt wird auf der Seite.
+IN_PROC_BROWSER_TEST_F(ReliefWebMcpBrowserTest, WebMcpWerkzeuge) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
+                                           Url("localhost", "/webmcp.html")));
+  ASSERT_TRUE(base::test::RunUntil([&] { return helper().has_main_tree(); }));
+  ASSERT_EQ(true, content::EvalJs(web_contents(), "!!document.modelContext"));
+  std::string list;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    list = Say("werkzeuge").text;
+    return list.find("angebot") != std::string::npos &&
+           list.find("suche_termine") != std::string::npos;
+  })) << list;
+  EXPECT_NE(list.find("termin_buchen — „Bucht einen Termin.“"),
+            std::string::npos)
+      << list;
+  const std::string here = Say("was ist hier").text;
+  EXPECT_NE(here.find("erklärt 4 Werkzeuge"), std::string::npos) << here;
+  constexpr char kGebucht[] = "document.getElementById('n').textContent";
+
+  ReliefExecutor::Result result = Say("werkzeug oeffnungszeiten");
+  EXPECT_TRUE(result.acted);
+  EXPECT_NE(result.text.find("„Mo–Fr 8–12 Uhr“"), std::string::npos)
+      << result.text;
+
+  result = Say("werkzeug termin_buchen mit datum = 2026-10-14");
+  EXPECT_FALSE(result.acted);
+  EXPECT_TRUE(result.text.starts_with("Bestätigung nötig (High)"))
+      << result.text;
+  EXPECT_NE(result.text.find("laut Website folgenreich"), std::string::npos)
+      << result.text;
+  EXPECT_EQ("0", content::EvalJs(web_contents(), kGebucht));
+
+  result = Say("ja");
+  EXPECT_TRUE(result.acted) << result.text;
+  EXPECT_NE(result.text.find("Gebucht für 2026-10-14"), std::string::npos)
+      << result.text;
+  EXPECT_EQ("1", content::EvalJs(web_contents(), kGebucht));
+
+  // Dieselbe Bestätigung ein zweites Mal: nur eine neue Rückfrage.
+  result = Say("!werkzeug termin_buchen mit datum = 2026-10-14");
+  EXPECT_TRUE(result.text.starts_with("Bestätigung nötig")) << result.text;
+  EXPECT_EQ("1", content::EvalJs(web_contents(), kGebucht));
+
+  result = Say("werkzeug angebot");
+  EXPECT_FALSE(result.acted);
+  EXPECT_TRUE(result.text.starts_with("Bestätigung nötig (High)"))
+      << result.text;
+  EXPECT_EQ("1", content::EvalJs(web_contents(), kGebucht));
+}
+
+// Ohne Feature sieht die Seite keine API, Relief keine Werkzeuge. Der
+// eigene Build hat es sonst an: Chromiums Feldversuchs-Testkonfiguration
+// (nicht offizielle Builds) schaltet `WebMCP` ein.
+class ReliefOhneWebMcpBrowserTest : public ReliefBrowserTest {
+ protected:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    ReliefBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitchASCII("disable-blink-features", "WebMCP");
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(ReliefOhneWebMcpBrowserTest, WebMcpOhneFeature) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
+                                           Url("localhost", "/webmcp.html")));
+  ASSERT_TRUE(base::test::RunUntil([&] { return helper().has_main_tree(); }));
+  EXPECT_EQ(false, content::EvalJs(web_contents(), "!!document.modelContext"));
+  base::test::TestFuture<ReliefExecutor::Result> list;
+  helper().Interact("werkzeuge", list.GetCallback());
+  EXPECT_NE(list.Get().text.find("keine Werkzeuge"), std::string::npos)
+      << list.Get().text;
+}
+
 // Formularziel im Fork (Paket 75): Die Rückfrage nennt das Ziel, das der
 // Browser beim Renderer anfragt (der AXTree trägt es nicht), und verdeckt
 // ein Feld nur wegen `autocomplete=cc-number` (Beschriftung und Seite

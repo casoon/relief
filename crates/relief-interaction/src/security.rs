@@ -23,11 +23,12 @@ use std::fmt;
 use std::mem::discriminant;
 use std::time::{Duration, Instant};
 
-use relief_model::{Certainty, GraphVersion, NodeRef, SemanticGraph, Toggle};
+use relief_model::{Certainty, DeclaredTool, GraphVersion, NodeRef, SemanticGraph, Toggle, TreeId};
 use serde::Serialize;
 
 use crate::graph::Control;
 use crate::page::{Page, PageType};
+use crate::tools::ToolPlan;
 use crate::validate::{ActionKind, ActionPlan, Risk};
 
 /// So lange gilt eine Rückfrage [Annahme: genug zum Lesen oder Anhören der
@@ -152,11 +153,7 @@ impl Binding {
             destination: model
                 .node(&plan.target)
                 .and_then(|n| n.url.clone().or_else(|| n.extra.get(FORM_ACTION).cloned())),
-            page: model
-                .root
-                .as_ref()
-                .and_then(|t| model.trees.get(t))
-                .and_then(|t| t.data.url.clone()),
+            page: page_url(model),
             section: Section {
                 role: control.role.to_string(),
                 name: control.name.value.clone(),
@@ -205,20 +202,80 @@ impl Binding {
     }
 }
 
+/// Wofür eine Bestätigung zum Aufruf eines Werkzeugs der Website gilt
+/// (Paket 143): Seite, Dokument, Werkzeug samt Definition, Eingabe, Risiko.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ToolBinding {
+    pub page: Option<String>,
+    pub tree: TreeId,
+    /// Definition, wie die Website sie bei der Rückfrage erklärt hatte.
+    pub tool: DeclaredTool,
+    pub input: String,
+    pub risk: Risk,
+}
+
+impl ToolBinding {
+    pub fn new(plan: &ToolPlan, tool: &DeclaredTool, model: &SemanticGraph) -> Self {
+        ToolBinding {
+            page: page_url(model),
+            tree: plan.tree.clone(),
+            tool: tool.clone(),
+            input: plan.input.clone(),
+            risk: plan.risk,
+        }
+    }
+
+    fn changed(&self, now: &ToolBinding) -> Option<Changed> {
+        if self.page != now.page {
+            Some(Changed::Page)
+        } else if self.tree != now.tree || self.tool.name != now.tool.name {
+            Some(Changed::Target)
+        } else if self.input != now.input {
+            Some(Changed::Value)
+        } else if self.risk != now.risk {
+            Some(Changed::Risk)
+        } else if self.tool != now.tool {
+            // Beschreibung, Schema oder Anmerkungen neu erklärt.
+            Some(Changed::Section)
+        } else {
+            None
+        }
+    }
+}
+
+/// Gebunden ist eine Rückfrage an eine Aktion oder einen Werkzeugaufruf.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum Bound {
+    Action(Binding),
+    Tool(ToolBinding),
+}
+
+impl From<Binding> for Bound {
+    fn from(b: Binding) -> Self {
+        Bound::Action(b)
+    }
+}
+
+impl From<ToolBinding> for Bound {
+    fn from(b: ToolBinding) -> Self {
+        Bound::Tool(b)
+    }
+}
+
 /// Offene Rückfrage. Bewusst weder `Clone` noch serialisierbar; Einlösen
 /// verbraucht sie.
 #[derive(Debug)]
 pub(crate) struct Confirmation {
     pub(crate) id: PlanId,
-    binding: Binding,
+    binding: Bound,
     issued: Instant,
 }
 
 impl Confirmation {
-    pub(crate) fn new(id: PlanId, binding: Binding) -> Self {
+    pub(crate) fn new(id: PlanId, binding: impl Into<Bound>) -> Self {
         Confirmation {
             id,
-            binding,
+            binding: binding.into(),
             issued: Instant::now(),
         }
     }
@@ -228,11 +285,16 @@ impl Confirmation {
     }
 
     /// Einlösen für den Plan, der jetzt entstanden ist.
-    pub(crate) fn redeem(self, now: &Binding, ttl: Duration) -> Result<PlanId, Reason> {
+    pub(crate) fn redeem(self, now: &Bound, ttl: Duration) -> Result<PlanId, Reason> {
         if self.expired(ttl) {
             return Err(Reason::Expired);
         }
-        match self.binding.changed(now) {
+        let changed = match (&self.binding, now) {
+            (Bound::Action(was), Bound::Action(now)) => was.changed(now),
+            (Bound::Tool(was), Bound::Tool(now)) => was.changed(now),
+            _ => Some(Changed::Action),
+        };
+        match changed {
             None => Ok(self.id),
             Some(c) => Err(Reason::Changed(c)),
         }
@@ -343,6 +405,17 @@ impl SecurityEvent {
         }
     }
 
+    /// Eintrag zum Aufruf eines Werkzeugs der Website.
+    pub fn tool(decision: Decision, id: Option<PlanId>, plan: &ToolPlan) -> Self {
+        SecurityEvent {
+            decision,
+            plan: id,
+            action: Some(TOOL_ACTION),
+            risk: Some(plan.risk),
+            reason: None,
+        }
+    }
+
     /// Die Validierung hat die Aktion abgelehnt; es gibt keinen Plan.
     pub fn rejected(action: &'static str) -> Self {
         SecurityEvent {
@@ -369,6 +442,17 @@ impl SecurityEvent {
         self.reason = Some(reason);
         self
     }
+}
+
+/// Aktionsart eines Werkzeugaufrufs im Log (ohne Name und Eingabe).
+pub const TOOL_ACTION: &str = "invoke_tool";
+
+fn page_url(model: &SemanticGraph) -> Option<String> {
+    model
+        .root
+        .as_ref()
+        .and_then(|t| model.trees.get(t))
+        .and_then(|t| t.data.url.clone())
 }
 
 /// Name der Aktion fürs Log, ohne Wert.
@@ -544,9 +628,15 @@ mod tests {
         let model = sample_tree();
         let b = binding(&model, "Bestellen", ActionKind::Activate);
         let token = Confirmation::new(PlanId(1), b.clone());
-        assert_eq!(token.redeem(&b, Duration::ZERO), Err(Reason::Expired));
+        assert_eq!(
+            token.redeem(&Bound::Action(b.clone()), Duration::ZERO),
+            Err(Reason::Expired)
+        );
         let token = Confirmation::new(PlanId(2), b.clone());
-        assert_eq!(token.redeem(&b, CONFIRMATION_TTL), Ok(PlanId(2)));
+        assert_eq!(
+            token.redeem(&Bound::Action(b.clone()), CONFIRMATION_TTL),
+            Ok(PlanId(2))
+        );
     }
 
     #[test]

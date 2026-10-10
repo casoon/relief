@@ -147,6 +147,23 @@ Offen [validieren]: Was, wenn die Autorensemantik **nachweislich falsch** ist
 Known-Wert bleibt, zusätzlich ein Inferred-Gegenvorschlag mit Evidence; die UI
 zeigt beides. Relief überschreibt Autorensemantik nicht stillschweigend.
 
+### Von Websites erklärte Werkzeuge (WebMCP) [umgesetzt, Paket 143]
+
+Werkzeuge, die ein Dokument über WebMCP anmeldet, sind keine Stufe der
+Liste oben, sondern eine Quelle daneben: Sie beschreiben, was die Website
+anbietet, nicht, was auf der Seite steht.
+
+- `relief_model::DeclaredTool` (Name, Beschreibung, Eingabeschema als
+  JSON-Text, Anmerkungen `read_only`/`untrusted_content`/`consequential`,
+  DOM-Knoten eines deklarativen Werkzeugs) in
+  `SemanticGraph::tools`, je Baum (= Dokument). Nicht Teil der Deltas und
+  der Version: Der Host setzt sie über `set_tools`; ein entfernter Baum
+  nimmt seine mit (`apply`), `declared_tools()` liefert nur die vorhandener
+  Bäume, Hauptdokument zuerst.
+- **Herkunft** [Entscheidung]: alles darin ist Behauptung der Website, in
+  Antworten „von der Website erklärt, nicht geprüft“, im Inspector
+  `inferred`. Nie `Known`.
+
 ## Identität und Versionen [umgesetzt]
 
 - Knoten-ID = `NodeRef` (`TreeId`, `NodeId`) wie in Chromium; stabil

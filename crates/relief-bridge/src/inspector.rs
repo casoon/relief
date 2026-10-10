@@ -9,7 +9,7 @@
 //! Risiko LOW).
 
 use relief_interaction::{
-    plan_navigation, plan_on_page, respond, rules, ActionKind, Control, Graph, Place,
+    plan_navigation, plan_on_page, respond, rules, tools, ActionKind, Control, Graph, Place,
 };
 use relief_model::{Action, Certainty, Fact, NodeId, NodeRef, SemanticGraph, Source, TreeId};
 use serde::Serialize;
@@ -30,6 +30,9 @@ struct View {
     regions: Vec<Item>,
     headings: Vec<Item>,
     controls: Vec<Item>,
+    /// Von der Website erklärte Werkzeuge (WebMCP, Paket 143); Schlüssel
+    /// `werkzeug:<Baum>:<Name>`, nicht im Dokument zu zeigen.
+    tools: Vec<Item>,
     /// Prüfung mit `a11y-rules` (Paket 21).
     checks: Checks,
     /// Semantic View (Paket 29): Einträge in Dokumentreihenfolge.
@@ -310,6 +313,31 @@ pub fn inspector_json(runtime: &Runtime) -> String {
             .map(|r| [r.rule_id.clone(), r.reason.clone().unwrap_or_default()])
             .collect(),
     };
+    let tools = model
+        .declared_tools()
+        .into_iter()
+        .map(|(tree, t)| {
+            let (risk, notes) = tools::risk(t);
+            let mut states = vec![["Risiko".to_string(), format!("{risk:?}")]];
+            states.extend(notes.into_iter().map(|n| ["Einstufung".to_string(), n]));
+            Item {
+                key: format!("werkzeug:{}:{}", tree.0, t.name),
+                label: format!("{} — {}", t.name, tools::quote(&t.description)),
+                role: "Werkzeug (WebMCP)".into(),
+                name: Some(t.name.clone()),
+                certainty: certainty(Certainty::Inferred),
+                origin: "von der Website erklärt, nicht geprüft".into(),
+                region: None,
+                level: None,
+                value: None,
+                states,
+                actions: vec![format!("werkzeug {} mit …", t.name)],
+                relations: Vec::new(),
+                reachable: true,
+                findings: Vec::new(),
+            }
+        })
+        .collect();
     let view = View {
         version: model.version.0,
         title: main.and_then(|t| t.data.title.clone()),
@@ -319,6 +347,7 @@ pub fn inspector_json(runtime: &Runtime) -> String {
         regions,
         headings,
         controls,
+        tools,
         checks,
         semantic: crate::semantic::entries(&graph, model),
     };

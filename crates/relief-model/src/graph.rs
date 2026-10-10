@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{GraphVersion, NodeId, NodeRef, SemanticNode, TreeId};
+use crate::{DeclaredTool, GraphVersion, NodeId, NodeRef, SemanticNode, TreeId};
 
 /// Die Accessibility-Bäume eines Tabs: ein Hauptbaum und je iframe ein
 /// Child-Tree, verknüpft über [`SemanticNode::child_tree`] und
@@ -15,6 +15,11 @@ pub struct SemanticGraph {
     /// Baum des Hauptdokuments.
     pub root: Option<TreeId>,
     pub trees: BTreeMap<TreeId, SemanticTree>,
+    /// Von Dokumenten erklärte Werkzeuge (WebMCP, Paket 143), je Baum. Nicht
+    /// Teil der Deltas: Der Host setzt sie über einen eigenen Kanal
+    /// ([`SemanticGraph::set_tools`]); ein entfernter Baum nimmt seine mit.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub tools: BTreeMap<TreeId, Vec<DeclaredTool>>,
 }
 
 /// Ein Baum: ein Dokument in einem Frame.
@@ -56,6 +61,28 @@ impl SemanticTree {
 impl SemanticGraph {
     pub fn node(&self, at: &NodeRef) -> Option<&SemanticNode> {
         self.trees.get(&at.tree)?.nodes.get(&at.node)
+    }
+
+    /// Werkzeuge eines Dokuments ersetzen; leer entfernt sie. Ändert die
+    /// Version nicht: Werkzeuge sind kein Teil des Accessibility-Trees.
+    pub fn set_tools(&mut self, tree: TreeId, tools: Vec<DeclaredTool>) {
+        if tools.is_empty() {
+            self.tools.remove(&tree);
+        } else {
+            self.tools.insert(tree, tools);
+        }
+    }
+
+    /// Werkzeuge aller Bäume, die zur Seite gehören, Hauptdokument zuerst.
+    pub fn declared_tools(&self) -> Vec<(&TreeId, &DeclaredTool)> {
+        let mut out: Vec<_> = self
+            .tools
+            .iter()
+            .filter(|(tree, _)| self.trees.contains_key(*tree))
+            .flat_map(|(tree, tools)| tools.iter().map(move |t| (tree, t)))
+            .collect();
+        out.sort_by_key(|(tree, _)| self.root.as_ref() != Some(*tree));
+        out
     }
 
     /// Anzahl aller Knoten über alle Bäume.

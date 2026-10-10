@@ -395,6 +395,11 @@ impl Session {
                 let (before, after, max) = act::scroll(&self.page, direction).await?;
                 Ok(respond::scrolled(direction, before, after, max))
             }
+            // Der CDP-Host liest keine Werkzeuge der Website (Paket 143);
+            // das Modell hat hier keine, die Sitzung plant also keinen Aufruf.
+            Outcome::InvokeTool { label, .. } => {
+                Ok(format!("{label}: nur im eigenen Build verfügbar."))
+            }
         }
     }
 

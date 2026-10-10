@@ -205,6 +205,7 @@ impl SemanticGraph {
 
         for id in &delta.removed_trees {
             self.trees.remove(id);
+            self.tools.remove(id);
             if self.root.as_ref() == Some(id) {
                 self.root = None;
             }
@@ -311,6 +312,8 @@ mod tests {
             version: GraphVersion(3),
             root: Some(id.clone()),
             trees: [(id, t)].into(),
+
+            ..Default::default()
         }
     }
 

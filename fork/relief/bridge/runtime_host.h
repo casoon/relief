@@ -85,6 +85,11 @@ class RuntimeHost {
   // Grund; keine Werte, keine Namen).
   void LogSecurity();
   std::string FinishCommand();
+  // Werkzeuge der Website (Paket 143): Liste je Dokument ersetzen bzw.
+  // Antwort nach einem Aufruf; protokolliert Anzahl bzw. Status, nie
+  // Namen, Eingaben oder Ausgaben.
+  void SetTools(const std::string& tree, const std::string& tools_json);
+  std::string FinishTool(const std::string& status, const std::string& output);
   // CDP-Domäne `Relief.*` (Paket 45); protokolliert die Methode.
   bridge::DevToolsReply DevToolsCommand(const std::string& method,
                                         const std::string& params);

@@ -184,6 +184,18 @@ ReliefTabHelper::ReliefTabHelper(content::WebContents* contents)
     Reset("attach");
   }
   executor_ = std::make_unique<ReliefExecutor>(*this, *contents);
+  webmcp_ = std::make_unique<WebMcpClient>(
+      *contents,
+      base::BindRepeating(
+          [](base::WeakPtr<ReliefTabHelper> self, const std::string& tree,
+             const std::string& tools_json) {
+            if (self) {
+              self->runtime_.AsyncCall(&RuntimeHost::SetTools)
+                  .WithArgs(tree, tools_json);
+              self->NotifyGraphChanged();
+            }
+          },
+          weak_factory_.GetWeakPtr()));
   key_callback_ = base::BindRepeating(&ReliefTabHelper::OnKeyPress,
                                       base::Unretained(this));
   WatchKeys(contents->GetPrimaryMainFrame());
@@ -766,6 +778,8 @@ void ReliefTabHelper::DidFinishNavigation(
       navigation_handle->HasCommitted() &&
       navigation_handle->IsServedFromBackForwardCache()) {
     RequestReset("back-forward-cache");
+    // Blink meldet die Werkzeuge der wiederhergestellten Seite nicht neu.
+    webmcp_->Resync();
   }
 }
 
@@ -1291,6 +1305,21 @@ void ReliefTabHelper::Hear(
                    weak_factory_.GetWeakPtr(), std::move(done)));
       return;
   }
+}
+
+void ReliefTabHelper::InvokeTool(const std::string& tree,
+                                 const std::string& name,
+                                 const std::string& input,
+                                 WebMcpClient::Responded done) {
+  webmcp_->Invoke(tree, name, input, std::move(done));
+}
+
+void ReliefTabHelper::FinishTool(const std::string& status,
+                                 const std::string& output,
+                                 base::OnceCallback<void(std::string)> done) {
+  runtime_.AsyncCall(&RuntimeHost::FinishTool)
+      .WithArgs(status, output)
+      .Then(std::move(done));
 }
 
 void ReliefTabHelper::FinishCommand(
