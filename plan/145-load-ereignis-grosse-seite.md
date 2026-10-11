@@ -12,7 +12,9 @@ und danach `Runtime.evaluate` nicht antwortet.
 
 Nebenbefund der Messung in Paket 143 (2026-10-10/11): tritt mit und ohne
 WebMCP-Client gleich oft auf (ohne: 3 von 15, 6 von 15; mit: 4 von 15),
-unter hoher Last durch andere Prozesse. Seite: 1 500 Abschnitte mit
+unter hoher Last durch andere Prozesse; bei der Messung zu Paket 144
+(2026-10-11, freie CPU 50–82 %) 6 bis 7 von 15, ebenfalls mit und ohne
+Client. Eine Seite mit ~1 800 Knoten lud dort ohne Hänger (0 von 120). Seite: 1 500 Abschnitte mit
 Überschrift, Link, Feld und Button, dazu ein Skript, das 3 000 Knoten
 anhängt; Laden über `python3 -m http.server` auf `localhost`, Messskript
 über CDP (`Page.navigate`, dann `Page.loadEventFired`). Nicht geprüft, ob

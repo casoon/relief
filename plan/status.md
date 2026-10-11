@@ -181,7 +181,7 @@ oder Finder), `--disable-relief` schaltet es ab (Paket 117), beschrieben in
 
 **Sofort startbar:**
 - Cloud + M4: 116 (Cloud-STT, Anbieter wählen)
-- M4: 43 (VoiceOver im Test), 144 (WebMCP-Kosten), 145 (`load` auf großer Seite)
+- M4: 43 (VoiceOver im Test), 145 (`load` auf großer Seite)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
@@ -206,5 +206,4 @@ oder Finder), `--disable-relief` schaltet es ab (Paket 117), beschrieben in
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
 | 130 | CDP-Host: `tabfolge` in einen fremden Frame, Ursache des seltenen Ausfalls | Cloud | wartet auf erneutes Auftreten | 106 ✓ | [130](130-tabfolge-ausfall-ursache.md) |
-| 144 | Kosten der WebMCP-Sitzung je Tab messen (ruhiger Rechner) | M4 | offen | 143 ✓ | [144](144-webmcp-kosten.md) |
 | 145 | Fehlendes `load`-Ereignis auf großer Seite (Nebenbefund 143) | M4 | offen | — | [145](145-load-ereignis-grosse-seite.md) |
