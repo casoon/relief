@@ -258,7 +258,7 @@ Randbedingungen [Annahme]:
   (2026-10-01): erkannt und beantwortet, nachdem die erste Fassung mit
   1,5 s ab Start zu früh abbrach („No speech detected“).
 - **Offen:** Cloud-STT per eigenem Key (→ Paket 116), Koexistenz mit
-  VoiceOver manuell (→ 47); der Freigabetext fürs Mikrofon nennt noch
+  VoiceOver manuell (→ 146); der Freigabetext fürs Mikrofon nennt noch
   „Chromium“ (übersetzter Text aus `InfoPlist.strings`).
 
 | | macOS | Windows | Linux |

@@ -22,7 +22,10 @@ Positionen im Browser-Prozess, auch aus cross-site-iframes, führt ihn als
 und Discard hinweg) und führt Befehle in Sprache über `AXActionData` aus
 (Tasten als Ersatzweg); die Aufgaben `spike/tasks/01`–`05` laufen dort mit
 `--relief-run` vollständig. Browser-Tests je Integrationspunkt
-(`relief_browsertests`). Oberfläche ist das Relief-Side-Panel: oben die
+(`relief_browsertests`), dazu die Accessibility-Baseline der eigenen
+Oberfläche (`UiBaseline`: Namen, Live-Regionen, Tab-Folge, sichtbarer Fokus,
+200 % Zoom, Kontrast, Bewegung; Prüfungen in `fork/relief/testing/ui_baseline.h`).
+Oberfläche ist das Relief-Side-Panel: oben die
 Befehlsleiste (Strg+Umschalt+Leertaste; alle Befehle des Spikes, Rückfragen
 per Nummer, „ja“, „abbrechen“), darunter der Semantic Inspector
 (Strg+Umschalt+I oder `--relief-inspector`): Bereiche, Überschriften und

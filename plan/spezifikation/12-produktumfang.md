@@ -200,7 +200,7 @@ vier Klick-`<div>`s); `spike/tasks/13-marken-real.txt` (Netz): spiegel.de
 Marken samt „Alle akzeptieren“, „Jetzt BILD PUR abonnieren“,
 „Einstellungen“; Bildschirmfoto Testshop im PR.
 
-Offen: VoiceOver parallel prüfen (→ 47); Klick-`<div>`s ohne Namen könnten
+Offen: VoiceOver parallel prüfen (→ 146); Klick-`<div>`s ohne Namen könnten
 ihren Text als erschlossenen Namen tragen; Marken folgen Scrollen nur
 gebündelt über Deltas (200 ms); das Kürzel greift nur am Widget des
 Hauptframes (Fokus in einem cross-site-iframe).

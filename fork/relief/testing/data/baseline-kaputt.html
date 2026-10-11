@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Baseline kaputt</title>
+<style>
+  :focus { outline: none; }
+  #breit { width: 3000px; }
+  #wackelt { transition: opacity 1s; }
+</style></head>
+<body>
+<!-- Gegenprobe zu ui_baseline (Paket 47): jede Prüfung muss anschlagen. -->
+<button id="namenlos"><img src="data:," alt=""></button>
+<div id="klickdiv" onclick="void 0">Klick mich</div>
+<p id="stumm">Kein Status</p>
+<input id="falle" aria-label="Falle"
+    onkeydown="if (event.key === 'Tab') event.preventDefault()">
+<div id="breit">zu breit</div>
+<p id="wackelt">bewegt sich</p>
+</body></html>
