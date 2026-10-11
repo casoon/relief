@@ -130,9 +130,12 @@ geprüfte Pläne auf (→ 05, 07).
   | Renderer-Speicher (RSS aller Renderer) | 1 083–1 113 MB | 1 080–1 119 MB |
 
   Die Seite mit ~9 000 Knoten taugt nicht zum Vergleich: dort hängt fast
-  jeder zweite Ladevorgang, mit und ohne Client (→ Paket 145).
+  jeder zweite Ladevorgang, mit und ohne Client; das liegt am
+  Entwicklungsbuild, nicht an Relief (→ 09, „Große Seiten laden im
+  Entwicklungsbuild unzuverlässig“).
   Nebenbefund: Auf dieser Seite kommt in beiden Varianten bei etwa jedem
-  vierten Laden kein `load`-Ereignis innerhalb von 10 s (→ Paket 145).
+  vierten Laden kein `load`-Ereignis innerhalb von 10 s (→ 09, „Große
+  Seiten laden im Entwicklungsbuild unzuverlässig“).
 - **Grenze:** Die Sitzung des Tabs sieht Werkzeuge in Frames im Prozess des
   Hauptdokuments, nicht in cross-site-iframes (OOPIF). Eingaben nur als
   flache Felder. Der MCP-Server (142) reicht Werkzeuge nicht weiter.

@@ -211,6 +211,33 @@ Stolpersteine, jetzt im Skript geprüft oder umgangen:
 
 Nicht geprüft: VoiceOver gegen den eigenen Build (manuell, steht aus).
 
+**Große Seiten laden im Entwicklungsbuild unzuverlässig, nicht wegen
+Relief** [belegt, Paket 145, M4 2026-10-11]: Eine Seite mit 1 500
+Abschnitten (Überschrift, Link, Feld, Button; ~9 000 Knoten) und einem
+Skript, das 3 000 Knoten anhängt, über `localhost`, je 20 Ladevorgänge
+per CDP (`Page.navigate`, Warten auf `Page.loadEventFired` bis 40 s):
+
+| Browser | ok | langsam (> 10 s) | hängt (> 40 s) | Median `load` |
+|---|---|---|---|---|
+| eigener Build, `--disable-relief` | 12 | 3 | 5 | 1 877 ms |
+| dto. mit `--disable-field-trial-config` | 19 | 0 | 1 | 1 439 ms |
+| dto. mit `--disable-blink-features=WebMCP` | 15 | 2 | 3 | 1 838 ms |
+| Chrome for Testing 153.0.8010.12 | 20 | 0 | 0 | 597 ms |
+
+Bei einem Hänger antwortet der Renderer auch nicht auf `Runtime.evaluate`;
+die nächste Navigation wird teils erst nach über 10 s festgeschrieben (der
+Renderer arbeitet noch an der vorigen Seite). Mit Relief an trat es
+vorher (Pakete 143, 144) gleich oft auf wie ohne. Ursache ist also der
+Entwicklungsbuild, nicht Relief: Er unterscheidet sich von Chrome for
+Testing durch Component-Build, DCHECKs (in nicht offiziellen
+Release-Builds standardmäßig an, `DCHECK_ALWAYS_ON`), die
+Feldversuchs-Testkonfiguration (schaltet experimentelle Features ein;
+ohne sie deutlich seltener) und Milestone 154 statt 153. Welches davon
+den Rest ausmacht, ist nicht eingegrenzt [offen]. Folge: Mess- und
+Lastvergleiche mit dem eigenen Build nur auf mittelgroßen Seiten (~1 800
+Knoten luden ohne Hänger, → 12, „Kosten“) oder gegen einen gleich
+konfigurierten Build.
+
 → Backlog 15–18; Integrationspunkte und Eingriffsliste (Fragen zu Klassen
 und Änderungen außerhalb `//relief/`) belegt in 01.
 
