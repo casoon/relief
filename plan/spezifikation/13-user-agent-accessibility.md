@@ -68,4 +68,82 @@ Build als unterstützt.
 
 Ein Testfall hält Betriebssystem-, Relief-/Chromium- und AT-Version,
 Einstellungen, Aufgabe, Eingabekanal und Ergebnis fest. Ausnahmen brauchen
-Verantwortliche, Begründung und Ablaufdatum. Details der Umsetzung: → 47.
+Verantwortliche, Begründung und Ablaufdatum (→ „Ausnahmen“ unten).
+
+## Automatisierte Prüfungen (Paket 47) [umgesetzt, belegt]
+
+`fork/relief/testing/ui_baseline.{h,cc}` prüft eine Relief-Oberfläche, die
+als WebContents vorliegt (heute: die WebUI im Side Panel), und liefert je
+Prüfung die Abweichungen als Text:
+
+| Prüfung | Was |
+|---|---|
+| `NamesAndRoles` | jedes nicht ausgeblendete Bedienelement im Accessibility-Tree hat einen Namen; kein Element ohne Bedienrolle bietet einen Klick an |
+| `LiveRegions` | genannte Elemente sind Live-Regionen (`status`, `log`, `alert`, `aria-live`) |
+| `KeyboardWalk` | echte Tab-Tasten ab Dokumentanfang: erwartete Elemente in dieser Reihenfolge, keine Tastaturfalle, Fokus verlässt die Oberfläche, jedes Element mit sichtbarem Umriss ≥ 2 px |
+| `Reflow` | kein waagerechtes Scrollen, kein sichtbares Element ragt über den Viewport |
+| `NoMotion` | keine Übergänge oder Animationen |
+
+Dazu `CdpClient` und `EmulateMedia` (Medienmerkmale über CDP emulieren).
+Der Snapshot wartet, bis der Baum nach dem Einschalten des AX-Modus da ist;
+ein leerer Baum wäre sonst eine bestandene Prüfung.
+
+- **Belegt** (M4, 2026-10-11): `relief_browsertests --gtest_filter=*UiBaseline*`.
+  `UiBaseline` wendet die Prüfungen auf jeden Zustand des Panels an:
+  Befehle und Inspector; Rückfrage in der Befehlsleiste (Zustand angesagt,
+  Escape bricht ab, Fokus bleibt im Feld, auf der Seite nichts ausgelöst);
+  Fähigkeiten offen; 200 % Zoom (Inspector mit Fähigkeiten, Semantic View);
+  Semantic View (Fokus wandert hinein, Rückfrage bekommt den Fokus,
+  Abbrechen gibt ihn an den Auslöser zurück); reduzierte Bewegung mit
+  erzwungenen Farben (nichts bewegt sich, Fokus sichtbar); 30 Änderungen
+  der Seite in 1,5 s ergeben höchstens zwei Ansagen in 4,5 s, mit
+  ausgeschalteter Ansage keine. `UiBaselineGegenprobe` belegt auf
+  `data/baseline-kaputt.html`, dass jede Prüfung anschlägt.
+- **Grenzen:** Kontrast und Bewegung emuliert (`forced-colors`,
+  `prefers-reduced-motion`), nicht über die Systemeinstellung; 200 % über
+  den Zoom des Panels, nicht über die Textgröße des Systems. Native Views
+  (Sprungmarken-Overlay) und die tatsächliche Ausgabe von VoiceOver prüfen
+  die Funktionen nicht (→ manuelles Protokoll, Paket 43).
+
+## Abnahme neuer Oberflächen [Entscheidung, Paket 47]
+
+Eine neue Relief-Oberfläche oder ein neuer Zustand einer bestehenden ist
+erst fertig, wenn `UiBaseline` (oder ein eigener Browser-Test mit
+denselben Prüfungen aus `ui_baseline.h`) ihn abdeckt; das gehört in das
+„Fertig, wenn“ des Pakets.
+
+## Manuelles Testprotokoll macOS [Vorlage; Durchgang → Paket 146]
+
+Kernaufgaben:
+
+| Nr | Aufgabe |
+|---|---|
+| K1 | Panel öffnen und schließen (Strg+Umschalt+I); Fokus danach wieder auf der Seite |
+| K2 | Befehl ausführen (Strg+Umschalt+Leertaste); Rückfrage bestätigen und abbrechen |
+| K3 | Inspector: Liste durchgehen, Details lesen, „Im Dokument zeigen“; Ansage bei Seitenänderung, mit „Änderungen ansagen“ aus keine |
+| K4 | Semantic View: wechseln, Element bedienen, Rückfrage, zurück zum Inspector am selben Ort |
+| K5 | Fähigkeiten: Wert ändern, nur für diese Website, zurücksetzen |
+| K6 | Sprungmarken (Strg+Umschalt+M): lesbar auf heller und dunkler Seite, bei 200 % |
+| K7 | Sprechtaste (Strg+Umschalt+S): sprechen, abbrechen |
+
+Eingabekanäle und Einstellungen je Aufgabe: nur Tastatur; VoiceOver
+(Kürzelkonflikte VO-Tasten Strg+Wahl gegen Relief Strg+Umschalt; Ansage
+von Zustand, Log und Rückfrage; Fokus nach Schließen); Sprachsteuerung
+(„Klicke …“, Nummern einblenden); Schaltersteuerung (mindestens K1, K2);
+„Größerer Text“ und Browserzoom 200 %; „Kontrast erhöhen“; „Bewegung
+reduzieren“.
+
+Ergebnis je Zeile:
+
+| Datum | macOS | Relief/Chromium | AT und Version | Einstellungen | Aufgabe | Eingabekanal | Ergebnis | Befund |
+|---|---|---|---|---|---|---|---|---|
+
+## Ausnahmen [Entscheidung, Paket 47]
+
+Eine Abweichung von dieser Baseline gilt nur mit Eintrag hier:
+Verantwortliche Person, Begründung und Ablaufdatum; abgelaufene Einträge
+sind Fehler.
+
+| Abweichung | Verantwortlich | Begründung | Ablauf |
+|---|---|---|---|
+| keine | | | |

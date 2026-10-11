@@ -233,7 +233,7 @@ tests/befehle.rs`; Fork-Aufgaben 01–05, 07 weiter ohne Ausfall.
 
 Offen: deiktische Ziele („dieses Feld“, „hier“) kennt der Parser noch
 nicht; Ausgabe pausieren fehlt (die Leiste bündelt nur); manueller
-Tastatur- und VoiceOver-Durchgang (→ 47).
+Tastatur- und VoiceOver-Durchgang (→ 146; Tastatur automatisiert in `UiBaseline`, → 13).
 
 ## Overlay- und Consent-Dialoge (Pakete 40, 80, 91, 110) [belegt]
 

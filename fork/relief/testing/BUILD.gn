@@ -15,7 +15,11 @@
 import("//testing/test.gni")
 
 test("relief_browsertests") {
-  sources = [ "relief_browsertest.cc" ]
+  sources = [
+    "relief_browsertest.cc",
+    "ui_baseline.cc",
+    "ui_baseline.h",
+  ]
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   deps = [
     "//base",

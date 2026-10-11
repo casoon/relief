@@ -65,7 +65,7 @@ beschrieben in
 Semantic Inspector im Fork (Side Panel, WebUI, live, Auswahl und
 Aktivierung getrennt), beschrieben in
 [spezifikation/01](spezifikation/01-chromium-integration.md#semantic-inspector-paket-20-belegt);
-der VoiceOver-Durchgang durch das Panel steht mit 47 aus.
+der VoiceOver-Durchgang durch das Panel steht mit 146 aus.
 Bericht für CI (`relief-cdp test`: JUnit, a11y-report mit zusammengefassten
 Befunden, `--fork` ohne Fenster über den AX-Weg), beschrieben in
 [spezifikation/12](spezifikation/12-produktumfang.md#bericht-für-ci-umgesetzt-2026-09-30-paket-44).
@@ -181,12 +181,12 @@ oder Finder), `--disable-relief` schaltet es ab (Paket 117), beschrieben in
 
 **Sofort startbar:**
 - Cloud + M4: 116 (Cloud-STT, Anbieter wählen)
-- M4: 43 (VoiceOver im Test)
+- M4: 43 (VoiceOver im Test), 146 (manueller Durchgang, mit Person)
 - mit API-Key: 28 (Messlauf, ein Befehl je Modell)
 
 **Reihenfolge:**
 - Linie A: 41, 26, 29 erledigt (Nachträge 113, 116; 114, 115, 143 erledigt) (40, 80, 91, 110 erledigt);
-  47 läuft mit 20 und 25 als Abnahme mit.
+  47 erledigt (automatisierte Baseline `UiBaseline`); manueller Durchgang 146.
 - Linie B: 45 und 44 erledigt, 43 zurückgestellt; 130 wartet auf ein erneutes Auftreten (85, 105, 106 erledigt).
 - Produkt: 37 erst vor einer Weitergabe an Dritte (142 MCP-Server erledigt).
 - Vor jeder Modellintegration (28 im Fork, 34): 48 ✓, 58 ✓, 75 ✓.
@@ -202,7 +202,7 @@ oder Finder), `--disable-relief` schaltet es ab (Paket 117), beschrieben in
 | 34 | Bridge-Variante B (Utility-Prozess) bauen und messen | Cloud + M4 | später | 19 ✓, vor KI-Code in der Runtime | [34](34-bridge-utility-prozess.md) |
 | 37 | Updates und Auslieferung (Signatur, Notarisierung) | M4 + Entscheidung | zurückgestellt (Nutzer, 2026-09-30) | 36 | [37](37-updates-und-auslieferung.md) |
 | 43 | Echte Screenreader-Ausgabe im Test (zuerst VoiceOver) | M4 | offen | 42 ✓ | [43](43-voiceover-im-test.md) |
-| 47 | Accessibility-Baseline für Reliefs eigene Oberfläche | Cloud + M4, später Windows | offen | 20 ✓, 25 ✓ | [47](47-relief-ui-accessibility.md) |
+| 146 | Relief-Oberfläche manuell unter macOS prüfen (Protokoll aus 13) | M4 + Person | offen | 47 ✓ | [146](146-ui-a11y-manuell-macos.md) |
 | 92 | Formular-Assistent auf echten Formularen | M4 (Netz) | wartet auf Zustimmung (Absenden auf fremden Seiten) | 39 ✓ | [92](92-formular-assistent-echte-formulare.md) |
 | 90 | Nutzennachweis | — | zurückgestellt | Kontakte | [90](90-nutzennachweis.md) |
 | 130 | CDP-Host: `tabfolge` in einen fremden Frame, Ursache des seltenen Ausfalls | Cloud | wartet auf erneutes Auftreten | 106 ✓ | [130](130-tabfolge-ausfall-ursache.md) |

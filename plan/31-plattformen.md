@@ -28,6 +28,10 @@ eigene Oberfläche (→ spezifikation/13, 47):
   reduzierte Bewegung; Switch Control mindestens für die Kernaufgaben.
 - Windows: UI Automation für Rollen/Namen/Zustände/Ereignisse, Tastatur,
   Narrator und NVDA, Voice Access, hohe Kontraste und Textskalierung.
+- Die automatisierten Prüfungen (`fork/relief/testing/ui_baseline.h`,
+  Browser-Test `UiBaseline`, Paket 47) laufen auf jeder Plattform mit; das
+  manuelle Protokoll aus spezifikation/13 gilt je Plattform mit deren
+  Assistenztechnik (Schritt 4 aus 47).
 - Linux folgt mit AT-SPI/Orca, sobald ein unterstützter Testhost feststeht.
 
 Eine Plattform gilt erst als unterstützt, wenn dieselben Kernaufgaben mit den

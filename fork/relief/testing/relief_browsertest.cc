@@ -59,6 +59,7 @@
 #include "relief/relief_switches.h"
 #include "relief/inspector/relief_inspector.h"
 #include "relief/relief_tab_helper.h"
+#include "relief/testing/ui_baseline.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "ui/accessibility/ax_enum_util.h"
@@ -578,46 +579,7 @@ IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, BestaetigungNurEinmalUndGebunden) {
   EXPECT_EQ("1", content::EvalJs(web_contents(), kKlicks));
 }
 
-// Ein CDP-Client wie Playwright oder der MCP-Server (examples/mcp/):
-// JSON-Nachrichten an den Tab, Antworten je Aufruf.
-class CdpClient : public content::DevToolsAgentHostClient {
- public:
-  explicit CdpClient(content::WebContents* contents)
-      : host_(content::DevToolsAgentHost::GetOrCreateFor(contents)) {
-    host_->AttachClient(this);
-  }
-  ~CdpClient() override { host_->DetachClient(this); }
-
-  // Ganze Antwort auf den Aufruf: `result` oder `error`.
-  base::DictValue Send(const std::string& method, base::DictValue params) {
-    const int id = ++last_id_;
-    base::DictValue message;
-    message.Set("id", id);
-    message.Set("method", method);
-    message.Set("params", std::move(params));
-    const std::string json = base::WriteJson(message).value_or("{}");
-    host_->DispatchProtocolMessage(this, base::as_byte_span(json));
-    EXPECT_TRUE(base::test::RunUntil([&] { return replies_.contains(id); }));
-    return std::move(replies_[id]);
-  }
-
-  void DispatchProtocolMessage(content::DevToolsAgentHost*,
-                               base::span<const uint8_t> message) override {
-    std::optional<base::DictValue> value =
-        base::JSONReader::ReadDict(base::as_string_view(message),
-                                   base::JSON_PARSE_RFC);
-    if (value && value->FindInt("id")) {
-      const int id = *value->FindInt("id");
-      replies_[id] = std::move(*value);
-    }
-  }
-  void AgentHostClosed(content::DevToolsAgentHost*) override {}
-
- private:
-  scoped_refptr<content::DevToolsAgentHost> host_;
-  int last_id_ = 0;
-  std::map<int, base::DictValue> replies_;
-};
+using baseline::CdpClient;
 
 // MCP-Weg (Paket 142): `Relief.runCommand` über eine echte CDP-Sitzung.
 // Die Rückfrage zum Kauf erscheint im Relief-Panel; „ja“ und „!“ über CDP
@@ -1023,6 +985,203 @@ IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, Inspektor) {
   press_shortcut();
   EXPECT_TRUE(base::test::RunUntil(
       [&] { return !side_panel->IsSidePanelEntryShowing(key); }));
+}
+
+// Accessibility-Baseline des Relief-Panels (Paket 47, → plan/
+// spezifikation/13): dieselben Prüfungen (ui_baseline.h) in jedem Zustand
+// der Oberfläche — Befehle und Inspector, Rückfrage in der Befehlsleiste,
+// Fähigkeiten, Semantic View mit Rückfrage —, dazu 200 % Zoom, reduzierte
+// Bewegung mit erzwungenen Farben und gebündelte Ansagen bei schnellen
+// Änderungen der Seite.
+IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, UiBaseline) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), Url("a.test", "/semantische-ansicht.html")));
+  SidePanelUI* side_panel = SidePanelUI::From(browser());
+  web_contents()->Focus();
+  PressWithCtrlShift(web_contents(), ui::VKEY_I, u'I');
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return side_panel->IsSidePanelEntryShowing(
+        SidePanelEntry::Key(SidePanelEntry::Id::kRelief));
+  }));
+  content::WebContents* panel = nullptr;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    panel = FindInspector();
+    return panel && !panel->IsLoading() &&
+           InspectorOptions(panel).find("[button] Jetzt kaufen") !=
+               std::string::npos;
+  }));
+  auto check = [](const std::string& where, const baseline::Findings& f) {
+    EXPECT_TRUE(f.empty()) << where << ":\n" << base::JoinString(f, "\n");
+  };
+  auto js = [&](const std::string& script) {
+    return content::EvalJs(panel, script);
+  };
+  const std::vector<std::string> inspector_tabs = {
+      "input[inspector]", "summary[Fähigkeiten]", "#cmd",
+      "button[Ausführen]", "#listen",            "#nodes",
+      "summary[Nicht geprüfte Regeln]",          "#announce"};
+
+  // Befehle und Inspector.
+  check("Inspector, Name und Rolle", baseline::NamesAndRoles(panel));
+  check("Inspector, Live-Regionen",
+        baseline::LiveRegions(panel, {"cmd-state", "log", "status"}));
+  check("Inspector, Tastatur", baseline::KeyboardWalk(panel, inspector_tabs));
+
+  // Rückfrage in der Befehlsleiste: Zustand angesagt, Escape bricht ab,
+  // der Fokus bleibt im Eingabefeld.
+  ASSERT_TRUE(content::ExecJs(panel, R"(
+      document.getElementById('cmd').focus();
+      document.getElementById('cmd').value = 'klicke Jetzt kaufen';
+      document.getElementById('cmd-form').requestSubmit();)"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return js("document.getElementById('cmd-state').textContent")
+        .ExtractString()
+        .starts_with("Bestätigung erwartet");
+  }));
+  check("Rückfrage, Name und Rolle", baseline::NamesAndRoles(panel));
+  content::SimulateKeyPress(panel, ui::DomKey::ESCAPE, ui::DomCode::ESCAPE,
+                            ui::VKEY_ESCAPE, false, false, false, false);
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return !js("document.getElementById('cmd-state').textContent")
+                .ExtractString()
+                .starts_with("Bestätigung erwartet");
+  }));
+  EXPECT_EQ("cmd", js("document.activeElement.id"));
+  EXPECT_EQ("", content::EvalJs(web_contents(),
+                                "document.getElementById('s').textContent"));
+
+  // Fähigkeiten.
+  ASSERT_TRUE(content::ExecJs(
+      panel, "document.querySelector('#profile summary').click()"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return js("document.getElementById('profile').open").ExtractBool(); }));
+  check("Fähigkeiten, Name und Rolle", baseline::NamesAndRoles(panel));
+  check("Fähigkeiten, Live-Regionen",
+        baseline::LiveRegions(panel, {"profile-status"}));
+  check("Fähigkeiten, Tastatur",
+        baseline::KeyboardWalk(panel, {"summary[Fähigkeiten]", "#preset",
+                                       "#preset-apply",
+                                       "#profile-reset-all", "#cmd"}));
+
+  // 200 % Zoom: Inspector mit offenen Fähigkeiten, dann Semantic View.
+  content::HostZoomMap::SetZoomLevel(panel,
+                                     blink::ZoomFactorToZoomLevel(2.0));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return js("window.devicePixelRatio").ExtractDouble() >= 2.0;
+  }));
+  check("200 %, Inspector", baseline::Reflow(panel));
+  ASSERT_TRUE(content::ExecJs(
+      panel, "document.querySelector('#profile summary').click()"));
+
+  // Semantic View: Fokus wandert hinein, Rückfrage bekommt den Fokus,
+  // Abbrechen gibt ihn an den Auslöser zurück.
+  ASSERT_TRUE(content::ExecJs(
+      panel, "document.querySelector('input[value=semantic]').click()"));
+  const std::string kaufen =
+      "[...document.querySelectorAll('#semantic-body button')]"
+      ".find(e => e.textContent.startsWith('Jetzt kaufen'))";
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return js(kaufen + " !== undefined").ExtractBool(); }));
+  EXPECT_TRUE(js("document.getElementById('semantic').contains("
+                 "document.activeElement)")
+                  .ExtractBool());
+  check("200 %, Semantic View", baseline::Reflow(panel));
+  content::HostZoomMap::SetZoomLevel(panel, 0);
+  check("Semantic View, Name und Rolle", baseline::NamesAndRoles(panel));
+  check("Semantic View, Live-Regionen",
+        baseline::LiveRegions(panel, {"semantic-status", "status"}));
+  check("Semantic View, Tastatur",
+        baseline::KeyboardWalk(panel, {"input[semantic]",
+                                       "button[Jetzt kaufen]", "#announce"}));
+  ASSERT_TRUE(content::ExecJs(panel, kaufen + ".focus(); " + kaufen +
+                                         ".click()"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return js("document.activeElement.id").ExtractString() ==
+           "semantic-question";
+  }));
+  check("Semantic View, Rückfrage", baseline::NamesAndRoles(panel));
+  ASSERT_TRUE(content::ExecJs(
+      panel, "document.getElementById('semantic-no').click()"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return js("document.activeElement.textContent.startsWith('Jetzt kaufen')")
+        .ExtractBool();
+  }));
+  EXPECT_EQ("", content::EvalJs(web_contents(),
+                                "document.getElementById('s').textContent"));
+  ASSERT_TRUE(content::ExecJs(
+      panel, "document.querySelector('input[value=inspector]').click()"));
+
+  // Reduzierte Bewegung und erzwungene Farben: nichts bewegt sich, der
+  // Fokus bleibt sichtbar.
+  {
+    CdpClient cdp(panel);
+    baseline::EmulateMedia(cdp, {{"prefers-reduced-motion", "reduce"},
+                                 {"forced-colors", "active"}});
+    check("reduzierte Bewegung", baseline::NoMotion(panel));
+    check("erzwungene Farben, Tastatur",
+          baseline::KeyboardWalk(panel, inspector_tabs));
+    baseline::EmulateMedia(cdp, {});
+  }
+
+  // Schnelle Änderungen der Seite: höchstens zwei Ansagen in 4,5 s, keine
+  // mit ausgeschalteter Ansage.
+  constexpr char kZaehlen[] = R"(
+      window.__ansagen = 0;
+      new MutationObserver(() => window.__ansagen++).observe(
+          document.getElementById('status'),
+          {childList: true, characterData: true, subtree: true});)";
+  constexpr char kAendern[] = R"(
+      let i = 0;
+      const t = setInterval(() => {
+        const b = document.createElement('button');
+        b.textContent = 'Neu ' + i;
+        document.querySelector('main').append(b);
+        if (++i === 30) clearInterval(t);
+      }, 50);)";
+  constexpr char kWarten[] =
+      "new Promise(r => setTimeout(() => r(window.__ansagen), 4500))";
+  ASSERT_TRUE(content::ExecJs(panel, kZaehlen));
+  ASSERT_TRUE(content::ExecJs(web_contents(), kAendern));
+  const int ansagen = js(kWarten).ExtractInt();
+  EXPECT_GE(ansagen, 1);
+  EXPECT_LE(ansagen, 2);
+  ASSERT_TRUE(content::ExecJs(
+      panel, "document.getElementById('announce').click();" +
+                 std::string(kZaehlen)));
+  ASSERT_TRUE(content::ExecJs(web_contents(), kAendern));
+  EXPECT_EQ(0, js(kWarten).ExtractInt());
+}
+
+// Gegenprobe: Auf einer absichtlich kaputten Seite schlägt jede Prüfung
+// der Baseline an (sonst bewiese ein grünes UiBaseline nichts).
+IN_PROC_BROWSER_TEST_F(ReliefBrowserTest, UiBaselineGegenprobe) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), Url("a.test", "/baseline-kaputt.html")));
+  content::WebContents* page = web_contents();
+  auto has = [](const baseline::Findings& f, const std::string& text) {
+    for (const std::string& line : f) {
+      if (line.find(text) != std::string::npos) {
+        return true;
+      }
+    }
+    return false;
+  };
+  const baseline::Findings names = baseline::NamesAndRoles(page);
+  EXPECT_TRUE(has(names, "ohne Namen (#namenlos)"))
+      << base::JoinString(names, "\n");
+  EXPECT_TRUE(has(names, "Klick ohne Bedienrolle (#klickdiv)"))
+      << base::JoinString(names, "\n");
+  const baseline::Findings live = baseline::LiveRegions(page, {"stumm"});
+  EXPECT_TRUE(has(live, "#stumm ist keine Live-Region"))
+      << base::JoinString(live, "\n");
+  const baseline::Findings keys =
+      baseline::KeyboardWalk(page, {"#namenlos", "#falle"});
+  EXPECT_TRUE(has(keys, "ohne sichtbaren Fokus"))
+      << base::JoinString(keys, "\n");
+  EXPECT_TRUE(has(keys, "Tastaturfalle bei #falle"))
+      << base::JoinString(keys, "\n");
+  EXPECT_TRUE(has(baseline::Reflow(page), "#breit ragt hinaus"));
+  EXPECT_TRUE(has(baseline::NoMotion(page), "#wackelt bewegt sich"));
 }
 
 // Fähigkeitsprofil (Paket 41): ein Wert nur für eine Website wirkt dort
