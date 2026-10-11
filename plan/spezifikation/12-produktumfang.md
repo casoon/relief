@@ -115,14 +115,22 @@ geprüfte Pläne auf (→ 05, 07).
   `WebMcpOhneFeature` (`--disable-blink-features=WebMCP`: keine API, keine
   Werkzeuge). Back-Forward-Cache, Discard und OOPIF-Tests unverändert grün
   mit der zusätzlichen Sitzung je Tab.
-- **Kosten** [offen]: gemessen auf dem M4 (2026-10-10/11) mit einer Seite
-  von ~9 000 Knoten über `localhost`, je 4 Starts mit und ohne Client im
-  Wechsel, 8 Ladevorgänge: Median der Ladezeit ohne Client 935–2 173 ms,
-  mit 140–1 441 ms; die Streuung innerhalb einer Variante übersteigt jeden
-  Unterschied (Lastdurchschnitt 6–10 durch andere Prozesse). Ein Unterschied
-  ist weder belegt noch ausgeschlossen; wiederholen auf ruhigem Rechner
-  (→ Paket 144).
-  [Annahme] Die Sitzung aktiviert im Renderer nur den WebMCP-Agenten.
+- **Kosten** [belegt, Paket 144, M4 2026-10-11]: kein messbarer
+  Unterschied durch die Sitzung je Tab. Je 4 Starts mit und ohne Client
+  im Wechsel (Schalter nur im Checkout, nicht im Repo), je Start 15
+  Ladevorgänge über `localhost`, freie CPU 58–78 % (14 Kerne; der
+  Lastdurchschnitt liegt auf dem M4 auch in Ruhe um 10). Median je Start,
+  Spanne über die 4 Starts:
+
+  | Seite | ohne Client | mit Client |
+  |---|---|---|
+  | mittel (~1 800 Knoten, Skript hängt 600 an): Laden | 36,7–37,4 ms | 36,5–37,4 ms |
+  | mittel: Skript (600 Knoten anhängen) | 1,2–1,4 ms | 1,3 ms |
+  | klein (`kasse.html`): Laden | 12,1–14,4 ms | 12,4–13,5 ms |
+  | Renderer-Speicher (RSS aller Renderer) | 1 083–1 113 MB | 1 080–1 119 MB |
+
+  Die Seite mit ~9 000 Knoten taugt nicht zum Vergleich: dort hängt fast
+  jeder zweite Ladevorgang, mit und ohne Client (→ Paket 145).
   Nebenbefund: Auf dieser Seite kommt in beiden Varianten bei etwa jedem
   vierten Laden kein `load`-Ereignis innerhalb von 10 s (→ Paket 145).
 - **Grenze:** Die Sitzung des Tabs sieht Werkzeuge in Frames im Prozess des
