@@ -44,6 +44,7 @@ open -n -W -a "$APP" --stdout "$log" --stderr /dev/null --args \
   --no-first-run --use-mock-keychain \
   --user-data-dir="$work/profile" --relief-run="$list" \
   --disable-backgrounding-occluded-windows \
+  --disable-features=MacAppCodeSignClone \
   --relief-speech-volume="${RELIEF_SPEECH_VOLUME:-0}" \
   ${RELIEF_LOG:+--relief-log="$RELIEF_LOG"}
 cat "$log"
