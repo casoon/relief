@@ -11,6 +11,7 @@ export default defineConfig({
       name: 'Relief',
       description:
         'Research browser built on Chromium that understands web pages through the accessibility tree and adapts operation to people’s abilities.',
+      tagline: 'Accessibility-tree research browser',
       repo: 'casoon/relief',
       license: 'MIT',
       changelog: false,
