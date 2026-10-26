@@ -7,7 +7,7 @@
 # without the timing and expectation lines, plus the summary line of the run.
 # Rebuild the scenes afterwards:
 #   cd site/captures && for f in relief.terminal.yaml relief-narrow.terminal.yaml; do
-#     npx -y -p @casoon/castwright@0.4.0 -p shiki castwright build "$f" --format svg --loop-delay 12000 -o .; done
+#     npx -y -p @casoon/castwright@0.5.0 -p shiki castwright build "$f" --format svg --loop-delay 12000 -o .; done
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
