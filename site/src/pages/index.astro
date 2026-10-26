@@ -1,8 +1,11 @@
 ---
-import { Badge, Badges, Facts, Features, Hero, Quickstart, Terminal } from '@casoon/pages-theme/components';
+import { Badge, Badges, Facts, Features, Hero, Quickstart } from '@casoon/pages-theme/components';
 import Base from '@casoon/pages-theme/layouts/Base.astro';
-// Echter Auszug aus `--relief-log` (spiegel.de mit Consent-iframe), Felder gekürzt.
-import log from '../relief-log.txt?raw';
+// Animierte SVGs, mit castwright gebaut aus site/captures/relief*.terminal.yaml: Auszug eines
+// echten Laufs von relief-cdp über spike/tasks/01-shop-clean.txt (site/captures/shop-clean.txt,
+// siehe site/captures/excerpt.sh). Die schmale Szene hat 48 Spalten und bleibt auf dem Telefon lesbar.
+import reliefNarrowSvg from '../../captures/relief-narrow.svg?url';
+import reliefSvg from '../../captures/relief.svg?url';
 ---
 
 <Base>
@@ -18,7 +21,16 @@ import log from '../relief-log.txt?raw';
       <Badge>macOS first</Badge>
       <Badge>MIT</Badge>
     </Badges>
-    <Terminal slot="output" title="Relief --relief-log (spiegel.de, excerpt)" dots ansi={log} />
+    <picture slot="output">
+      <source media="(max-width: 640px)" srcset={reliefNarrowSvg} width="427.2" height="512" />
+      <img
+        class="terminal-demo"
+        src={reliefSvg}
+        width="578.4"
+        height="422"
+        alt="Terminal, excerpt of a real relief-cdp run against a test shop page (German interface). Command: cargo run -p relief-cdp -- run spike/tasks/01-shop-clean.txt. Input „Öffne den Warenkorb“: Relief answers that this is ambiguous and lists the link „Warenkorb (0)“ in the main menu and the button „In den Warenkorb“ in main. Input „klicke In den Warenkorb“: Activate on the button, focus on it, new text „Warenkorb (1)“ and „Größe 43 in den Warenkorb gelegt.“. Input „klicke Jetzt kaufen“: confirmation needed (High), because the name contains „kaufen“; „ja“ confirms exactly this one action. Summary: Erwartungen: 16 erfüllt, 0 nicht erfüllt."
+      />
+    </picture>
   </Hero>
 
   <Facts
@@ -65,3 +77,14 @@ import log from '../relief-log.txt?raw';
     ]}
   />
 </Base>
+
+<style>
+  /* Never scale the SVG beyond a readable terminal size. */
+  .terminal-demo {
+    display: block;
+    width: 100%;
+    max-width: 720px;
+    height: auto;
+    margin: 0 auto;
+  }
+</style>

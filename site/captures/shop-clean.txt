@@ -1,0 +1,98 @@
+
+=== spike/tasks/01-shop-clean.txt ===
+
+## file:///REPO/spike/fixtures/shop-clean.html
+Seite „Nike Air Max – Testshop“. Seitentyp vermutlich Produktseite (erschlossen: Button „In den Warenkorb“, Preis „129,00 €“, Hauptüberschrift „Nike Air Max“). Hauptüberschrift: „Nike Air Max“. Bereiche: banner, navigation „Hauptmenü“, search, main, region „Technische Daten“, contentinfo. 2 Überschriften, 12 Bedienelemente.
+
+> Was ist auf dieser Seite?
+  Seite „Nike Air Max – Testshop“. Seitentyp vermutlich Produktseite (erschlossen: Button „In den Warenkorb“, Preis „129,00 €“, Hauptüberschrift „Nike Air Max“). Hauptüberschrift: „Nike Air Max“. Bereiche: banner, navigation „Hauptmenü“, search, main, region „Technische Daten“, contentinfo. 2 Überschriften, 12 Bedienelemente.
+(0 ms; unverändert, keine Aufnahme)
+  ✓ erwartet „Nike Air Max“
+
+> Was kann ich hier tun?
+  navigation „Hauptmenü“:
+    - [link] Home
+    - [link] Produkte
+    - [link] Warenkorb (0)
+    - [link] Konto
+  search:
+    - [searchbox] Suche
+    - [button] Suchen
+  main:
+    - [combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 42 hasPopup=menu
+    - [button] In den Warenkorb
+    - [button] Größentabelle
+    - [button] Jetzt kaufen
+  contentinfo:
+    - [link] Impressum
+    - [link] Datenschutz
+(0 ms; unverändert, keine Aufnahme)
+  ✓ erwartet „Optionen: 39, 40, 41, 42, 43; gewählt: 42“
+
+> Welche Überschriften gibt es?
+  H1 Nike Air Max
+    H2 Technische Daten
+(0 ms; unverändert, keine Aufnahme)
+  ✓ erwartet „H2 Technische Daten“
+
+> Wähle 43
+  Select("43") auf [combobox] Größe Optionen: 39, 40, 41, 42, 43; gewählt: 42 hasPopup=menu. Ziel jetzt: Wert 42 → 43. Fokus jetzt auf combobox „Größe“. „42“: selected true → false. „43“: selected false → true.
+(164 ms; Ruhe nach 152 ms, 1 Mutationen, 0 Anfragen; neu aufgenommen (DOM geändert) in 7 ms)
+  ✓ erwartet „Select("43")“
+
+> Öffne den Warenkorb
+  Mehrdeutig, „Warenkorb“ passt auf:
+    1. [link] Warenkorb (0) in navigation „Hauptmenü“
+    2. [button] In den Warenkorb in main
+  Zahl oder Name wählt aus, „abbrechen“ verwirft.
+(0 ms; unverändert, keine Aufnahme)
+  ✓ erwartet „Mehrdeutig“
+
+> klicke In den Warenkorb
+  Activate auf [button] In den Warenkorb. Fokus jetzt auf button „In den Warenkorb“. Neuer Text: „Warenkorb (1)“, „Größe 43 in den Warenkorb gelegt.“.
+(163 ms; Ruhe nach 152 ms, 3 Mutationen, 0 Anfragen; neu aufgenommen (DOM geändert) in 8 ms)
+  ✓ erwartet „Größe 43 in den Warenkorb gelegt“
+
+> Öffne die Größentabelle
+  Activate auf [button] Größentabelle. Fokus jetzt auf button „Schließen“. Dialog „Größentabelle“ geöffnet. Rest der Seite ist gesperrt, solange er offen ist.
+(159 ms; Ruhe nach 152 ms, 2 Mutationen, 0 Anfragen; neu aufgenommen (DOM geändert) in 4 ms)
+  ✓ erwartet „Dialog „Größentabelle“ geöffnet“
+
+> Schließe den Dialog
+  Activate auf [button] Schließen. Fokus jetzt auf button „Größentabelle“. Dialog „Größentabelle“ geschlossen. Neuer Text: „Home“, „Produkte“, „Warenkorb (1)“.
+(162 ms; Ruhe nach 152 ms, 2 Mutationen, 0 Anfragen; neu aufgenommen (DOM geändert) in 7 ms)
+  ✓ erwartet „Activate auf [button] Schließen“
+  ✓ erwartet „Dialog „Größentabelle“ geschlossen“
+  ✓ erwartet „Fokus jetzt auf button „Größentabelle““
+
+> Schließe den Dialog
+  Kein Dialog und kein aufgeklapptes Menü offen.
+(0 ms; unverändert, keine Aufnahme)
+  ✓ erwartet „Kein Dialog“
+
+> gehe zu Suche
+  Focus auf [searchbox] Suche. Fokus jetzt auf searchbox „Suche“.
+(163 ms; Ruhe nach 152 ms, 0 Mutationen, 0 Anfragen; neu aufgenommen (eigene Aktion) in 7 ms)
+  ✓ erwartet „Focus“
+
+> fülle Suche mit Laufschuhe
+  SetValue("Laufschuhe") auf [searchbox] Suche. Ziel jetzt: Wert leer → Laufschuhe. Neuer Text: „Laufschuhe“.
+(162 ms; Ruhe nach 152 ms, 1 Mutationen, 0 Anfragen; neu aufgenommen (DOM geändert) in 8 ms)
+  ✓ erwartet „SetValue("Laufschuhe")“
+
+> Jetzt kaufen
+  Nicht verstanden: „Jetzt kaufen“. „hilfe“ zeigt die Befehle.
+(0 ms; unverändert, keine Aufnahme)
+  ✓ erwartet „Nicht verstanden“
+
+> klicke Jetzt kaufen
+  Bestätigung nötig (High): Name enthält „kaufen“ — Aktion: Activate, Ziel: [button] Jetzt kaufen. „ja“ (oder „!“ vor denselben Befehl) bestätigt einmal und nur genau diese Aktion, „abbrechen“ verwirft sie.
+(0 ms; unverändert, keine Aufnahme)
+  ✓ erwartet „Bestätigung nötig“
+
+> !klicke Jetzt kaufen
+  Activate auf [button] Jetzt kaufen. Fokus jetzt auf button „Jetzt kaufen“. Neuer Text: „Bestellung ausgelöst!“.
+(163 ms; Ruhe nach 152 ms, 2 Mutationen, 0 Anfragen; neu aufgenommen (DOM geändert) in 8 ms)
+  ✓ erwartet „Activate“
+
+Erwartungen: 16 erfüllt, 0 nicht erfüllt
