@@ -21,6 +21,8 @@ trap 'rm -rf "$profile"' EXIT
 
 args=(--no-first-run --use-mock-keychain
       --user-data-dir="$profile" --relief-run="$files"
+      # Der Lauf endet hart, die App-Kopie unter /var/folders/…/X/ bliebe liegen.
+      --disable-features=MacAppCodeSignClone
       # Verdeckte Fenster rendern nicht, Blink serialisiert dann keinen Baum.
       --disable-backgrounding-occluded-windows)
 if [[ -n "${RELIEF_LOG:-}" ]]; then

@@ -133,7 +133,10 @@ async fn main() -> Result<()> {
         },
         other => Err(anyhow::anyhow!("unbekannter Modus {other}")),
     };
+    // Warten, bis Chrome beendet ist: verwirft man `Browser` direkt nach
+    // `close()`, beendet chromiumoxide den Prozess hart.
     browser.close().await.ok();
+    browser.wait().await.ok();
     handler.abort();
     result
 }
@@ -145,6 +148,12 @@ async fn launch(headful: bool) -> Result<(Browser, tokio::task::JoinHandle<()>)>
     } else {
         config.new_headless_mode()
     };
+    // Chrome legt unter macOS bei jedem Start eine Kopie der App in
+    // `/var/folders/…/X/` an und räumt sie nur beim regulären Beenden weg;
+    // bei Abbrüchen bleiben sie liegen. Automatisierte Läufe brauchen sie
+    // nicht. `TranslateUI` steht schon in den Standardargumenten von
+    // chromiumoxide, und Chromium wertet nur das letzte `--disable-features` aus.
+    config = config.arg("--disable-features=TranslateUI,MacAppCodeSignClone");
     // Die automatische Erkennung greift ggf. einen verwaisten Wrapper;
     // `CHROME` setzt den Pfad explizit.
     if let Some(path) = std::env::var_os("CHROME").map(PathBuf::from).or_else(|| {
@@ -698,6 +707,9 @@ fn test_fork(files: &[&String], junit: Option<PathBuf>) -> Result<()> {
             "--enable-relief",
             "--no-first-run",
             "--use-mock-keychain",
+            // Der Lauf endet mit `TerminateCurrentProcessImmediately`, die
+            // App-Kopie unter `/var/folders/…/X/` würde liegen bleiben.
+            "--disable-features=MacAppCodeSignClone",
         ])
         .arg(format!("--user-data-dir={}", profile.display()))
         .arg(format!("--relief-run={}", files.join(",")))
