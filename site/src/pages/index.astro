@@ -1,11 +1,30 @@
 ---
-import { Badge, Badges, Facts, Features, Hero, Quickstart } from '@casoon/pages-theme/components';
+import { readFile } from 'node:fs/promises';
+import {
+  Badge,
+  Badges,
+  Facts,
+  Faq,
+  Features,
+  Hero,
+  Quickstart,
+  ReleaseHighlights,
+} from '@casoon/pages-theme/components';
 import Base from '@casoon/pages-theme/layouts/Base.astro';
+import config from 'virtual:casoon-pages/config';
+import { parseChangelog } from '@casoon/pages-theme/lib/changelog';
 // Animierte SVGs, mit castwright gebaut aus site/captures/relief*.terminal.yaml: Auszug eines
 // echten Laufs von relief-cdp über spike/tasks/01-shop-clean.txt (site/captures/shop-clean.txt,
 // siehe site/captures/excerpt.sh). Die schmale Szene hat 48 Spalten und bleibt auf dem Telefon lesbar.
 import reliefNarrowSvg from '../../captures/relief-narrow.svg?url';
 import reliefSvg from '../../captures/relief.svg?url';
+
+// Skip "Unreleased": it has no version to show as "New in v…" yet.
+const latestRelease = config.changelog
+  ? parseChangelog(await readFile(config.changelog, 'utf8')).find(
+      (r) => r.version.toLowerCase() !== 'unreleased'
+    )
+  : undefined;
 ---
 
 <Base>
@@ -74,6 +93,33 @@ import reliefSvg from '../../captures/relief.svg?url';
       'Done: ability profiles — output, input and presentation adapted to abilities, globally or per site, stored locally only.',
       'Done for testing: form assertions, headless runs with JUnit reports, Playwright access to the page model.',
       'Next: real screen-reader output in tests, an accessibility baseline for Relief’s own interface checked with VoiceOver, the runtime in a sandboxed utility process.',
+    ]}
+  />
+
+  {latestRelease && <ReleaseHighlights release={latestRelease} />}
+
+  <Faq
+    items={[
+      {
+        q: 'Does Relief replace a screen reader like VoiceOver or NVDA?',
+        a: 'No. Relief runs alongside VoiceOver and NVDA rather than instead of them, and the Chromium fork keeps VoiceOver output unchanged while Relief is active.',
+      },
+      {
+        q: 'What parts of Relief are actually usable today?',
+        a: 'Phase 0 — feasibility inside a real Chromium build — is complete. The phase 1 surfaces run in the fork: the Relief panel, command bar, semantic inspector, semantic view, speech, bookmarks, the form assistant and consent handling.',
+      },
+      {
+        q: 'How does Relief handle cookie and consent dialogs?',
+        a: 'It detects consent dialogs, including those in cross-site iframes, and can decline them on request — it never accepts a consent dialog on a person’s behalf.',
+      },
+      {
+        q: 'Can a model take actions on a page by itself?',
+        a: 'No. Every action runs through a validated plan in Rust before it reaches the page, and a model may only suggest an action, never execute one directly; risky actions need an explicit confirmation.',
+      },
+      {
+        q: 'Can Relief’s behavior be tested automatically?',
+        a: 'Yes. The same core runs as a test mode with form assertions, headless runs that produce a JUnit report, and Playwright access through the CDP domain Relief.*.',
+      },
     ]}
   />
 </Base>
