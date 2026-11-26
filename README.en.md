@@ -82,6 +82,10 @@ described in [`docs/project-state.md`](docs/project-state.md).
 Shared accessibility building blocks come from
 [barrierlab](https://github.com/casoon/barrierlab).
 
+## Author
+
+Built and maintained by [Jörn Seidel](https://www.casoon.de/joern-seidel/) ([CASOON](https://www.casoon.de/)). Background and design decisions are described in an article on Insights (in German): [Relief: ein Chromium-Fork, der Webseiten über den Accessibility-Tree bedient](https://insights.casoon.de/artikel/relief-browser-accessibility-tree-semantische-bedienung/).
+
 ## License
 
 MIT, see [`LICENSE`](LICENSE). Chromium code keeps its own licenses.

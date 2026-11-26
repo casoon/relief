@@ -71,6 +71,10 @@ beschreibt [`docs/project-state.md`](docs/project-state.md).
 Gemeinsame Barrierefreiheits-Bausteine kommen aus
 [barrierlab](https://github.com/casoon/barrierlab).
 
+## Autor
+
+Entwickelt und gepflegt von [Jörn Seidel](https://www.casoon.de/joern-seidel/) ([CASOON](https://www.casoon.de/)). Hintergrund und Entwurfsentscheidungen beschreibt ein Artikel auf Insights: [Relief: ein Chromium-Fork, der Webseiten über den Accessibility-Tree bedient](https://insights.casoon.de/artikel/relief-browser-accessibility-tree-semantische-bedienung/).
+
 ## Lizenz
 
 MIT, siehe [`LICENSE`](LICENSE). Chromium-Code behält seine eigenen Lizenzen.
